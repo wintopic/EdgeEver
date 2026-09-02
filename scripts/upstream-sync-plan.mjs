@@ -29,16 +29,16 @@ export function decideUpstreamSync({
 
   if (!preserveForkChanges) {
     if (headIsAncestorOfTarget) {
-      return update("reset", "behind_target");
+      return update("snapshot", "behind_target");
     }
     if (targetIsAncestorOfHead) {
-      return update("reset", "deploy_mirror_ahead");
+      return update("snapshot", "deploy_mirror_ahead");
     }
-    return update("reset", "deploy_mirror_reset");
+    return update("snapshot", "deploy_mirror_reset");
   }
 
   if (headIsAncestorOfTarget) {
-    return update("reset", "behind_target");
+    return update("snapshot", "behind_target");
   }
   if (targetIsAncestorOfHead) {
     return noUpdate("customized_contains_target", forceRedeploy);
@@ -53,10 +53,21 @@ function readBooleanEnvironment(name) {
   throw new Error(`${name} must be either true or false`);
 }
 
+export const shouldRedeploy = ({ eventName, forceRedeploy }) =>
+  forceRedeploy || eventName === "workflow_dispatch";
+
 function runCli() {
+  // Older deployment Forks keep their local workflow bootstrap, where manual
+  // runs passed FORCE_REDEPLOY=false unless a checkbox was discovered and set.
+  // GitHub always provides GITHUB_EVENT_NAME, so a planner loaded from a newer
+  // upstream target can give those Forks the corrected manual-run behavior too.
+  const forceRedeploy = shouldRedeploy({
+    eventName: process.env.GITHUB_EVENT_NAME,
+    forceRedeploy: readBooleanEnvironment("EDGE_SYNC_FORCE_REDEPLOY"),
+  });
   const plan = decideUpstreamSync({
     contentMatchesTarget: readBooleanEnvironment("EDGE_SYNC_CONTENT_MATCHES_TARGET"),
-    forceRedeploy: readBooleanEnvironment("EDGE_SYNC_FORCE_REDEPLOY"),
+    forceRedeploy,
     headEqualsTarget: readBooleanEnvironment("EDGE_SYNC_HEAD_EQUALS_TARGET"),
     headIsAncestorOfTarget: readBooleanEnvironment("EDGE_SYNC_HEAD_IS_ANCESTOR_OF_TARGET"),
     preserveForkChanges: readBooleanEnvironment("EDGE_SYNC_PRESERVE_FORK_CHANGES"),
