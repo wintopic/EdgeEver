@@ -1,5 +1,18 @@
 import { z } from "zod";
-import { AI_ACTIONS, AI_TARGET_LANGUAGES, AI_TONES } from "./ai-assistant";
+import {
+  AI_ACTIONS,
+  AI_ATTACHMENT_MEDIA_TYPES,
+  AI_PROMPT_PARAMETER_KINDS,
+  AI_PROMPT_RESULT_MODES,
+  AI_TARGET_LANGUAGES,
+  AI_TONES,
+  MAX_AI_ATTACHMENTS,
+  MAX_AI_ATTACHMENTS_TOTAL_BYTES,
+  MAX_AI_ATTACHMENT_BYTES,
+  MAX_AI_TEXT_ATTACHMENT_BYTES,
+  getBase64DecodedByteLength,
+  isAiTextAttachment,
+} from "./ai-assistant";
 
 export const NotebookCreateSchema = z.object({
   name: z.string().trim().min(1).max(80),
@@ -203,26 +216,93 @@ export const AiDefaultModelUpdateSchema = z.object({
   modelConfigId: z.string().trim().min(1).nullable(),
 });
 
+export const AiAttachmentSchema = z.object({
+  filename: z.string().trim().min(1).max(255).regex(/^[^\u0000-\u001F\u007F]+$/),
+  mediaType: z.enum(AI_ATTACHMENT_MEDIA_TYPES),
+  base64Data: z.string().min(1).max(Math.ceil(MAX_AI_ATTACHMENT_BYTES / 3) * 4),
+}).superRefine((attachment, context) => {
+  const byteLength = getBase64DecodedByteLength(attachment.base64Data);
+  if (byteLength === null) {
+    context.addIssue({ code: "custom", path: ["base64Data"], message: "Attachment data must be valid base64." });
+    return;
+  }
+  const limit = isAiTextAttachment(attachment.mediaType)
+    ? MAX_AI_TEXT_ATTACHMENT_BYTES
+    : MAX_AI_ATTACHMENT_BYTES;
+  if (byteLength > limit) {
+    context.addIssue({ code: "custom", path: ["base64Data"], message: "The attachment is too large." });
+  }
+});
+
 export const AiGenerateSchema = z.object({
   action: z.enum(AI_ACTIONS),
+  promptId: z.string().trim().min(1).max(200).optional(),
+  locale: z.string().trim().min(2).max(35).optional(),
   title: z.string().trim().max(160).default(""),
   contentMarkdown: z.string().max(300_000),
+  stream: z.boolean().default(false),
   targetLanguage: z.enum(AI_TARGET_LANGUAGES).optional(),
   tone: z.enum(AI_TONES).optional(),
   instruction: z.string().trim().min(1).max(2_000).optional(),
+  attachments: z.array(AiAttachmentSchema).max(MAX_AI_ATTACHMENTS).default([]),
 }).superRefine((input, context) => {
-  if (input.action === "translate" && !input.targetLanguage) {
+  if (!input.promptId && input.action === "translate" && !input.targetLanguage) {
     context.addIssue({ code: "custom", path: ["targetLanguage"], message: "A target language is required for translation." });
   }
-  if (input.action === "change-tone" && !input.tone) {
+  if (!input.promptId && input.action === "change-tone" && !input.tone) {
     context.addIssue({ code: "custom", path: ["tone"], message: "A tone is required when changing tone." });
   }
-  if (input.action === "custom" && !input.instruction) {
+  if (!input.promptId && input.action === "custom" && !input.instruction) {
     context.addIssue({ code: "custom", path: ["instruction"], message: "An instruction is required for a custom action." });
   }
-  if (!input.title && !input.contentMarkdown.trim()) {
+  const canGenerateWithoutSource = input.action === "custom" && Boolean(input.instruction || input.promptId);
+  if (!input.title && !input.contentMarkdown.trim() && input.attachments.length === 0 && !canGenerateWithoutSource) {
     context.addIssue({ code: "custom", path: ["contentMarkdown"], message: "Note content is required." });
   }
+  const totalAttachmentBytes = input.attachments.reduce(
+    (total, attachment) => total + (getBase64DecodedByteLength(attachment.base64Data) ?? 0),
+    0,
+  );
+  if (totalAttachmentBytes > MAX_AI_ATTACHMENTS_TOTAL_BYTES) {
+    context.addIssue({ code: "custom", path: ["attachments"], message: "The attachments are too large in total." });
+  }
+});
+
+export const AiTagSuggestionsRequestSchema = z.object({
+  title: z.string().trim().max(160).default(""),
+  contentMarkdown: z.string().max(300_000),
+  currentTags: z.array(z.string().trim().min(1).max(200)).max(24).default([]),
+  locale: z.string().trim().min(2).max(35).optional(),
+}).superRefine((input, context) => {
+  if (!input.title && !input.contentMarkdown.trim()) {
+    context.addIssue({
+      code: "custom",
+      path: ["contentMarkdown"],
+      message: "Note content is required.",
+    });
+  }
+});
+
+export const AiTagSuggestionPromptUpdateSchema = z.object({
+  prompt: z.string().trim().min(1).max(4_000).nullable(),
+});
+
+export const AiPromptTemplateCreateSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  description: z.string().trim().max(200).optional(),
+  instruction: z.string().trim().min(1).max(2_000),
+  parameterKind: z.enum(AI_PROMPT_PARAMETER_KINDS).default("none"),
+  resultMode: z.enum(AI_PROMPT_RESULT_MODES).default("both"),
+});
+
+export const AiPromptTemplateUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(80).optional(),
+  description: z.string().trim().max(200).nullable().optional(),
+  instruction: z.string().trim().min(1).max(2_000).optional(),
+  parameterKind: z.enum(AI_PROMPT_PARAMETER_KINDS).optional(),
+  resultMode: z.enum(AI_PROMPT_RESULT_MODES).optional(),
+}).refine((input) => Object.values(input).some((value) => value !== undefined), {
+  message: "At least one field is required.",
 });
 
 export type NotebookCreateInput = z.infer<typeof NotebookCreateSchema>;
@@ -249,4 +329,9 @@ export type AiProviderConfigUpdateInput = z.infer<typeof AiProviderConfigUpdateS
 export type AiProviderConnectionTestInput = z.infer<typeof AiProviderConnectionTestSchema>;
 export type AiModelConfigCreateInput = z.infer<typeof AiModelConfigCreateSchema>;
 export type AiDefaultModelUpdateInput = z.infer<typeof AiDefaultModelUpdateSchema>;
-export type AiGenerateInput = z.infer<typeof AiGenerateSchema>;
+export type AiGenerateInput = z.input<typeof AiGenerateSchema>;
+export type AiAttachmentInput = z.infer<typeof AiAttachmentSchema>;
+export type AiTagSuggestionsRequestInput = z.infer<typeof AiTagSuggestionsRequestSchema>;
+export type AiTagSuggestionPromptUpdateInput = z.infer<typeof AiTagSuggestionPromptUpdateSchema>;
+export type AiPromptTemplateCreateInput = z.input<typeof AiPromptTemplateCreateSchema>;
+export type AiPromptTemplateUpdateInput = z.infer<typeof AiPromptTemplateUpdateSchema>;

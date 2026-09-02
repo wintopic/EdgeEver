@@ -1,10 +1,12 @@
 import Feather from "@expo/vector-icons/Feather";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import type { ComponentProps } from "react";
 import { ActivityIndicator as NativeActivityIndicator, type ActivityIndicatorProps } from "react-native";
 import { resolveMobileThemeColor, useMobileTheme } from "../lib/mobile-theme";
 
 type FeatherName = ComponentProps<typeof Feather>["name"];
 type IconProps = Omit<ComponentProps<typeof Feather>, "name">;
+type MaterialCommunityIconProps = Omit<ComponentProps<typeof MaterialCommunityIcons>, "name">;
 
 export const ActivityIndicator = ({ color, ...props }: ActivityIndicatorProps) => {
   const { resolvedTheme } = useMobileTheme();
@@ -21,6 +23,7 @@ const createIcon = (name: FeatherName) => {
 };
 
 export const Archive = createIcon("archive");
+export const Activity = createIcon("activity");
 export const AlertTriangle = createIcon("alert-triangle");
 export const ArrowUpCircle = createIcon("arrow-up-circle");
 export const BookOpen = createIcon("book-open");
@@ -32,6 +35,7 @@ export const ChevronDown = createIcon("chevron-down");
 export const ChevronLeft = createIcon("chevron-left");
 export const ChevronRight = createIcon("chevron-right");
 export const Code = createIcon("code");
+export const Cloud = createIcon("cloud");
 export const Copy = createIcon("copy");
 export const Database = createIcon("database");
 export const Download = createIcon("download");
@@ -41,6 +45,11 @@ export const FileSpreadsheet = createIcon("grid");
 export const FileText = createIcon("file-text");
 export const Folder = createIcon("folder");
 export const Grid = createIcon("grid");
+export const GitHub = createIcon("github");
+export const GooglePlay = ({ color, ...props }: MaterialCommunityIconProps) => {
+  const { resolvedTheme } = useMobileTheme();
+  return <MaterialCommunityIcons name="google-play" {...props} color={resolveMobileThemeColor(color as string | undefined, resolvedTheme)} />;
+};
 export const HardDrive = createIcon("hard-drive");
 export const Heading2 = createIcon("type");
 export const History = createIcon("clock");
@@ -58,6 +67,7 @@ export const LogOut = createIcon("log-out");
 export const Moon = createIcon("moon");
 export const Merge = createIcon("git-merge");
 export const MessageSquare = createIcon("message-square");
+export const MonitorSmartphone = createIcon("smartphone");
 export const Minus = createIcon("minus");
 export const MoreHorizontal = createIcon("more-horizontal");
 export const MoreVertical = createIcon("more-vertical");
@@ -76,6 +86,10 @@ export const Sparkles = createIcon("star");
 export const Square = createIcon("square");
 export const Sun = createIcon("sun");
 export const Tag = createIcon("tag");
+export const TagPlus = ({ color, ...props }: MaterialCommunityIconProps) => {
+  const { resolvedTheme } = useMobileTheme();
+  return <MaterialCommunityIcons name="tag-plus-outline" {...props} color={resolveMobileThemeColor(color as string | undefined, resolvedTheme)} />;
+};
 export const Trash2 = createIcon("trash-2");
 export const Upload = createIcon("upload");
 export const UserRound = createIcon("user");

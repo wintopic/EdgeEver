@@ -9,6 +9,8 @@
 node_modules/
 .idea/
 dist/
+!packages/plugin-api/dist/
+!packages/plugin-api/dist/**
 build/
 apps/extension/dist-firefox/
 apps/extension/web-ext-artifacts/
@@ -24,6 +26,7 @@ target/
 .wrangler/
 .wrangler.generated-migrations/
 .wrangler.generated*.toml
+.wrangler.deployment-targets.json
 .dev.vars
 wrangler.local.toml
 

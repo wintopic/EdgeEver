@@ -16,35 +16,39 @@ import { useTranslation } from "react-i18next";
 import * as m from "motion/react-m";
 import { SystemInfoDialog } from "@/components/SystemInfoDialog";
 import { Button } from "@/components/ui/button";
-import type { ShortcutSettings } from "@/lib/app-helpers";
+import type { EditorContentAlignment, ShortcutSettings } from "@/lib/app-helpers";
 import { WORKSPACE_PAGE_TITLE_CLASSNAME } from "@/lib/workspace-ui";
 import { cn } from "@/lib/utils";
 import { AdvancedPlayCard } from "./settings/AdvancedPlayCard";
 import { AccountInfoCard } from "./settings/AccountInfoCard";
 import { DataExportCard } from "./settings/DataExportCard";
+import { DesktopLocalDataCard } from "./settings/DesktopLocalDataCard";
 import { LoginDevicesCard } from "./settings/LoginDevicesCard";
 import { EvernoteImportGuideCard } from "./settings/EvernoteImportGuideCard";
 import { FeedbackLink } from "./settings/FeedbackLink";
 import { McpConfigCard } from "./settings/McpConfigCard";
 import { PreferenceCard } from "./settings/PreferenceCard";
 import { PasswordCard } from "./settings/PasswordCard";
-import { SessionCard } from "./settings/SessionCard";
 import { UserManagementCard } from "./settings/UserManagementCard";
 import { ObjectStorageCard } from "./settings/ObjectStorageCard";
 import { AiModelCard } from "./settings/AiModelCard";
+import { AiPromptsCard } from "./settings/AiPromptsCard";
+import { AiTagSuggestionPromptCard } from "./settings/AiTagSuggestionPromptCard";
 import { ThemeToggle } from "./ThemeToggle";
 import type { AuthUser } from "@edgeever/shared";
 import { contentEnterMotion } from "@/lib/motion";
+import { useDeployedUpdateNotice } from "@/hooks/useDeployedUpdateNotice";
 
 interface SettingsPaneProps {
   onClose: () => void;
   onOpenTemplates: () => void;
+  onOpenAiPrompts: () => void;
   imageCompressionEnabled: boolean;
   onImageCompressionChange: (enabled: boolean) => void;
-  syncIntervalMs: number | null;
-  onSyncIntervalChange: (intervalMs: number | null) => void;
   shortcutSettings: ShortcutSettings;
   onShortcutSettingsChange: (settings: ShortcutSettings) => void;
+  editorContentAlignment: EditorContentAlignment;
+  onEditorContentAlignmentChange: (alignment: EditorContentAlignment) => void;
   onLogout: () => void;
   isLoggingOut: boolean;
   authRequired: boolean;
@@ -77,12 +81,13 @@ interface TabItem {
 export const SettingsPane = ({
   onClose,
   onOpenTemplates,
+  onOpenAiPrompts,
   imageCompressionEnabled,
   onImageCompressionChange,
-  syncIntervalMs,
-  onSyncIntervalChange,
   shortcutSettings,
   onShortcutSettingsChange,
+  editorContentAlignment,
+  onEditorContentAlignmentChange,
   onLogout,
   isLoggingOut,
   authRequired,
@@ -95,6 +100,8 @@ export const SettingsPane = ({
   const [activeTab, setActiveTab] = useState<TabKey>("general");
   const [activeMobileTab, setActiveMobileTab] = useState<TabKey | null>(null);
   const [systemInfoOpen, setSystemInfoOpen] = useState(false);
+  const { unseen: deployedUpdateUnseen } = useDeployedUpdateNotice();
+  const canClearLocalData = Boolean(window.edgeeverDesktop?.canClearLocalData);
 
   const tabItems: TabItem[] = [
     {
@@ -135,17 +142,17 @@ export const SettingsPane = ({
             hoverColorClass: "hover:bg-emerald-50/40",
             iconColorClass: "text-emerald-600",
           },
-          {
-            key: "advanced" as const,
-            label: t("settings.tabs.advanced"),
-            icon: Wrench,
-            colorClass: "text-emerald-700",
-            bgColorClass: "bg-emerald-50/80",
-            hoverColorClass: "hover:bg-emerald-50/40",
-            iconColorClass: "text-emerald-600",
-          },
         ]
       : []),
+    {
+      key: "advanced",
+      label: t("settings.tabs.advanced"),
+      icon: Wrench,
+      colorClass: "text-emerald-700",
+      bgColorClass: "bg-emerald-50/80",
+      hoverColorClass: "hover:bg-emerald-50/40",
+      iconColorClass: "text-emerald-600",
+    },
     {
       key: "account",
       label: t("settings.tabs.account"),
@@ -197,10 +204,10 @@ export const SettingsPane = ({
             <PreferenceCard
               imageCompressionEnabled={imageCompressionEnabled}
               onImageCompressionChange={onImageCompressionChange}
-              syncIntervalMs={syncIntervalMs}
-              onSyncIntervalChange={onSyncIntervalChange}
               shortcutSettings={shortcutSettings}
               onShortcutSettingsChange={onShortcutSettingsChange}
+              editorContentAlignment={editorContentAlignment}
+              onEditorContentAlignmentChange={onEditorContentAlignmentChange}
             />
             <FeedbackLink className="hidden lg:flex" />
           </SettingsGroup>
@@ -223,22 +230,30 @@ export const SettingsPane = ({
           <SettingsGroup>
             <AiModelCard />
             <McpConfigCard />
+            <AiPromptsCard onOpenLibrary={onOpenAiPrompts} />
             <AdvancedPlayCard />
           </SettingsGroup>
         );
       case "advanced":
-        return isOwner ? (
+        return (
           <SettingsGroup>
-            <ObjectStorageCard demoMode={demoMode} />
+            <AiTagSuggestionPromptCard />
+            {isOwner ? <ObjectStorageCard demoMode={demoMode} /> : null}
+            {canClearLocalData ? <DesktopLocalDataCard /> : null}
           </SettingsGroup>
-        ) : null;
+        );
       case "account":
         return (
           <SettingsGroup>
             <AccountInfoCard user={user} />
             <PasswordCard authRequired={authRequired} demoMode={demoMode} />
-            {demoMode ? null : <LoginDevicesCard authRequired={authRequired} />}
-            <SessionCard authRequired={authRequired} isLoggingOut={isLoggingOut} onLogout={onLogout} />
+            {demoMode ? null : (
+              <LoginDevicesCard
+                authRequired={authRequired}
+                isLoggingOut={isLoggingOut}
+                onLogout={onLogout}
+              />
+            )}
           </SettingsGroup>
         );
       default:
@@ -267,7 +282,9 @@ export const SettingsPane = ({
             </h1>
           </div>
         </div>
-        <ThemeToggle className="inline-flex" showLabel />
+        <div className="flex items-center gap-1">
+          <ThemeToggle className="inline-flex" showLabel />
+        </div>
       </header>
 
       <div className="flex flex-1 min-h-0 min-w-0 bg-slate-50/50">
@@ -324,6 +341,19 @@ export const SettingsPane = ({
                   </div>
                   <ChevronRight className="h-4 w-4 text-slate-400" />
                 </button>
+                <button
+                  type="button"
+                  onClick={onOpenAiPrompts}
+                  className="flex w-full items-center justify-between gap-4 border-t border-slate-100 p-4 text-left transition-colors hover:bg-slate-50/50"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50/80">
+                      <Sparkles className="h-4 w-4 text-emerald-600" />
+                    </div>
+                    <span className="text-sm font-semibold text-slate-800">{t("nav.prompts")}</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-slate-400" />
+                </button>
               </div>
               <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white">
                 {tabItems.map((item) => {
@@ -353,8 +383,9 @@ export const SettingsPane = ({
                   className="flex min-h-16 w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-slate-600 transition-colors hover:bg-slate-200/50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/70"
                 >
                   <span className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50/80">
+                    <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50/80">
                       <Info className="h-4 w-4 text-emerald-600" />
+                      {deployedUpdateUnseen ? <span className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-emerald-500 ring-2 ring-white" /> : null}
                     </span>
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-semibold">{t("systemInfo.title")}</span>

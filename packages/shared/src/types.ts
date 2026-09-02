@@ -1,4 +1,5 @@
 import type { TiptapDoc } from "./content";
+import type { AiAction, AiPromptParameterKind, AiPromptResultMode } from "./ai-assistant";
 
 export type Notebook = {
   id: string;
@@ -138,8 +139,27 @@ export type AiProviderConfig = {
 export type AiSettings = {
   providers: AiProviderConfig[];
   defaultModelId: string | null;
+  tagSuggestionPrompt: string;
+  tagSuggestionPromptCustomized: boolean;
   encryptionConfigured: boolean;
   readOnly: boolean;
+};
+
+export type AiPromptTemplate = {
+  id: string;
+  origin: "default" | "custom";
+  seedKey: Exclude<AiAction, "custom"> | null;
+  action: AiAction;
+  parameterKind: AiPromptParameterKind;
+  resultMode: AiPromptResultMode;
+  nameCustomized: boolean;
+  descriptionCustomized: boolean;
+  instructionCustomized: boolean;
+  name: string;
+  description: string | null;
+  instruction: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type AiDiscoveredModel = {
@@ -152,6 +172,15 @@ export type AiStreamEvent =
   | { type: "text-delta"; text: string }
   | { type: "finish"; finishReason?: string; inputTokens?: number; outputTokens?: number }
   | { type: "error"; code: string; message: string };
+
+export type AiTagSuggestion = {
+  name: string;
+  existing: boolean;
+};
+
+export type AiTagSuggestionsResponse = {
+  suggestions: AiTagSuggestion[];
+};
 
 export type ApiToken = {
   id: string;

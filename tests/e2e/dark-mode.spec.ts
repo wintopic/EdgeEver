@@ -96,6 +96,35 @@ test.describe("dark mode visual contracts", () => {
     expect(await auditVisibleTextContrast(page)).toEqual([]);
   });
 
+  test("notebook move picker keeps highlighted options dark and selected labels clean", async ({ page }) => {
+    await page.goto("/");
+    const selectMemosButton = page.getByRole("button", { name: "选择笔记", exact: true });
+    if (await selectMemosButton.isDisabled()) {
+      await page.getByRole("button", { name: "手动同步笔记", exact: true }).click();
+    }
+    await expect(selectMemosButton).toBeEnabled({ timeout: 20_000 });
+    await selectMemosButton.click();
+
+    const actionBar = page.locator("[data-memo-selection-action-bar]");
+    const actionCard = actionBar.locator(":scope > div");
+    await expect(actionBar).toBeVisible();
+    await expect.poll(async () => (await actionCard.boundingBox())?.y ?? Number.POSITIVE_INFINITY).toBeLessThan(120);
+
+    const notebookSelect = actionBar.getByRole("combobox");
+    await expect(notebookSelect).toContainText("功能演示");
+    await expect(notebookSelect).not.toContainText("└");
+    await notebookSelect.click();
+
+    const nestedNotebook = page.getByRole("option", { name: /功能演示/ });
+    await nestedNotebook.hover();
+    await expect.poll(() => nestedNotebook.evaluate((element) => getComputedStyle(element).backgroundColor))
+      .not.toBe("rgb(241, 245, 249)");
+    expect(await auditVisibleTextContrast(page)).toEqual([]);
+
+    await nestedNotebook.click();
+    await expect(notebookSelect).toHaveText("功能演示");
+  });
+
   test("public share content remains readable in dark mode", async ({ page }) => {
     const memoId = "memo_demo_overview";
     const response = await page.request.post(`/api/v1/memos/${memoId}/share`);

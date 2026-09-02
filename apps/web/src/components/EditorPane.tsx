@@ -1,5 +1,4 @@
-import { useRef, useState, useEffect, useCallback, useMemo, type CSSProperties, type FocusEvent as ReactFocusEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { useRef, useState, useEffect, useCallback, useMemo, lazy, Suspense, type CSSProperties, type FocusEvent as ReactFocusEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
@@ -38,25 +37,15 @@ import {
   FileCode2,
   Printer,
   Link2,
+  Share2,
   Copy,
+  Lock,
+  LockOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GitHubRepositoryLink } from "@/components/GitHubRepositoryLink";
+import { ClipboardCopyNotice } from "@/components/ClipboardCopyNotice";
 import { Input } from "@/components/ui/input";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,35 +55,67 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { EditorToolbar } from "./EditorToolbar";
 import { EditorOutline } from "./EditorOutline";
+import { EditorTagPicker } from "./EditorTagPicker";
+import { useAiBubbleMenu } from "./editor/useAiBubbleMenu";
+import {
+  createMarkdownModeSnapshot,
+  isMarkdownSourceUnchanged,
+  resolveMarkdownModeContent,
+  type MarkdownModeSnapshot,
+} from "./editor/editor-mode-content";
+import {
+  ImageUploadPlaceholderExtension,
+  addImageUploadPlaceholder,
+  createImageUploadPlaceholder,
+  removeImageUploadPlaceholder,
+  waitForImageSourceReady,
+} from "./editor/image-upload-placeholder";
+import {
+  clampResourceInsertionTarget,
+  clearNodeSelectionAtDocumentEnd,
+  getResourceInsertionTarget,
+  shouldSelectInsertedResources,
+} from "@/lib/resource-insertion-target";
+import {
+  createSlashCommandExtension,
+  type SlashCommandActions,
+  type SlashCommandLabels,
+} from "./editor/SlashCommandMenu";
+import {
+  createNoteLinkSuggestionExtension,
+  type NoteLinkSuggestionLabels,
+} from "./editor/NoteLinkSuggestion";
 import { WeChatIcon } from "./WeChatIcon";
 import { ThemeToggle } from "./ThemeToggle";
-import { useTheme } from "./ThemeProvider";
+import { useEditorTheme, useMarkdownTheme } from "./ThemeProvider";
+import type { MarkdownSourceEditorRef } from "./editor/MarkdownSourceEditor";
+
+const MarkdownSourceEditor = lazy(() =>
+  import("./editor/MarkdownSourceEditor").then((module) => ({
+    default: module.MarkdownSourceEditor,
+  })),
+);
 import { sanitizeAndScopeCss } from "@/lib/css-sandbox";
 import { RevisionHistoryDialog } from "./dialogs/RevisionHistoryDialog";
 import { ExternalLinkDialog } from "./dialogs/ExternalLinkDialog";
 import { memoShareQueryKey, ShareMemoDialog } from "./dialogs/ShareMemoDialog";
-import { AiAssistantDialog } from "./dialogs/AiAssistantDialog";
+import { ShareNoteImageDialog, type ShareNoteImageSource } from "./dialogs/ShareNoteImageDialog";
+import { AiAssistantDialog, type AiAssistantAnchor } from "./dialogs/AiAssistantDialog";
 import { api } from "@/lib/api";
 import { isDesktopResourceRuntime, stageDesktopResource, toDesktopResourceUrl } from "@/lib/desktop-resources";
 import { cn, formatDateTime, parseTagsText } from "@/lib/utils";
 import { EDITOR_CONTENT_MAX_WIDTH, EDITOR_CONTENT_MAX_WIDTH_COLLAPSED } from "@/lib/workspace-ui";
 import {
   countMemoCharacters,
-  createEdgeEverMathematics,
   docToMarkdown,
   MEMO_CONTENT_STYLE,
   markdownToDoc,
   MergeDivider,
+  PLUGIN_EMBED_NODE_TYPE,
+  pluginEmbedToMarkdown,
+  isPdfAttachment,
   resolveMemoContentDoc,
   type Notebook,
   type MemoDetail,
@@ -105,9 +126,12 @@ import {
   parseMemoLinkHref,
 } from "@edgeever/shared";
 import { DEFAULT_IMAGE_WIDTH_PERCENT } from "@edgeever/shared/image-display";
+import { createEdgeEverMathematics } from "@edgeever/shared/mathematics";
 import { codeBlockLowlight, EdgeEverCodeBlock } from "@/lib/code-block";
 import { compressImageForUpload } from "@/lib/image-compression";
-import { localDb, type MemoUpdateSyncPayload } from "@/lib/local-db";
+import { LOCAL_DATABASE_INTERRUPTED_EVENT, localDb, selectNewestLocalDraft, type MemoUpdateSyncPayload } from "@/lib/local-db";
+import { LocalDatabaseUnavailableError } from "@/lib/local-database-recovery";
+import { persistEmergencyDraft, readEmergencyDraft, removeEmergencyDraft } from "@/lib/emergency-draft";
 import { getMemoUpdateQueueId, isMemoUpdateAlreadyApplied, queueMemoUpdate, shouldQueueMemoSaveError } from "@/lib/sync-queue";
 import {
   formatLocalDraftClipboardText,
@@ -121,25 +145,43 @@ import { shouldAcceptRemoteMemoDetail } from "@/lib/memo-detail-freshness";
 import type { EdgeEverRepository } from "@/lib/repository";
 import {
   EDITOR_LOCAL_SAVE_DELAY_MS,
+  formatShortcutBinding,
   getEditableMemoTitle,
   getNotebookMoveOptions,
+  readDesktopReadingProtectionPreference,
+  writeDesktopReadingProtectionPreference,
+  type EditorContentAlignment,
   type MemoDocumentActionRequest,
+  type ShortcutSettings,
 } from "@/lib/app-helpers";
 import { copyEditorToWeChat, copyMarkdownToWeChat } from "@/lib/wechat-copy";
 import { ThemeBlock } from "./ThemeBlock";
 import { SystemInfoDialog } from "./SystemInfoDialog";
-import { fetchLatestRelease, isVersionOutdated } from "@/lib/version-check";
-import { RELEASE_STATUS_EVENT } from "@/lib/release-notice";
+import { useDeployedUpdateNotice } from "@/hooks/useDeployedUpdateNotice";
 import { downloadMarkdownFile } from "@/lib/note-markdown-export";
 import { NOTE_HTML_FULL_STYLES } from "@/lib/note-html-export-assets";
 import { downloadNoteHtmlFile, getHtmlImageEmbedNoticeKind } from "@/lib/note-html-export";
 import { openNotePrintPreview, serializeNoteDocumentForPrint } from "@/lib/note-print";
+import type { NoteImageFormat } from "@/lib/note-image-export";
+import {
+  applyPlainTextTab,
+  getAiSlashCommandStart,
+  preserveEmptyListIndentOnBackspace,
+  saveAndSyncEditor,
+  shouldOpenAiFromSpace,
+} from "@/lib/editor-shortcuts";
+import {
+  AI_SPACE_SHORTCUT_CHANGED_EVENT,
+  readAiSpaceShortcutPreference,
+} from "@/lib/ai-space-shortcut-preference";
 import { isBrowserOffline } from "@/lib/network-status";
 import {
   EDITOR_LINK_OPEN_MODE_CHANGED_EVENT,
   getStoredEditorLinkOpenMode,
   resolveEditorLinkRequireModifier,
   shouldOpenEditorLink,
+  shouldOpenInternalNoteLink,
+  shouldShowEditorLinkOpenHint,
   type EditorLinkOpenMode,
 } from "@/lib/editor-link-click";
 import {
@@ -147,12 +189,14 @@ import {
   insertMarkdownSnippet,
   isAttachmentLinkHref,
 } from "@/lib/editor-external-link";
-import { processFilesSequentially } from "@/lib/file-batch";
+import { insertAiDraftAtTextCursor } from "@/lib/ai-draft-insertion";
+import { createFileBatchQueue, processFilesSequentially } from "@/lib/file-batch";
 import { MEMO_ID_REMAPPED_EVENT, MEMO_SYNC_ACKNOWLEDGED_EVENT } from "@/lib/sync-events";
 import { useStandaloneMobileEditor } from "@/hooks/useStandaloneMobileEditor";
 import { statusSettleMotion } from "@/lib/motion";
 import {
   getRichTextAiSelectionContext,
+  getRichTextAiReplacementRange,
   getRichTextAiSelectionReplacement,
   normalizeAiSelectionReplacement,
 } from "@/lib/ai-selection-replacement";
@@ -160,19 +204,35 @@ import { getAttachmentFilenameFromLabel, getAttachmentResourceId } from "@/lib/a
 import {
   IMAGE_MENU_HIDE_EVENT,
   IMAGE_MENU_SHOW_EVENT,
+  IMAGE_PREVIEW_SHOW_EVENT,
   ResizableImage,
   type ImageMenuRequestDetail,
+  type ImagePreviewRequestDetail,
 } from "./editor/ResizableImage";
-import {
-  createNoteSearchHighlightPlugin,
-  formatNoteSearchMatchLabel,
-  getNextSearchMatchIndex,
-  getSearchMatchesFromDocument,
-  NOTE_SEARCH_HIGHLIGHT_PLUGIN_KEY,
-  type NoteSearchMatch,
-} from "./editor/note-search";
+import { ImageViewer } from "./editor/ImageViewer";
+import { PdfAttachment } from "./editor/PdfAttachment";
+import { FileAttachment } from "./editor/FileAttachment";
+import { createPluginEmbedExtension } from "./editor/PluginEmbed";
+import { getEditorScrollProgress, restoreEditorScrollProgress } from "./editor/editor-mode-scroll";
 import { useEditorSaveStatus } from "./editor/useEditorSaveStatus";
-import { resolveEditorDraftState } from "./editor/editor-draft-state";
+import { useEditorNoteSearchController } from "./editor/useEditorNoteSearchController";
+import { EditorNoteLinkPicker } from "./editor/EditorNoteLinkPicker";
+import { EditorResourceDialogs } from "./editor/EditorResourceDialogs";
+import { EditorNoteSearchBar } from "./editor/EditorNoteSearchBar";
+import { EditorSaveRecoveryBanner } from "./editor/EditorSaveRecoveryBanner";
+import {
+  EmptyEditorHeader,
+  IconTooltip,
+  MobileNotebookSelectSheet,
+  NoteLinkInteractionHint,
+  ResourceActionMenu,
+  type NoteLinkHintPosition,
+} from "./editor/EditorPaneChrome";
+import {
+  resolveEditorDraftState,
+  shouldReplaceEditorDocument,
+} from "./editor/editor-draft-state";
+import type { EdgeEverPluginHost, PluginEditorAdapter } from "@/lib/plugins/plugin-host";
 import {
   useEditorResourceActions,
   type AttachmentMenuTarget,
@@ -197,21 +257,6 @@ const requiresLocalEditSession = (memo: MemoDetail) =>
   isLocalMemoId(memo.id) ||
   isBrowserOffline();
 
-const IconTooltip = ({ label, children }: { label: string; children: ReactNode }) => (
-  <TooltipProvider delayDuration={0} skipDelayDuration={0}>
-    <Tooltip>
-      <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent side="bottom">{label}</TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
-);
-
-type NoteLinkHintPosition = {
-  left: number;
-  top: number;
-  placement: "above" | "below" | "inside-bottom-right";
-};
-
 type AiSelectionContext = {
   kind: "markdown" | "plain";
   from: number;
@@ -223,6 +268,11 @@ type AiSelectionContext = {
   to: number;
   contentMarkdown: string;
   isInline: boolean;
+};
+
+type AiInsertionTarget = {
+  kind: "markdown" | "plain" | "rich";
+  position: number;
 };
 
 const getAttachmentLinkFromEventTarget = (target: EventTarget | null) =>
@@ -262,102 +312,6 @@ const getNoteLinkHintPosition = (link: HTMLAnchorElement): NoteLinkHintPosition 
   };
 };
 
-const NoteLinkInteractionHint = ({
-  label,
-  position,
-}: {
-  label: string;
-  position: NoteLinkHintPosition;
-}) => createPortal(
-  <div
-    role="tooltip"
-    className="pointer-events-none fixed z-[100] whitespace-nowrap rounded-md bg-slate-950 px-2.5 py-1.5 text-xs font-medium text-white shadow-md"
-    style={{
-      left: position.left,
-      top: position.top,
-      transform: position.placement === "above" ? "translate(-50%, -100%)" : "translateX(-50%)",
-    }}
-  >
-    {label}
-  </div>,
-  document.body
-);
-
-const ResourceActionMenu = ({
-  target,
-  canRename,
-  canDelete,
-  labels,
-  onDownload,
-  onSaveAs,
-  onRename,
-  onDelete,
-  onMouseEnter,
-  onMouseLeave,
-}: {
-  target: ResourceMenuTarget;
-  canRename: boolean;
-  canDelete: boolean;
-  labels: { download: string; saveAs: string; rename: string; delete: string; unavailable: string };
-  onDownload: () => void;
-  onSaveAs: () => void;
-  onRename: () => void;
-  onDelete: () => void;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
-}) => createPortal(
-  <div
-    data-edgeever-resource-menu
-    role="toolbar"
-    aria-label={labels.download}
-    className="fixed z-[110] flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-lg"
-    style={{
-      left: target.position.left,
-      top: target.position.top,
-      transform: target.position.placement === "inside-bottom-right"
-        ? "translate(-100%, -100%)"
-        : target.position.placement === "above"
-          ? "translate(-50%, -100%)"
-          : "translateX(-50%)",
-    }}
-    onMouseEnter={onMouseEnter}
-    onMouseLeave={onMouseLeave}
-  >
-    <Button type="button" size="sm" variant="ghost" title={labels.download} onClick={onDownload}>
-      <FileDown className="h-3.5 w-3.5" />
-      {labels.download}
-    </Button>
-    <Button type="button" size="sm" variant="ghost" title={labels.saveAs} onClick={onSaveAs}>
-      <Save className="h-3.5 w-3.5" />
-      {labels.saveAs}
-    </Button>
-    <Button
-      type="button"
-      size="sm"
-      variant="ghost"
-      title={canRename ? labels.rename : labels.unavailable}
-      disabled={!canRename}
-      onClick={onRename}
-    >
-      <Pencil className="h-3.5 w-3.5" />
-      {labels.rename}
-    </Button>
-    <Button
-      type="button"
-      size="sm"
-      variant="ghost"
-      className="text-slate-600 hover:bg-rose-50 hover:text-rose-600"
-      title={canDelete ? labels.delete : labels.unavailable}
-      disabled={!canDelete}
-      onClick={onDelete}
-    >
-      <Trash2 className="h-3.5 w-3.5" />
-      {labels.delete}
-    </Button>
-  </div>,
-  document.body
-);
-
 const findAttachmentLinkRange = (
   editor: Editor,
   href: string
@@ -379,42 +333,10 @@ const findAttachmentLinkRange = (
   return { from: from as number, to: to as number, marks };
 };
 
-type MobileImeDebugEntry = {
-  id: number;
-  event: string;
-  activeElement: string;
-  inputType?: string;
-  isComposing?: boolean;
-  key?: string;
-  valueLength: number;
-  time: string;
-};
-
 type MobilePlainTextElement = HTMLTextAreaElement | HTMLDivElement;
 
 const isEditorReady = (editor: Editor | null | undefined): editor is Editor =>
   Boolean(editor && !editor.isDestroyed && (editor as { extensionManager?: unknown }).extensionManager);
-
-const getActiveElementLabel = () => {
-  if (typeof document === "undefined") {
-    return "document unavailable";
-  }
-
-  const element = document.activeElement;
-  if (!element) {
-    return "none";
-  }
-
-  const tag = element.tagName.toLowerCase();
-  const id = element.id ? `#${element.id}` : "";
-  const className =
-    element instanceof HTMLElement && element.className
-      ? `.${String(element.className).trim().split(/\s+/).slice(0, 2).join(".")}`
-      : "";
-  const role = element.getAttribute("role");
-
-  return `${tag}${id}${className}${role ? `[role=${role}]` : ""}`;
-};
 
 const getMobilePlainTextElementValue = (element: MobilePlainTextElement | null) => {
   if (!element) {
@@ -463,14 +385,6 @@ const focusMobilePlainTextElement = (element: MobilePlainTextElement | null) => 
   selection?.addRange(range);
 };
 
-const getEditorSearchMatches = (editor: Editor | null, query: string): NoteSearchMatch[] => {
-  if (!isEditorReady(editor)) {
-    return [];
-  }
-
-  return getSearchMatchesFromDocument(editor.state.doc, query);
-};
-
 const getResourceFilesFromDataTransfer = (dataTransfer: DataTransfer | null) => {
   if (!dataTransfer) {
     return [];
@@ -509,82 +423,12 @@ class MemoSaveRequestError extends Error {
   }
 }
 
-const MobileNotebookSelectSheet = ({
-  isUpdating,
-  options,
-  selectedNotebookId,
-  onClose,
-  onSelect,
-}: {
-  isUpdating: boolean;
-  options: any[];
-  selectedNotebookId: string;
-  onClose: () => void;
-  onSelect: (notebookId: string) => void;
-}) => {
-  const { t } = useTranslation();
-  const listRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    window.setTimeout(() => {
-      const selectedNode = listRef.current?.querySelector<HTMLElement>(
-        `[data-mobile-notebook-select-id="${CSS.escape(selectedNotebookId)}"]`
-      );
-      selectedNode?.scrollIntoView({ block: "center" });
-    }, 0);
-  }, [selectedNotebookId]);
-
-  return (
-    <Drawer open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DrawerContent className="inset-x-0 max-h-[62dvh] overflow-hidden border-x-0 border-b-0 pb-[env(safe-area-inset-bottom)] lg:hidden">
-        <header className="flex h-12 items-center justify-between border-b border-slate-200 px-4">
-          <DrawerHeader className="min-w-0 p-0">
-            <DrawerTitle className="text-base">{t("editor.currentNotebook")}</DrawerTitle>
-          </DrawerHeader>
-          <Button size="icon" variant="ghost" title={t("editor.close")} aria-label={t("editor.close")} onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </header>
-        <Command className="min-h-0 flex-1">
-          <CommandInput placeholder={t("editor.searchNotebook")} />
-          <CommandList ref={listRef} className="max-h-[calc(62dvh-6.25rem-env(safe-area-inset-bottom))] p-2">
-            <CommandEmpty>{t("editor.noNotebookFound")}</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => {
-                const selected = option.id === selectedNotebookId;
-                return (
-                  <CommandItem
-                    key={option.id}
-                    className={cn(
-                      "h-12 px-3 text-base",
-                      selected ? "bg-emerald-50 font-semibold text-emerald-700 data-[selected=true]:bg-emerald-50" : "text-slate-700"
-                    )}
-                    style={{ paddingLeft: `${12 + option.depth * 18}px` }}
-                    value={option.id}
-                    keywords={[option.name, option.selectLabel, option.slug ?? ""]}
-                    data-mobile-notebook-select-id={option.id}
-                    aria-label={selected ? t("editor.currentNotebookAria", { name: option.name }) : t("editor.switchToNotebook", { name: option.name })}
-                    aria-current={selected ? "page" : undefined}
-                    disabled={isUpdating}
-                    onSelect={() => onSelect(option.id)}
-                  >
-                    <span className="min-w-0 flex-1 truncate">{option.name}</span>
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </DrawerContent>
-    </Drawer>
-  );
-};
-
 type EditorPaneProps = {
   memo: MemoDetail | null;
   repository: EdgeEverRepository;
   desktopFocusMode: boolean;
   onToggleDesktopFocusMode: () => void;
+  editorContentAlignment: EditorContentAlignment;
   mobileDefaultEditMemoId: string | null;
   preserveUnsavedContentFromMemoId?: string | null;
   saveBlocked?: boolean;
@@ -606,10 +450,20 @@ type EditorPaneProps = {
   onSaveAsTemplate: (memo: MemoDetail, name: string) => Promise<void>;
   searchFocusToken: number;
   replaceFocusToken: number;
+  aiAssistantOpenToken: number;
+  saveAndSyncToken: number;
+  readingProtectionToggleToken: number;
+  editorModeToggleToken: number;
+  outlineToggleToken: number;
+  shortcutSettings: ShortcutSettings;
+  onSyncRequested: () => Promise<void>;
   documentActionRequest?: MemoDocumentActionRequest | null;
   onDocumentActionConsumed?: (requestId: number) => void;
   selectionActionBar?: ReactNode;
   onOpenMemo?: (memoId: string) => void;
+  onOpenAiPrompts?: () => void;
+  pluginHost: EdgeEverPluginHost;
+  pluginNavigationRequest?: { id: number; noteId: string; search: string } | null;
 };
 
 type RichEditorPaneProps = EditorPaneProps & {
@@ -648,6 +502,7 @@ const RichEditorPane = ({
   repository,
   desktopFocusMode,
   onToggleDesktopFocusMode,
+  editorContentAlignment,
   mobileDefaultEditMemoId,
   preserveUnsavedContentFromMemoId: _preserveUnsavedContentFromMemoId,
   saveBlocked: _saveBlocked = false,
@@ -669,15 +524,27 @@ const RichEditorPane = ({
   onSaveAsTemplate,
   searchFocusToken,
   replaceFocusToken,
+  aiAssistantOpenToken,
+  saveAndSyncToken,
+  readingProtectionToggleToken,
+  editorModeToggleToken,
+  outlineToggleToken,
+  shortcutSettings,
+  onSyncRequested,
   documentActionRequest,
   onDocumentActionConsumed,
   selectionActionBar,
   onOpenMemo,
+  onOpenAiPrompts,
+  pluginHost,
+  pluginNavigationRequest,
   onRequestMobileNativeEdit,
 }: RichEditorPaneProps) => {
   const { t, i18n } = useTranslation();
-  const { customEditorTheme, editorTheme, resolvedTheme } = useTheme();
+  const { customEditorTheme, editorTheme } = useEditorTheme();
+  const { markdownTheme } = useMarkdownTheme();
   const queryClient = useQueryClient();
+  const resourceInsertionLimit = useMemo(createFileBatchQueue, []);
   const isSelectionMode = Boolean(selectionActionBar);
   const [title, setTitle] = useState("");
   const [tagsText, setTagsText] = useState("");
@@ -694,16 +561,27 @@ const RichEditorPane = ({
   } = useEditorSaveStatus();
   const [conflictActionPending, setConflictActionPending] = useState<"adopt" | "copy" | null>(null);
   const [conflictActionMessage, setConflictActionMessage] = useState<string | null>(null);
+  const [storageSaveError, setStorageSaveError] = useState(false);
   const [hydratedEditorMemoId, setHydratedEditorMemoId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setStorageSaveError(false);
+  }, [memo?.id]);
   const [editorStateVersion, setEditorStateVersion] = useState(0);
   const [editorContentVersion, setEditorContentVersion] = useState(0);
   const [imageUploadState, setImageUploadState] = useState<"idle" | "compressing" | "uploading" | "error">("idle");
+  const [imagePreview, setImagePreview] = useState<ImagePreviewRequestDetail | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [imageShareOpen, setImageShareOpen] = useState(false);
+  const [imageShareSource, setImageShareSource] = useState<ShareNoteImageSource | null>(null);
   const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
+  const [aiAssistantAnchor, setAiAssistantAnchor] = useState<AiAssistantAnchor>({ left: 24, placement: "below", top: 96 });
+  const aiBubbleMenu = useAiBubbleMenu(aiAssistantOpen);
   const [aiSelection, setAiSelection] = useState<AiSelectionContext | null>(null);
+  const [aiInsertionTarget, setAiInsertionTarget] = useState<AiInsertionTarget | null>(null);
   const [systemInfoOpen, setSystemInfoOpen] = useState(false);
-  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const { unseen: deployedUpdateUnseen } = useDeployedUpdateNotice();
   const [mobileNotebookSheetOpen, setMobileNotebookSheetOpen] = useState(false);
   const [notebookUpdatePending, setNotebookUpdatePending] = useState(false);
   const [noteSearchOpen, setNoteSearchOpen] = useState(false);
@@ -711,6 +589,7 @@ const RichEditorPane = ({
   const [noteSearchReplaceOpen, setNoteSearchReplaceOpen] = useState(false);
   const [noteSearchReplacement, setNoteSearchReplacement] = useState("");
   const [noteSearchIndex, setNoteSearchIndex] = useState(0);
+  const handledPluginNavigationRequestRef = useRef(0);
   const [noteLinkPickerOpen, setNoteLinkPickerOpen] = useState(false);
   const [noteLinkQuery, setNoteLinkQuery] = useState("");
   const [noteLinkHintPosition, setNoteLinkHintPosition] = useState<NoteLinkHintPosition | null>(null);
@@ -742,16 +621,19 @@ const RichEditorPane = ({
     typeof window === "undefined" ? false : window.matchMedia(MOBILE_EDITOR_QUERY).matches
   );
   const [isMobileEditing, setIsMobileEditing] = useState(false);
+  const [desktopReadingProtection, setDesktopReadingProtection] = useState(readDesktopReadingProtectionPreference);
   const [mobilePlainText, setMobilePlainText] = useState("");
   const [markdownSource, setMarkdownSource] = useState("");
   const [isMarkdownMode, setIsMarkdownMode] = useState(false);
   const [mobileToolbarOpen, setMobileToolbarOpen] = useState(false);
-  const [mobileImeDebugOpen, setMobileImeDebugOpen] = useState(false);
   const [editorOutlineCollapsed, setEditorOutlineCollapsed] = useState(false);
-  const [mobileImeDebugActiveElement, setMobileImeDebugActiveElement] = useState(getActiveElementLabel);
-  const [mobileImeDebugEvents, setMobileImeDebugEvents] = useState<MobileImeDebugEntry[]>([]);
   const [wechatCopyState, setWechatCopyState] = useState<"idle" | "copying" | "copied" | "error">("idle");
   const [memoIdCopyNotice, setMemoIdCopyNotice] = useState<{ status: "copied" | "error"; id: string } | null>(null);
+  const handledSaveAndSyncTokenRef = useRef(saveAndSyncToken);
+  const handledReadingProtectionToggleTokenRef = useRef(readingProtectionToggleToken);
+  const handledEditorModeToggleTokenRef = useRef(editorModeToggleToken);
+  const handledOutlineToggleTokenRef = useRef(outlineToggleToken);
+  const handledAiAssistantOpenTokenRef = useRef(aiAssistantOpenToken);
   const noteLinkModifier = useMemo(
     () => typeof navigator !== "undefined" && /mac|iphone|ipad|ipod/i.test(navigator.platform) ? "⌘" : "Ctrl",
     []
@@ -804,37 +686,147 @@ const RichEditorPane = ({
   const mobileDefaultEditRequested = Boolean(memo?.id && memo.id === mobileDefaultEditMemoId && !readOnly);
   const mobileEditingActive = isMobileEditing || mobileDefaultEditRequested;
 
-  useEffect(() => {
-    const controller = new AbortController();
-    void fetchLatestRelease(controller.signal)
-      .then((release) => setUpdateAvailable(isVersionOutdated(__EDGEEVER_APP_VERSION__, release.version)))
-      .catch(() => undefined);
-    const handleReleaseStatus = () => setUpdateAvailable(true);
-    window.addEventListener(RELEASE_STATUS_EVENT, handleReleaseStatus);
-    return () => {
-      controller.abort();
-      window.removeEventListener(RELEASE_STATUS_EVENT, handleReleaseStatus);
-    };
-  }, []);
-  const effectiveReadOnly = readOnly || (isMobileViewport && !mobileEditingActive);
+  const effectiveReadOnly = readOnly
+    || (isMobileViewport && !mobileEditingActive)
+    || (!isMobileViewport && desktopReadingProtection);
   const useMobilePlainTextEditor = isMobileViewport && mobileEditingActive && !readOnly;
   const useMarkdownSourceEditor = !useMobilePlainTextEditor && isMarkdownMode;
+
+  const toggleDesktopReadingProtection = useCallback(() => {
+    setDesktopReadingProtection((protectedMode) => {
+      const nextProtectedMode = !protectedMode;
+      writeDesktopReadingProtectionPreference(nextProtectedMode);
+      return nextProtectedMode;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileViewport && mobileDefaultEditRequested && desktopReadingProtection) {
+      setDesktopReadingProtection(false);
+      writeDesktopReadingProtectionPreference(false);
+    }
+  }, [desktopReadingProtection, isMobileViewport, mobileDefaultEditRequested]);
+
+  useEffect(() => {
+    if (!desktopReadingProtection) return;
+    setAiAssistantOpen(false);
+    setAiSelection(null);
+    setAiInsertionTarget(null);
+    setNoteSearchReplaceOpen(false);
+    setExternalLinkDialogOpen(false);
+    setNoteLinkPickerOpen(false);
+  }, [desktopReadingProtection]);
 
   const memoRef = useRef<MemoDetail | null>(memo);
   const editSessionRef = useRef<MemoEditSession | null>(null);
   const editorRef = useRef<Editor | null>(null);
+  const editorCanvasInteractionVersionRef = useRef(0);
+  const openAiAssistantRef = useRef<() => void>(() => undefined);
+  const aiSpaceShortcutEnabledRef = useRef(readAiSpaceShortcutPreference());
   const editorScrollContainerRef = useRef<HTMLDivElement | null>(null);
   const mobileTextAreaRef = useRef<MobilePlainTextElement | null>(null);
   const mobileDraftTimerRef = useRef<number | null>(null);
   const mobileSaveTimerRef = useRef<number | null>(null);
-  const mobileImeDebugEventIdRef = useRef(0);
-  const mobileImeDebugRecorderRef = useRef<(eventName: string, event?: unknown) => void>(() => undefined);
-  const markMobilePlainTextDirtyRef = useRef<() => void>(() => undefined);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const noteSearchInputRef = useRef<HTMLInputElement | null>(null);
-  const noteReplaceInputRef = useRef<HTMLInputElement | null>(null);
-  const markdownTextAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const markdownSourceEditorRef = useRef<MarkdownSourceEditorRef | null>(null);
+  const markdownModeSnapshotRef = useRef<MarkdownModeSnapshot | null>(null);
   const openExternalLinkDialogRef = useRef<() => void>(() => undefined);
+  const slashCommandLabelsRef = useRef<SlashCommandLabels>({
+    menu: "",
+    empty: "",
+    close: "",
+    groups: { suggested: "", basic: "", insert: "" },
+    items: {
+      ai: "",
+      paragraph: "",
+      "heading-1": "",
+      "heading-2": "",
+      "heading-3": "",
+      "bullet-list": "",
+      "ordered-list": "",
+      "task-list": "",
+      blockquote: "",
+      "code-block": "",
+      divider: "",
+      table: "",
+      "current-date": "",
+      "current-time": "",
+      "current-date-time": "",
+      attachment: "",
+      "note-link": "",
+      "external-link": "",
+    },
+  });
+  slashCommandLabelsRef.current = {
+    menu: t("slashMenu.menu"),
+    empty: t("slashMenu.empty"),
+    close: t("slashMenu.close"),
+    groups: {
+      suggested: t("slashMenu.groups.suggested"),
+      basic: t("slashMenu.groups.basic"),
+      insert: t("slashMenu.groups.insert"),
+    },
+    items: {
+      ai: t("slashMenu.items.ai"),
+      paragraph: t("editorToolbar.paragraph"),
+      "heading-1": t("editorToolbar.heading1"),
+      "heading-2": t("editorToolbar.heading2"),
+      "heading-3": t("editorToolbar.heading3"),
+      "bullet-list": t("editorToolbar.bulletList"),
+      "ordered-list": t("editorToolbar.orderedList"),
+      "task-list": t("editorToolbar.taskList"),
+      blockquote: t("editorToolbar.quote"),
+      "code-block": t("editorToolbar.codeBlock"),
+      divider: t("editorToolbar.horizontalRule"),
+      table: t("editorToolbar.table"),
+      "current-date": t("slashMenu.items.currentDate"),
+      "current-time": t("slashMenu.items.currentTime"),
+      "current-date-time": t("slashMenu.items.currentDateTime"),
+      attachment: t("editorToolbar.attachment"),
+      "note-link": t("editorToolbar.noteLink"),
+      "external-link": t("editorToolbar.externalLink"),
+    },
+  };
+  const slashCommandActionsRef = useRef<SlashCommandActions | null>(null);
+  if (!slashCommandActionsRef.current) {
+    slashCommandActionsRef.current = {
+      openAi: () => openAiAssistantRef.current(),
+      openAttachmentPicker: () => fileInputRef.current?.click(),
+      openExternalLinkPicker: () => openExternalLinkDialogRef.current(),
+      openNoteLinkPicker: () => setNoteLinkPickerOpen(true),
+    };
+  }
+  const slashCommandExtensionRef = useRef<ReturnType<typeof createSlashCommandExtension> | null>(null);
+  if (!slashCommandExtensionRef.current) {
+    slashCommandExtensionRef.current = createSlashCommandExtension({
+      actions: slashCommandActionsRef.current,
+      getLabels: () => slashCommandLabelsRef.current,
+    });
+  }
+  const noteLinkSuggestionLabelsRef = useRef<NoteLinkSuggestionLabels>({
+    menu: "",
+    empty: "",
+    close: "",
+    untitled: "",
+  });
+  noteLinkSuggestionLabelsRef.current = {
+    menu: t("noteLinkPicker.title"),
+    empty: t("noteLinkPicker.empty"),
+    close: t("noteLinkPicker.close"),
+    untitled: t("common.untitledMemo"),
+  };
+  const noteLinkSuggestionExtensionRef = useRef<ReturnType<typeof createNoteLinkSuggestionExtension> | null>(null);
+  if (!noteLinkSuggestionExtensionRef.current) {
+    noteLinkSuggestionExtensionRef.current = createNoteLinkSuggestionExtension({
+      getCurrentMemoId: () => memoRef.current?.id ?? null,
+      getLabels: () => noteLinkSuggestionLabelsRef.current,
+      searchMemos: async (query) => {
+        const result = await repository.listMemos({ q: query, limit: 20 });
+        return result.memos;
+      },
+    });
+  }
   const hydratingRef = useRef(false);
   const hydratedMemoIdRef = useRef<string | null>(null);
   /** Last content source applied to the editor — used to skip redundant setContent. */
@@ -842,6 +834,22 @@ const RichEditorPane = ({
   const editingMemoIdRef = useRef<string | null>(memo?.id ?? null);
   const imageCompressionEnabledRef = useRef(imageCompressionEnabled);
   const resourceMenuHideTimerRef = useRef<number | null>(null);
+
+  const restoreScrollAfterModeChange = useCallback((targetMode: "markdown" | "rich", progress: number) => {
+    const restore = (attempt: number) => {
+      const target = targetMode === "markdown"
+        ? markdownSourceEditorRef.current?.getScrollContainer() ?? null
+        : editorScrollContainerRef.current;
+
+      if (restoreEditorScrollProgress(target, progress) || attempt >= 2) {
+        return;
+      }
+
+      window.requestAnimationFrame(() => restore(attempt + 1));
+    };
+
+    window.requestAnimationFrame(() => restore(0));
+  }, []);
 
   useEffect(() => {
     const handleMemoIdRemapped = (event: Event) => {
@@ -971,8 +979,31 @@ const RichEditorPane = ({
     }
 
     const targetMemoId = currentMemo.id;
+    const interactionVersionAtRequest = editorCanvasInteractionVersionRef.current;
+    const placeholderPosition = currentEditor.state.selection.from;
+    const imagePlaceholders = files
+      .filter((file) => SUPPORTED_PASTE_IMAGE_TYPES.has(file.type))
+      .map((file) => createImageUploadPlaceholder(
+        file,
+        t("editor.uploadState.imagePreparing"),
+      ));
+    imagePlaceholders.forEach((placeholder) => {
+      addImageUploadPlaceholder(currentEditor, placeholder, placeholderPosition);
+    });
 
-    void (async () => {
+    void resourceInsertionLimit(async () => {
+      const insertionEditor = editorRef.current;
+      if (
+        memoRef.current?.id !== targetMemoId ||
+        !isEditorReady(insertionEditor) ||
+        !insertionEditor.isEditable
+      ) {
+        return;
+      }
+
+      // Read the selection only after earlier resource insertions complete.
+      // Rapid consecutive pastes otherwise race with the same stale cursor.
+      const insertionTarget = getResourceInsertionTarget(insertionEditor.state.selection);
       setImageUploadState("uploading");
 
       const results = await processFilesSequentially(files, async (file) => {
@@ -982,7 +1013,13 @@ const RichEditorPane = ({
         const uploadFile = shouldCompress ? (await compressImageForUpload(file)).file : file;
 
         setImageUploadState("uploading");
-        let resource: { kind: "image" | "attachment"; filename: string | null; url: string };
+        let resource: {
+          kind: "image" | "attachment";
+          filename: string | null;
+          mimeType: string | null;
+          byteSize: number;
+          url: string;
+        };
         try {
           const uploadedResource = (await repository.uploadMemoResource(targetMemoId, uploadFile)).resource;
           resource = { ...uploadedResource, url: toDesktopResourceUrl(uploadedResource.url) };
@@ -993,6 +1030,8 @@ const RichEditorPane = ({
           resource = {
             kind: isImage ? "image" : "attachment",
             filename: uploadFile.name,
+            mimeType: uploadFile.type || null,
+            byteSize: uploadFile.size,
             url: `edgeever-staged://${staged.id}`,
           };
         }
@@ -1004,38 +1043,82 @@ const RichEditorPane = ({
         void queryClient.invalidateQueries({ queryKey: ["resources"] });
       }
 
+      await Promise.all(successfulResults.map(({ value: resource }) =>
+        resource.kind === "image" ? waitForImageSourceReady(resource.url) : Promise.resolve()
+      ));
+
       const activeEditor = editorRef.current;
       if (memoRef.current?.id !== targetMemoId || !isEditorReady(activeEditor)) {
         setImageUploadState("idle");
         return;
       }
 
-      const content = successfulResults.map(({ file, value: resource }) =>
-        resource.kind === "image"
-          ? {
-              type: "image",
+      const content = successfulResults.map(({ file, value: resource }) => {
+        const filename = resource.filename || file.name;
+        if (resource.kind === "image") {
+          return {
+            type: "image",
+            attrs: {
+              src: resource.url,
+              alt: file.name,
+              title: file.name,
+              width: DEFAULT_IMAGE_WIDTH_PERCENT,
+            },
+          };
+        }
+        if (isPdfAttachment(file.type, filename)) {
+          return {
+            type: "paragraph",
+            content: [{
+              type: "edgeeverPdfAttachment",
               attrs: {
-                src: resource.url,
-                alt: file.name,
-                title: file.name,
-                width: DEFAULT_IMAGE_WIDTH_PERCENT,
+                url: resource.url,
+                label: t("editor.attachmentLabel", { filename }),
+                filename,
+                mimeType: resource.mimeType || file.type || "application/pdf",
+                byteSize: resource.byteSize,
+                displayMode: "compact",
               },
-            }
-          : {
-              type: "paragraph",
-              content: [{
-                type: "text",
-                text: t("editor.attachmentLabel", { filename: resource.filename || file.name }),
-                marks: [{
-                  type: "link",
-                  attrs: { href: resource.url, target: "_blank", class: "edgeever-attachment-link" },
-                }],
-              }],
-            }
-      );
+            }],
+          };
+        }
+        return {
+          type: "paragraph",
+          content: [{
+            type: "edgeeverFileAttachment",
+            attrs: {
+              url: resource.url,
+              label: t("editor.attachmentLabel", { filename }),
+              filename,
+              mimeType: file.type,
+              byteSize: resource.byteSize,
+            },
+          }],
+        };
+      });
 
       if (content.length > 0) {
-        activeEditor.chain().focus().insertContent(content).run();
+        const safeInsertionTarget = clampResourceInsertionTarget(
+          insertionTarget,
+          activeEditor.state.doc.content.size,
+        );
+        const updateSelection = shouldSelectInsertedResources(
+          interactionVersionAtRequest,
+          editorCanvasInteractionVersionRef.current,
+        );
+        const insertion = activeEditor.chain();
+        if (updateSelection) {
+          insertion.focus();
+        }
+        insertion
+          .insertContentAt(safeInsertionTarget, content, { updateSelection })
+          .run();
+        if (!updateSelection) {
+          // ProseMirror can still map a cursor at the document boundary to a
+          // NodeSelection for the newly inserted block image. Honor the newer
+          // canvas click deterministically instead of trusting that mapping.
+          clearNodeSelectionAtDocumentEnd(activeEditor);
+        }
       }
 
       if (results.some((result) => result.status === "rejected")) {
@@ -1044,9 +1127,15 @@ const RichEditorPane = ({
       } else {
         setImageUploadState("idle");
       }
-    })();
-  }, [queryClient, repository, t]);
+    }).finally(() => {
+      const placeholderEditor = editorRef.current;
+      imagePlaceholders.forEach((placeholder) => {
+        removeImageUploadPlaceholder(placeholderEditor, placeholder);
+      });
+    });
+  }, [queryClient, repository, resourceInsertionLimit, t]);
 
+  const pluginEmbedExtension = useMemo(() => createPluginEmbedExtension(pluginHost), [pluginHost]);
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -1057,18 +1146,26 @@ const RichEditorPane = ({
       TaskItem.configure({ nested: true }),
       EdgeEverCodeBlock.configure({ lowlight: codeBlockLowlight, defaultLanguage: "plaintext" }),
       MergeDivider,
+      pluginEmbedExtension,
+      PdfAttachment,
+      FileAttachment,
       ...createEdgeEverMathematics(),
       ThemeBlock,
       ResizableImage.configure({
         allowBase64: false,
         inline: false,
       }),
+      ImageUploadPlaceholderExtension,
       TableKit.configure({
         table: { renderWrapper: true },
       }),
       Placeholder.configure({
-        placeholder: t("editor.placeholder"),
+        placeholder: () => aiSpaceShortcutEnabledRef.current
+          ? t("editor.placeholder")
+          : t("editor.placeholderCommands"),
       }),
+      slashCommandExtensionRef.current,
+      noteLinkSuggestionExtensionRef.current,
     ],
     content: memo
       ? resolveMemoContentDoc(memo.contentJson, memo.contentMarkdown)
@@ -1076,9 +1173,38 @@ const RichEditorPane = ({
     editable: Boolean(memo && !effectiveReadOnly && hydratedEditorMemoId === memo.id),
     editorProps: {
       attributes: {
-        class: "prose prose-slate max-w-none focus:outline-none min-h-[300px] px-4 py-3 sm:px-7",
+        class: "edgeever-note-rich-editor prose prose-slate max-w-none focus:outline-none min-h-[240px] px-4 py-3 sm:px-7 lg:min-h-[180px]",
       },
       handleKeyDown: (view, event) => {
+        const { selection } = view.state;
+        const currentNode = selection.$from.parent;
+        if (event.key === "Backspace" && preserveEmptyListIndentOnBackspace(view.state, view.dispatch)) {
+          event.preventDefault();
+          return true;
+        }
+
+        if (event.key === "Tab" && applyPlainTextTab(view.state, view.dispatch, event.shiftKey)) {
+          event.preventDefault();
+          return true;
+        }
+
+        if (aiSpaceShortcutEnabledRef.current && shouldOpenAiFromSpace({
+          altKey: event.altKey,
+          ctrlKey: event.ctrlKey,
+          isComposing: event.isComposing,
+          isEmptyParagraph: currentNode.type.name === "paragraph" && currentNode.content.size === 0,
+          key: event.key,
+          keyCode: event.keyCode,
+          metaKey: event.metaKey,
+          repeat: event.repeat,
+          selectionEmpty: selection.empty,
+          shiftKey: event.shiftKey,
+        })) {
+          event.preventDefault();
+          window.requestAnimationFrame(() => openAiAssistantRef.current());
+          return true;
+        }
+
         const shortcutKey = event.key.toLowerCase();
         if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && shortcutKey === "k") {
           event.preventDefault();
@@ -1095,7 +1221,7 @@ const RichEditorPane = ({
           return false;
         }
 
-        const { from, to } = view.state.selection;
+        const { from, to } = selection;
         if (from === to) {
           return false;
         }
@@ -1113,6 +1239,22 @@ const RichEditorPane = ({
           noteSearchInputRef.current?.focus();
           noteSearchInputRef.current?.select();
         });
+        return true;
+      },
+      handleTextInput: (view, from, to, text) => {
+        if (from !== to) return false;
+        const resolved = view.state.doc.resolve(from);
+        if (resolved.parent.type.name !== "paragraph") return false;
+        const textBefore = view.state.doc.textBetween(resolved.start(), from, "\n", "\n");
+        const commandStart = getAiSlashCommandStart({
+          caretPosition: from,
+          insertedText: text,
+          textBefore,
+        });
+        if (commandStart === null) return false;
+
+        view.dispatch(view.state.tr.delete(commandStart, from));
+        window.requestAnimationFrame(() => openAiAssistantRef.current());
         return true;
       },
       handleClick: (_view, _pos, event) => {
@@ -1174,6 +1316,26 @@ const RichEditorPane = ({
     memo?.id,
   ]);
 
+  useEffect(() => {
+    const syncPreference = (event?: Event) => {
+      const detail = event && event.type === AI_SPACE_SHORTCUT_CHANGED_EVENT
+        ? (event as CustomEvent<boolean>).detail
+        : undefined;
+      aiSpaceShortcutEnabledRef.current = typeof detail === "boolean"
+        ? detail
+        : readAiSpaceShortcutPreference();
+      if (isEditorReady(editor)) {
+        editor.view.dispatch(editor.state.tr);
+      }
+    };
+    window.addEventListener(AI_SPACE_SHORTCUT_CHANGED_EVENT, syncPreference);
+    window.addEventListener("storage", syncPreference);
+    return () => {
+      window.removeEventListener(AI_SPACE_SHORTCUT_CHANGED_EVENT, syncPreference);
+      window.removeEventListener("storage", syncPreference);
+    };
+  }, [editor]);
+
   const insertMemoLink = useCallback((target: MemoSummary) => {
     if (!isEditorReady(editor) || effectiveReadOnly || target.id === memo?.id) {
       return;
@@ -1200,9 +1362,9 @@ const RichEditorPane = ({
     }
 
     if (useMarkdownSourceEditor) {
-      const textarea = markdownTextAreaRef.current;
-      const start = textarea?.selectionStart ?? markdownSource.length;
-      const end = textarea?.selectionEnd ?? start;
+      const selection = markdownSourceEditorRef.current?.getSelection() ?? { from: markdownSource.length, to: markdownSource.length };
+      const start = selection.from;
+      const end = selection.to;
       const selected = markdownSource.slice(start, end);
       const looksLikeUrl = /^(https?:\/\/\S+|www\.\S+)$/i.test(selected.trim());
       setExternalLinkDraft({
@@ -1259,9 +1421,9 @@ const RichEditorPane = ({
       }
 
       if (useMarkdownSourceEditor) {
-        const textarea = markdownTextAreaRef.current;
-        const start = textarea?.selectionStart ?? markdownSource.length;
-        const end = textarea?.selectionEnd ?? start;
+        const selection = markdownSourceEditorRef.current?.getSelection() ?? { from: markdownSource.length, to: markdownSource.length };
+        const start = selection.from;
+        const end = selection.to;
         const selected = markdownSource.slice(start, end);
         const label = selected.trim() ? selected : text;
         const snippet = formatMarkdownLink(label, href);
@@ -1269,10 +1431,8 @@ const RichEditorPane = ({
         setMarkdownSource(next);
         markDirtyStatus();
         window.requestAnimationFrame(() => {
-          const node = markdownTextAreaRef.current;
-          if (!node) return;
-          node.focus();
-          node.setSelectionRange(caret, caret);
+          markdownSourceEditorRef.current?.focus();
+          markdownSourceEditorRef.current?.setSelection(caret, caret);
         });
         return;
       }
@@ -1382,6 +1542,20 @@ const RichEditorPane = ({
     };
   }, [cancelResourceMenuHide, isMobileViewport, scheduleResourceMenuHide, showResourceMenu]);
 
+  useEffect(() => {
+    const showImagePreview = (event: Event) => {
+      const detail = (event as CustomEvent<ImagePreviewRequestDetail>).detail;
+      if (!detail?.url) return;
+      setImagePreview(detail);
+    };
+    window.addEventListener(IMAGE_PREVIEW_SHOW_EVENT, showImagePreview);
+    return () => window.removeEventListener(IMAGE_PREVIEW_SHOW_EVENT, showImagePreview);
+  }, []);
+
+  useEffect(() => {
+    setImagePreview(null);
+  }, [memo?.id]);
+
   const showAttachmentMenu = useCallback((target: EventTarget | null) => {
     if (isMobileViewport) return false;
     const link = getAttachmentLinkFromEventTarget(target);
@@ -1401,12 +1575,16 @@ const RichEditorPane = ({
   }, [cancelResourceMenuHide, isMobileViewport, showResourceMenu]);
 
   const showEditorLinkOpenHint = useCallback((target: EventTarget | null) => {
-    // Tip only when desktop + "require modifier" preference is on (default click-to-open needs no tip).
-    if (!editor?.isEditable || isMobileViewport || editorLinkOpenMode !== "modifier") {
+    const link = getEditorNavigableLinkFromEventTarget(target);
+    if (parseMemoLinkHref(link?.getAttribute("href"))) {
+      setNoteLinkHintPosition(null);
       return;
     }
 
-    const link = getEditorNavigableLinkFromEventTarget(target);
+    if (!shouldShowEditorLinkOpenHint(Boolean(editor?.isEditable), isMobileViewport, editorLinkOpenMode)) {
+      return;
+    }
+
     if (link) {
       setNoteLinkHintPosition(getNoteLinkHintPosition(link));
     } else {
@@ -1442,10 +1620,45 @@ const RichEditorPane = ({
   }, [scheduleResourceMenuHide]);
 
   const handleEditorClickCapture = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    const noteLink = getNoteLinkFromEventTarget(event.target);
+    const memoId = parseMemoLinkHref(noteLink?.getAttribute("href"));
+    if (shouldOpenInternalNoteLink(event, memoId)) {
+      event.preventDefault();
+      event.stopPropagation();
+      setNoteLinkHintPosition(null);
+      onOpenMemo?.(memoId as string);
+      return;
+    }
+
     if (event.button === 0 && !event.ctrlKey && !event.metaKey) {
       showEditorLinkOpenHint(event.target);
+
+      const target = event.target;
+      const proseMirror = event.currentTarget.querySelector<HTMLElement>(".ProseMirror");
+      const clickedEmptyCanvas = target === proseMirror || (
+        target instanceof Node &&
+        proseMirror !== null &&
+        !proseMirror.contains(target)
+      );
+      if (clickedEmptyCanvas) {
+        editorCanvasInteractionVersionRef.current += 1;
+        // This handler runs in capture phase, before ProseMirror translates the
+        // click coordinates into a selection. In a desktop WebView that later
+        // selection can map the empty area beside/below a block image back onto
+        // the image, undoing an immediate clear. Reconcile after ProseMirror's
+        // click handling has completed instead.
+        window.requestAnimationFrame(() => {
+          const activeEditor = editorRef.current;
+          if (activeEditor !== editor || !isEditorReady(activeEditor)) {
+            return;
+          }
+          if (clearNodeSelectionAtDocumentEnd(activeEditor)) {
+            activeEditor.commands.focus();
+          }
+        });
+      }
     }
-  }, [showEditorLinkOpenHint]);
+  }, [editor, onOpenMemo, showEditorLinkOpenHint]);
 
   const handleEditorFocusCapture = useCallback((event: ReactFocusEvent<HTMLDivElement>) => {
     if (showAttachmentMenu(event.target)) return;
@@ -1457,12 +1670,6 @@ const RichEditorPane = ({
       setNoteLinkHintPosition(null);
     }
   }, []);
-
-  useEffect(() => {
-    if (editorLinkOpenMode !== "modifier") {
-      setNoteLinkHintPosition(null);
-    }
-  }, [editorLinkOpenMode]);
 
   useEffect(() => {
     if (!noteLinkHintPosition) {
@@ -1526,186 +1733,49 @@ const RichEditorPane = ({
     };
   }, [editor]);
 
-  const noteSearchMatches = useMemo(
-    () => getEditorSearchMatches(editor, noteSearchQuery),
-    [dirtyVersion, editor, memo?.id, noteSearchQuery]
-  );
-  const contentSearchMatches = useMemo(
-    () => getEditorSearchMatches(editor, contentSearchQuery),
-    [contentSearchQuery, dirtyVersion, editor, memo?.id]
-  );
-
-  const selectNoteSearchMatch = useCallback(
-    (index: number, matches = noteSearchMatches) => {
-      const match = matches[index];
-
-      if (!isEditorReady(editor) || !match) {
-        return;
-      }
-
-      // `setTextSelection` updates the ProseMirror selection but does not
-      // request the view to scroll to it. This is especially visible while
-      // the search input keeps focus, because the browser cannot scroll the
-      // editor selection for us in that case.
-      editor.chain().setTextSelection({ from: match.from, to: match.to }).scrollIntoView().run();
-
-      window.requestAnimationFrame(() => {
-        const scrollContainer = editorScrollContainerRef.current;
-        const domPosition = editor.view.domAtPos(match.from);
-        const node = domPosition.node.nodeType === Node.TEXT_NODE
-          ? domPosition.node.parentElement
-          : domPosition.node instanceof Element
-            ? domPosition.node
-            : domPosition.node.parentElement;
-
-        if (!scrollContainer || !node) {
-          return;
-        }
-
-        const containerRect = scrollContainer.getBoundingClientRect();
-        const nodeRect = node.getBoundingClientRect();
-        const padding = 24;
-        const isAbove = nodeRect.top < containerRect.top + padding;
-        const isBelow = nodeRect.bottom > containerRect.bottom - padding;
-
-        if (isAbove || isBelow) {
-          const targetTop = scrollContainer.scrollTop + nodeRect.top - containerRect.top
-            - (scrollContainer.clientHeight - nodeRect.height) / 2;
-          scrollContainer.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
-        }
-      });
-    },
-    [editor, noteSearchMatches]
-  );
+  const {
+    closeSearch: closeNoteSearch,
+    matchLabel: noteSearchMatchLabel,
+    matches: noteSearchMatches,
+    moveMatch: moveNoteSearchMatch,
+    openReplace: openNoteReplace,
+    openSearch: openNoteSearch,
+    replaceAllMatches: replaceAllNoteSearchMatches,
+  } = useEditorNoteSearchController({
+    contentSearchQuery,
+    dirtyVersion,
+    editor,
+    editorScrollContainerRef,
+    memoId: memo?.id ?? null,
+    noteSearchIndex,
+    noteSearchInputRef,
+    noteSearchOpen,
+    noteSearchQuery,
+    noteSearchReplacement,
+    readOnly: effectiveReadOnly,
+    replaceFocusToken,
+    searchFocusToken,
+    setNoteSearchIndex,
+    setNoteSearchOpen,
+    setNoteSearchReplaceOpen,
+  });
 
   useEffect(() => {
-    if (!isEditorReady(editor)) {
-      return;
-    }
-
-    const searchHighlightPlugin = createNoteSearchHighlightPlugin({
-      getQuery: () => noteSearchOpen ? noteSearchQuery : contentSearchQuery,
-      getActiveIndex: () => noteSearchOpen ? noteSearchIndex : 0,
-    });
-
-    editor.registerPlugin(searchHighlightPlugin);
-
-    return () => {
-      if (isEditorReady(editor)) {
-        editor.unregisterPlugin(NOTE_SEARCH_HIGHLIGHT_PLUGIN_KEY);
-      }
-    };
-  }, [contentSearchQuery, editor, noteSearchIndex, noteSearchMatches, noteSearchOpen, noteSearchQuery]);
-
-  const focusNoteSearchInput = useCallback(() => {
-    window.requestAnimationFrame(() => {
-      noteSearchInputRef.current?.focus();
-      noteSearchInputRef.current?.select();
-    });
-  }, []);
-
-  const openNoteSearch = useCallback((showReplace = false) => {
-    setNoteSearchOpen(true);
-    setNoteSearchReplaceOpen(showReplace);
-    focusNoteSearchInput();
-  }, [focusNoteSearchInput]);
-
-  const openNoteReplace = useCallback(() => {
-    setNoteSearchOpen(true);
-    setNoteSearchReplaceOpen(true);
-    focusNoteSearchInput();
-  }, [focusNoteSearchInput]);
-
-  const closeNoteSearch = useCallback(() => {
-    setNoteSearchOpen(false);
-    if (isEditorReady(editor)) {
-      editor.commands.focus();
-    }
-  }, [editor]);
-
-  useEffect(() => {
-    if (!noteSearchOpen) {
-      return;
-    }
-
-    const handleNoteSearchEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-      closeNoteSearch();
-    };
-
-    // Capture the event so Escape works even when focus has moved to the
-    // editor, toolbar, or another control outside the search inputs.
-    window.addEventListener("keydown", handleNoteSearchEscape, true);
-    return () => window.removeEventListener("keydown", handleNoteSearchEscape, true);
-  }, [closeNoteSearch, noteSearchOpen]);
-
-  const moveNoteSearchMatch = useCallback(
-    (direction: 1 | -1) => {
-      if (noteSearchMatches.length === 0) {
-        return;
-      }
-
-      setNoteSearchIndex((current) => {
-        const next = getNextSearchMatchIndex(current, direction, noteSearchMatches.length);
-        selectNoteSearchMatch(next);
-        return next;
-      });
-    },
-    [noteSearchMatches.length, selectNoteSearchMatch]
-  );
-
-  useEffect(() => {
-    if (searchFocusToken === 0) {
-      return;
-    }
-
-    openNoteSearch();
-  }, [openNoteSearch, searchFocusToken]);
-
-  useEffect(() => {
-    if (replaceFocusToken === 0) {
-      return;
-    }
-
-    openNoteReplace();
-  }, [openNoteReplace, replaceFocusToken]);
-
-  useEffect(() => {
+    if (
+      !pluginNavigationRequest
+      || !memo
+      || pluginNavigationRequest.id === handledPluginNavigationRequestRef.current
+      || pluginNavigationRequest.noteId !== memo.id
+      || hydratedEditorMemoId !== memo.id
+      || !isEditorReady(editor)
+    ) return;
+    handledPluginNavigationRequestRef.current = pluginNavigationRequest.id;
+    setNoteSearchQuery(pluginNavigationRequest.search);
     setNoteSearchIndex(0);
-
-    if (noteSearchOpen && noteSearchMatches[0]) {
-      selectNoteSearchMatch(0, noteSearchMatches);
-    } else if (!noteSearchOpen && contentSearchMatches[0]) {
-      selectNoteSearchMatch(0, contentSearchMatches);
-    }
-  }, [contentSearchMatches, noteSearchMatches, noteSearchOpen, selectNoteSearchMatch]);
-
-  const replaceAllNoteSearchMatches = useCallback(() => {
-    if (!isEditorReady(editor) || effectiveReadOnly || noteSearchMatches.length === 0) {
-      return;
-    }
-
-    editor
-      .chain()
-      .focus()
-      .command(({ tr, dispatch }) => {
-        for (const match of [...noteSearchMatches].reverse()) {
-          tr.insertText(noteSearchReplacement, match.from, match.to);
-        }
-
-        dispatch?.(tr);
-        return true;
-      })
-      .run();
-
-    setNoteSearchIndex(0);
+    setNoteSearchReplaceOpen(false);
+    setNoteSearchOpen(true);
     window.requestAnimationFrame(() => noteSearchInputRef.current?.focus());
-  }, [editor, effectiveReadOnly, noteSearchMatches, noteSearchReplacement]);
+  }, [editor, hydratedEditorMemoId, memo?.id, pluginNavigationRequest]);
 
   useEffect(() => {
     if (!isEditorReady(editor)) {
@@ -1726,50 +1796,6 @@ const RichEditorPane = ({
     () => (mobileTextAreaRef.current ? getMobilePlainTextElementValue(mobileTextAreaRef.current) : mobilePlainText),
     [mobilePlainText]
   );
-
-  const recordMobileImeDebugEvent = useCallback((eventName: string, event?: unknown) => {
-    const plainTextElement = mobileTextAreaRef.current;
-    const nativeEvent = event && typeof event === "object" && "nativeEvent" in event
-      ? (event as { nativeEvent?: unknown }).nativeEvent
-      : event;
-    const inputEvent = nativeEvent as Partial<InputEvent> | undefined;
-    const keyboardEvent = nativeEvent as Partial<KeyboardEvent> | undefined;
-
-    mobileImeDebugEventIdRef.current += 1;
-    setMobileImeDebugActiveElement(getActiveElementLabel());
-    setMobileImeDebugEvents((current) =>
-      [
-        {
-          id: mobileImeDebugEventIdRef.current,
-          event: eventName,
-          activeElement: getActiveElementLabel(),
-          inputType: typeof inputEvent?.inputType === "string" ? inputEvent.inputType : undefined,
-          isComposing: typeof inputEvent?.isComposing === "boolean" ? inputEvent.isComposing : undefined,
-          key: typeof keyboardEvent?.key === "string" ? keyboardEvent.key : undefined,
-          valueLength: getMobilePlainTextElementValue(plainTextElement).length,
-          time: new Date().toLocaleTimeString("zh-CN", { hour12: false }),
-        },
-        ...current,
-      ].slice(0, 20)
-    );
-  }, []);
-
-  useEffect(() => {
-    mobileImeDebugRecorderRef.current = recordMobileImeDebugEvent;
-  }, [recordMobileImeDebugEvent]);
-
-  useEffect(() => {
-    if (!useMobilePlainTextEditor) {
-      return;
-    }
-
-    recordMobileImeDebugEvent("mount-mobile-plain-editor");
-    const timer = window.setInterval(() => {
-      setMobileImeDebugActiveElement(getActiveElementLabel());
-    }, 800);
-
-    return () => window.clearInterval(timer);
-  }, [recordMobileImeDebugEvent, useMobilePlainTextEditor]);
 
   const persistCurrentDraft = useCallback(
     (nextTitle = title, nextTagsText = tagsText, nextMobilePlainText = getMobilePlainTextValue()) => {
@@ -1792,7 +1818,11 @@ const RichEditorPane = ({
         contentJson: useMobilePlainTextEditor
           ? markdownToDoc(nextMobilePlainText)
           : useMarkdownSourceEditor
-            ? markdownToDoc(markdownSource)
+            ? resolveMarkdownModeContent(
+                markdownModeSnapshotRef.current,
+                currentMemo.id,
+                markdownSource,
+              )
             : (currentEditor?.getJSON() as TiptapDoc),
         updatedAt: new Date().toISOString(),
       });
@@ -1823,38 +1853,81 @@ const RichEditorPane = ({
   }, [editor, getMobilePlainTextValue, markdownSource, useMarkdownSourceEditor, useMobilePlainTextEditor]);
 
   const openAiAssistant = useCallback(() => {
+    if (effectiveReadOnly) return;
     let selection: AiSelectionContext | null = null;
+    let insertionTarget: AiInsertionTarget | null = null;
 
     if (useMobilePlainTextEditor) {
       const source = getMobilePlainTextValue();
       const plainTextElement = mobileTextAreaRef.current;
       const from = plainTextElement instanceof HTMLTextAreaElement ? plainTextElement.selectionStart : 0;
       const to = plainTextElement instanceof HTMLTextAreaElement ? plainTextElement.selectionEnd : from;
+      insertionTarget = { kind: "plain", position: to };
       const contentMarkdown = source.slice(from, to).trim();
       if (to > from && contentMarkdown) selection = { kind: "plain", from, to, contentMarkdown };
     } else if (useMarkdownSourceEditor) {
-      const from = markdownTextAreaRef.current?.selectionStart ?? 0;
-      const to = markdownTextAreaRef.current?.selectionEnd ?? from;
+      const selectionPos = markdownSourceEditorRef.current?.getSelection() ?? { from: 0, to: 0 };
+      const from = selectionPos.from;
+      const to = selectionPos.to;
+      insertionTarget = { kind: "markdown", position: to };
       const contentMarkdown = markdownSource.slice(from, to).trim();
       if (to > from && contentMarkdown) selection = { kind: "markdown", from, to, contentMarkdown };
     } else if (isEditorReady(editor)) {
+      insertionTarget = { kind: "rich", position: editor.state.selection.head };
       const richSelection = getRichTextAiSelectionContext(editor.state.doc, editor.state.selection);
       if (richSelection) selection = { kind: "rich", ...richSelection };
     }
 
+    let anchor: AiAssistantAnchor | null = null;
+    if (!useMobilePlainTextEditor && !useMarkdownSourceEditor && isEditorReady(editor)) {
+      try {
+        const coords = editor.view.coordsAtPos(editor.state.selection.head);
+        const placeAbove = coords.bottom > window.innerHeight * 0.58;
+        anchor = {
+          left: coords.left,
+          placement: placeAbove ? "above" : "below",
+          top: placeAbove ? coords.top - 8 : coords.bottom + 8,
+        };
+      } catch {
+        anchor = null;
+      }
+    }
+    if (!anchor) {
+      const fallback = useMarkdownSourceEditor
+        ? markdownSourceEditorRef.current?.getSelectionCoordinates() ?? markdownSourceEditorRef.current?.getScrollContainer()?.getBoundingClientRect()
+        : useMobilePlainTextEditor
+          ? mobileTextAreaRef.current?.getBoundingClientRect()
+          : editorScrollContainerRef.current?.getBoundingClientRect();
+      anchor = {
+        left: fallback?.left ?? 24,
+        placement: "below",
+        top: Math.min((fallback?.top ?? 72) + 48, window.innerHeight - 120),
+      };
+    }
+
+    setAiAssistantAnchor(anchor);
     setAiSelection(selection);
+    setAiInsertionTarget(insertionTarget);
     setAiAssistantOpen(true);
-  }, [editor, getMobilePlainTextValue, markdownSource, useMarkdownSourceEditor, useMobilePlainTextEditor]);
+  }, [editor, effectiveReadOnly, getMobilePlainTextValue, markdownSource, useMarkdownSourceEditor, useMobilePlainTextEditor]);
+
+  useEffect(() => {
+    openAiAssistantRef.current = openAiAssistant;
+  }, [openAiAssistant]);
 
   const handleAiAssistantOpenChange = useCallback((nextOpen: boolean) => {
     setAiAssistantOpen(nextOpen);
-    if (!nextOpen) setAiSelection(null);
+    if (!nextOpen) {
+      setAiSelection(null);
+      setAiInsertionTarget(null);
+    }
   }, []);
 
   const applyAiDraft = useCallback((draft: string, mode: "append" | "replace") => {
+    if (effectiveReadOnly) return false;
     if (mode === "replace" && aiSelection) {
       const replacementDraft = normalizeAiSelectionReplacement(draft);
-      if (!replacementDraft) return;
+      if (!replacementDraft) return false;
 
       if (aiSelection.kind === "plain") {
         const source = getMobilePlainTextValue();
@@ -1871,22 +1944,75 @@ const RichEditorPane = ({
         const { next, caret } = insertMarkdownSnippet(markdownSource, replacementDraft, aiSelection.from, aiSelection.to);
         setMarkdownSource(next);
         window.requestAnimationFrame(() => {
-          markdownTextAreaRef.current?.focus();
-          markdownTextAreaRef.current?.setSelectionRange(caret, caret);
+          markdownSourceEditorRef.current?.focus();
+          markdownSourceEditorRef.current?.setSelection(caret, caret);
         });
       } else if (aiSelection.kind === "rich" && isEditorReady(editor)) {
         const maxPos = editor.state.doc.content.size;
-        const from = Math.max(1, Math.min(aiSelection.from, maxPos));
-        const to = Math.max(from, Math.min(aiSelection.to, maxPos));
-        editor.chain().focus().insertContentAt(
-          { from, to },
-          getRichTextAiSelectionReplacement(replacementDraft, aiSelection.isInline),
-        ).run();
+        const { from, to } = getRichTextAiReplacementRange(aiSelection.from, aiSelection.to, maxPos);
+        try {
+          const applied = editor.commands.insertContentAt(
+            { from, to },
+            getRichTextAiSelectionReplacement(replacementDraft, aiSelection.isInline),
+          );
+          if (!applied) return false;
+          editor.commands.focus();
+        } catch {
+          return false;
+        }
+      } else {
+        return false;
       }
       markDirty();
       setAiSelection(null);
+      setAiInsertionTarget(null);
       setAiAssistantOpen(false);
-      return;
+      return true;
+    }
+
+    if (mode === "append" && aiInsertionTarget) {
+      const insertionDraft = draft.trim();
+      if (!insertionDraft) return false;
+
+      if (aiInsertionTarget.kind === "plain") {
+        const source = getMobilePlainTextValue();
+        const { next, caret } = insertAiDraftAtTextCursor(source, insertionDraft, aiInsertionTarget.position);
+        setMobilePlainText(next);
+        setMobilePlainTextElementValue(mobileTextAreaRef.current, next);
+        persistCurrentDraft(title, tagsText, next);
+        window.requestAnimationFrame(() => {
+          const plainTextElement = mobileTextAreaRef.current;
+          plainTextElement?.focus();
+          if (plainTextElement instanceof HTMLTextAreaElement) plainTextElement.setSelectionRange(caret, caret);
+        });
+      } else if (aiInsertionTarget.kind === "markdown") {
+        const { next, caret } = insertAiDraftAtTextCursor(markdownSource, insertionDraft, aiInsertionTarget.position);
+        setMarkdownSource(next);
+        window.requestAnimationFrame(() => {
+          markdownSourceEditorRef.current?.focus();
+          markdownSourceEditorRef.current?.setSelection(caret, caret);
+        });
+      } else if (isEditorReady(editor)) {
+        const position = Math.max(0, Math.min(aiInsertionTarget.position, editor.state.doc.content.size));
+        try {
+          const applied = editor.commands.insertContentAt(
+            position,
+            getRichTextAiSelectionReplacement(insertionDraft, false),
+          );
+          if (!applied) return false;
+          editor.commands.focus();
+        } catch {
+          return false;
+        }
+      } else {
+        return false;
+      }
+
+      markDirty();
+      setAiSelection(null);
+      setAiInsertionTarget(null);
+      setAiAssistantOpen(false);
+      return true;
     }
 
     const current = getCurrentMarkdownForAi();
@@ -1900,12 +2026,20 @@ const RichEditorPane = ({
     } else if (useMarkdownSourceEditor) {
       setMarkdownSource(next);
     } else if (isEditorReady(editor)) {
-      editor.commands.setContent(markdownToDoc(next));
+      try {
+        if (!editor.commands.setContent(markdownToDoc(next))) return false;
+      } catch {
+        return false;
+      }
+    } else {
+      return false;
     }
     markDirty();
     setAiSelection(null);
+    setAiInsertionTarget(null);
     setAiAssistantOpen(false);
-  }, [aiSelection, editor, getCurrentMarkdownForAi, getMobilePlainTextValue, markDirty, markdownSource, persistCurrentDraft, tagsText, title, useMarkdownSourceEditor, useMobilePlainTextEditor]);
+    return true;
+  }, [aiInsertionTarget, aiSelection, editor, effectiveReadOnly, getCurrentMarkdownForAi, getMobilePlainTextValue, markDirty, markdownSource, persistCurrentDraft, tagsText, title, useMarkdownSourceEditor, useMobilePlainTextEditor]);
 
   const getCurrentContentJson = useCallback((): TiptapDoc | null => {
     if (useMobilePlainTextEditor) {
@@ -1913,7 +2047,11 @@ const RichEditorPane = ({
     }
 
     if (useMarkdownSourceEditor) {
-      return markdownToDoc(markdownSource);
+      return resolveMarkdownModeContent(
+        markdownModeSnapshotRef.current,
+        memoRef.current?.id,
+        markdownSource,
+      );
     }
 
     const currentEditor = editorRef.current;
@@ -1945,6 +2083,30 @@ const RichEditorPane = ({
   }, [getCurrentContentJson, tagsText, title]);
 
   useEffect(() => {
+    const handleLocalDatabaseInterrupted = () => {
+      const currentMemo = memoRef.current;
+      const contentJson = getCurrentContentJson();
+      if (currentMemo && contentJson && !currentMemo.isDeleted) {
+        persistEmergencyDraft({
+          memoId: currentMemo.id,
+          expectedRevision: currentMemo.revision,
+          title,
+          tagsText,
+          contentJson,
+          updatedAt: new Date().toISOString(),
+        });
+        setHasUnsavedChanges(true);
+      }
+      setStorageSaveError(true);
+      setSaveConflictInfo(null);
+      setSaveState("error");
+    };
+
+    window.addEventListener(LOCAL_DATABASE_INTERRUPTED_EVENT, handleLocalDatabaseInterrupted);
+    return () => window.removeEventListener(LOCAL_DATABASE_INTERRUPTED_EVENT, handleLocalDatabaseInterrupted);
+  }, [getCurrentContentJson, setHasUnsavedChanges, setSaveConflictInfo, setSaveState, tagsText, title]);
+
+  useEffect(() => {
     const currentEditor = editorRef.current;
     let cancelled = false;
 
@@ -1953,6 +2115,7 @@ const RichEditorPane = ({
       editSessionRef.current = null;
       hydratedMemoIdRef.current = null;
       appliedEditorSourceKeyRef.current = null;
+      markdownModeSnapshotRef.current = null;
       setHydratedEditorMemoId(null);
       editingMemoIdRef.current = null;
       setHasUnsavedChanges(false);
@@ -1963,6 +2126,7 @@ const RichEditorPane = ({
       setIsMarkdownMode(false);
       setMobilePlainTextElementValue(mobileTextAreaRef.current, "");
       setSaveState("idle");
+      setStorageSaveError(false);
       if (isEditorReady(currentEditor)) {
         currentEditor.commands.clearContent();
       }
@@ -1975,6 +2139,7 @@ const RichEditorPane = ({
     if (!sameMemo) {
       hydratedMemoIdRef.current = null;
       appliedEditorSourceKeyRef.current = null;
+      markdownModeSnapshotRef.current = null;
       setHydratedEditorMemoId(null);
     }
 
@@ -2030,12 +2195,13 @@ const RichEditorPane = ({
     memoRef.current = memo;
 
     void (async () => {
-      let [draft, queuedUpdate] = memo.isDeleted
+      let [indexedDbDraft, queuedUpdate] = memo.isDeleted
         ? [null, null]
         : await Promise.all([
             localDb.drafts.get(memo.id),
             localDb.syncQueue.get(getMemoUpdateQueueId(memo.id)),
           ]);
+      let draft = selectNewestLocalDraft(indexedDbDraft, readEmergencyDraft(memo.id));
 
       if (cancelled) {
         return;
@@ -2046,6 +2212,7 @@ const RichEditorPane = ({
           localDb.syncQueue.delete(queuedUpdate.id),
           localDb.drafts.delete(memo.id),
         ]);
+        removeEmergencyDraft(memo.id);
         draft = null;
         queuedUpdate = undefined;
       }
@@ -2053,6 +2220,7 @@ const RichEditorPane = ({
       const resolvedDraft = resolveEditorDraftState({ memo, draft, queuedUpdate });
       if (draft && !queuedUpdate && resolvedDraft.source === "memo") {
         await localDb.drafts.delete(memo.id);
+        removeEmergencyDraft(memo.id);
       }
       const {
         title: nextTitle,
@@ -2064,10 +2232,14 @@ const RichEditorPane = ({
       } = resolvedDraft;
 
       const alreadyHydratedSameMemo = sameMemo && hydratedMemoIdRef.current === memo.id;
+      const currentEditorDocument = isEditorReady(currentEditor)
+        ? currentEditor.getJSON() as TiptapDoc
+        : null;
+      const shouldReplaceDocument = shouldReplaceEditorDocument(currentEditorDocument, nextContent);
       const editorMarkdownMatches = Boolean(
         alreadyHydratedSameMemo &&
-        isEditorReady(currentEditor) &&
-        docToMarkdown(currentEditor.getJSON() as TiptapDoc) === nextMarkdown &&
+        currentEditorDocument &&
+        docToMarkdown(currentEditorDocument) === nextMarkdown &&
         title === nextTitle &&
         tagsText === nextTagsText
       );
@@ -2125,9 +2297,12 @@ const RichEditorPane = ({
       setTagsText(nextTagsText);
       setMobilePlainText(nextMarkdown);
       setMarkdownSource(nextMarkdown);
+      markdownModeSnapshotRef.current = isMarkdownMode
+        ? createMarkdownModeSnapshot(memo.id, nextContent, nextMarkdown)
+        : null;
       setMobilePlainTextElementValue(mobileTextAreaRef.current, nextMarkdown);
 
-      if (isEditorReady(currentEditor)) {
+      if (isEditorReady(currentEditor) && shouldReplaceDocument) {
         try {
           currentEditor.commands.setContent(nextContent);
         } catch (err) {
@@ -2258,6 +2433,13 @@ const RichEditorPane = ({
       const syncedMemo = memoId ? result?.syncedMemos?.get(memoId) : null;
       advanceMemoSyncBase(syncedMemo);
 
+      // A newly created note keeps a local ID until its create request has
+      // been acknowledged and remapped. A different queue item completing
+      // must not make that note claim it is already synced.
+      if (!memoId || isLocalMemoId(memoId)) {
+        return;
+      }
+
       if (memoId && (result?.conflicted ?? 0) > 0) {
         void localDb.syncQueue.get(getMemoUpdateQueueId(memoId)).then((item) => {
           if (!item || item.status !== "conflict" || memoRef.current?.id !== memoId) {
@@ -2273,12 +2455,19 @@ const RichEditorPane = ({
         return;
       }
 
-      setSaveState((current) => {
-        if (current !== "queued") {
-          return current;
+      // Sync runs are workspace-wide. Confirm that this memo has no successor
+      // request left in the outbox before changing its per-note status.
+      void localDb.syncQueue.where("memoId").equals(memoId).first().then((item) => {
+        if (item || memoRef.current?.id !== memoId || hasUnsavedChangesRef.current) {
+          return;
         }
-        setSaveConflictInfo(null);
-        return "saved";
+        setSaveState((current) => {
+          if (current !== "queued") {
+            return current;
+          }
+          setSaveConflictInfo(null);
+          return "saved";
+        });
       });
     };
 
@@ -2290,24 +2479,52 @@ const RichEditorPane = ({
     };
   }, []);
 
+  const applyMarkdownSourceToRichText = useCallback((scrollProgress: number) => {
+    if (!isEditorReady(editor)) {
+      return;
+    }
+
+    hydratingRef.current = true;
+    editor.commands.setContent(resolveMarkdownModeContent(
+      markdownModeSnapshotRef.current,
+      memoRef.current?.id,
+      markdownSource,
+    ));
+    markdownModeSnapshotRef.current = null;
+    setIsMarkdownMode(false);
+    restoreScrollAfterModeChange("rich", scrollProgress);
+    window.setTimeout(() => {
+      hydratingRef.current = false;
+    }, 0);
+  }, [editor, markdownSource, restoreScrollAfterModeChange]);
+
   const handleMarkdownModeChange = useCallback(() => {
     if (effectiveReadOnly || !isEditorReady(editor)) {
       return;
     }
 
+    const scrollProgress = getEditorScrollProgress(
+      isMarkdownMode ? (markdownSourceEditorRef.current?.getScrollContainer() ?? null) : editorScrollContainerRef.current,
+    );
+
     if (isMarkdownMode) {
-      hydratingRef.current = true;
-      editor.commands.setContent(markdownToDoc(markdownSource));
-      setIsMarkdownMode(false);
-      window.setTimeout(() => {
-        hydratingRef.current = false;
-      }, 0);
+      applyMarkdownSourceToRichText(scrollProgress);
       return;
     }
 
-    setMarkdownSource(docToMarkdown(editor.getJSON() as TiptapDoc));
+    const currentMemoId = memoRef.current?.id;
+    if (!currentMemoId) {
+      return;
+    }
+    const snapshot = createMarkdownModeSnapshot(
+      currentMemoId,
+      editor.getJSON() as TiptapDoc,
+    );
+    markdownModeSnapshotRef.current = snapshot;
+    setMarkdownSource(snapshot.markdownSource);
     setIsMarkdownMode(true);
-  }, [editor, effectiveReadOnly, isMarkdownMode, markdownSource]);
+    restoreScrollAfterModeChange("markdown", scrollProgress);
+  }, [applyMarkdownSourceToRichText, editor, effectiveReadOnly, isMarkdownMode, markdownSource, restoreScrollAfterModeChange]);
 
   const handleMarkdownSourceChange = useCallback((value: string) => {
     setMarkdownSource(value);
@@ -2478,8 +2695,49 @@ const RichEditorPane = ({
     useMobilePlainTextEditor,
   ]);
 
+  const buildImageExportOptions = useCallback((format: NoteImageFormat) => {
+    if (!isEditorReady(editor) || !memo) return;
+    const currentDocument = useMobilePlainTextEditor
+      ? markdownToDoc(getMobilePlainTextValue())
+      : useMarkdownSourceEditor
+        ? markdownToDoc(markdownSource)
+        : editor.getJSON() as TiptapDoc;
+    return {
+      bodyHtml: serializeNoteDocumentForPrint(editor, currentDocument),
+      title: title.trim() || t("common.untitledMemo"),
+      notebook: notebookOptions.find((notebook) => notebook.id === memo.notebookId)?.name ?? "",
+      tags: parseTagsText(tagsText),
+      updatedAt: formatDateTime(memo.updatedAt),
+      language: i18n.resolvedLanguage ?? i18n.language,
+      fallbackTitle: t("common.untitledMemo"),
+      format,
+      styles: NOTE_HTML_FULL_STYLES,
+    };
+  }, [
+    editor,
+    getMobilePlainTextValue,
+    i18n.language,
+    i18n.resolvedLanguage,
+    markdownSource,
+    memo,
+    notebookOptions,
+    t,
+    tagsText,
+    title,
+    useMarkdownSourceEditor,
+    useMobilePlainTextEditor,
+  ]);
+
+  const handleOpenImageShare = useCallback(() => {
+    const options = buildImageExportOptions("png");
+    if (!options) return;
+    const { format: _format, ...source } = options;
+    setImageShareSource(source);
+    setImageShareOpen(true);
+  }, [buildImageExportOptions]);
+
   const handleSaveAsTemplate = useCallback(() => {
-    if (!memo) {
+    if (!memo || effectiveReadOnly) {
       return;
     }
 
@@ -2501,7 +2759,7 @@ const RichEditorPane = ({
       contentMarkdown: currentMarkdown,
     };
     void onSaveAsTemplate(currentTemplateMemo, name.trim());
-  }, [editor, getMobilePlainTextValue, memo, onSaveAsTemplate, t, tagsText, title, useMobilePlainTextEditor]);
+  }, [editor, effectiveReadOnly, getMobilePlainTextValue, memo, onSaveAsTemplate, t, tagsText, title, useMobilePlainTextEditor]);
 
   useEffect(() => {
     if (
@@ -2517,7 +2775,7 @@ const RichEditorPane = ({
 
     switch (documentActionRequest.action) {
       case "share":
-        setShareOpen(true);
+        if (!effectiveReadOnly) setShareOpen(true);
         break;
       case "export-markdown":
         handleExportMarkdown();
@@ -2528,6 +2786,9 @@ const RichEditorPane = ({
       case "export-pdf":
         handleExportPdf(documentActionRequest.printWindow);
         break;
+      case "share-image":
+        handleOpenImageShare();
+        break;
       case "save-as-template":
         handleSaveAsTemplate();
         break;
@@ -2535,9 +2796,11 @@ const RichEditorPane = ({
   }, [
     documentActionRequest,
     editor,
+    effectiveReadOnly,
     handleExportHtml,
     handleExportMarkdown,
     handleExportPdf,
+    handleOpenImageShare,
     handleSaveAsTemplate,
     hydratedEditorMemoId,
     memo,
@@ -2598,11 +2861,24 @@ const RichEditorPane = ({
         contentMarkdown: useMarkdownSourceEditor ? markdownSource : undefined,
         tags: parseTagsText(tagsText),
       };
+      persistEmergencyDraft({
+        memoId: currentMemo.id,
+        expectedRevision: currentMemo.revision,
+        title,
+        tagsText,
+        contentJson,
+        updatedAt: new Date().toISOString(),
+      });
       const { memo: localMemo } = await repository.updateMemo(currentMemo, payload);
       return { memo: localMemo, snapshot, queued: true };
     },
-    onMutate: () => setSaveState("saving"),
+    onMutate: () => {
+      setStorageSaveError(false);
+      setSaveState("saving");
+    },
     onSuccess: async ({ memo: savedMemo, snapshot, queued }) => {
+      setStorageSaveError(false);
+      removeEmergencyDraft(savedMemo.id);
       memoRef.current = savedMemo;
       const currentEditSession = editSessionRef.current;
       if (currentEditSession) {
@@ -2631,7 +2907,7 @@ const RichEditorPane = ({
       if (currentSnapshot() === snapshot) {
         setMobilePlainText(docToMarkdown(savedMemo.contentJson));
         setHasUnsavedChanges(false);
-        await localDb.drafts.delete(savedMemo.id);
+        void localDb.drafts.delete(savedMemo.id).catch(() => undefined);
         setSaveConflictInfo(null);
         setSaveState(queued ? "queued" : "saved");
         if (!queued) {
@@ -2646,6 +2922,13 @@ const RichEditorPane = ({
       setSaveState("idle");
     },
     onError: async (error) => {
+      if (error instanceof LocalDatabaseUnavailableError) {
+        setStorageSaveError(true);
+        setSaveConflictInfo(null);
+        setSaveState("error");
+        return;
+      }
+      setStorageSaveError(false);
       const sourceError = error instanceof MemoSaveRequestError ? error.originalError : error;
       const conflictInfo = getMemoSaveConflictInfo(sourceError);
 
@@ -2664,6 +2947,7 @@ const RichEditorPane = ({
           contentJson: error.payload.contentJson,
           updatedAt: new Date().toISOString(),
         });
+        removeEmergencyDraft(error.payload.memoId);
 
         setHasUnsavedChanges(false);
         setSaveConflictInfo(null);
@@ -2675,12 +2959,165 @@ const RichEditorPane = ({
       setSaveState("error");
     },
   });
+
+  const pluginEditorMemoId = memo?.id ?? null;
+  useEffect(() => {
+    if (!editor || !pluginEditorMemoId || effectiveReadOnly || hydratedEditorMemoId !== pluginEditorMemoId) {
+      return;
+    }
+
+    const adapter: PluginEditorAdapter = {
+      getSelection: () => {
+        const { selection, doc } = editor.state;
+        const context = getRichTextAiSelectionContext(doc, selection);
+        return {
+          noteId: pluginEditorMemoId,
+          from: selection.from,
+          to: selection.to,
+          empty: selection.empty,
+          text: doc.textBetween(selection.from, selection.to, "\n"),
+          contentMarkdown: context?.contentMarkdown ?? "",
+        };
+      },
+      getDocument: () => ({
+        noteId: pluginEditorMemoId,
+        contentMarkdown: isMarkdownMode
+          ? markdownSource
+          : docToMarkdown(editor.getJSON() as TiptapDoc),
+        hasUnsavedChanges: hasUnsavedChanges || saveMutation.isPending,
+      }),
+      replaceDocument: (contentMarkdown) => {
+        if (isMarkdownMode) setMarkdownSource(contentMarkdown);
+        else editor.commands.setContent(markdownToDoc(contentMarkdown));
+        markDirty();
+      },
+      insertEmbed: (embed) => {
+        const attributes = {
+          id: embed.id,
+          pluginId: embed.pluginId,
+          type: embed.type,
+          resourceId: embed.resourceId,
+          previewResourceId: embed.previewResourceId,
+          title: embed.title,
+          dataJson: JSON.stringify(embed.data),
+        };
+        if (isMarkdownMode) {
+          setMarkdownSource((current) => `${current.trimEnd()}${current.trim() ? "\n\n" : ""}${pluginEmbedToMarkdown(attributes)}\n`);
+        } else {
+          editor.chain().focus().insertContent({ type: PLUGIN_EMBED_NODE_TYPE, attrs: attributes }).run();
+        }
+        markDirty();
+      },
+      replaceSelection: (contentMarkdown) => {
+        const { selection, doc } = editor.state;
+        const context = getRichTextAiSelectionContext(doc, selection);
+        const content = getRichTextAiSelectionReplacement(contentMarkdown, context?.isInline ?? true);
+        editor.chain().focus().insertContentAt({ from: selection.from, to: selection.to }, content).run();
+      },
+      insertAtCursor: (contentMarkdown) => {
+        const content = getRichTextAiSelectionReplacement(contentMarkdown, true);
+        editor.chain().focus().insertContent(content).run();
+      },
+    };
+    return pluginHost.setEditorAdapter(adapter);
+  }, [editor, effectiveReadOnly, hasUnsavedChanges, hydratedEditorMemoId, isMarkdownMode, markdownSource, markDirty, pluginEditorMemoId, pluginHost, saveMutation.isPending]);
   // useMutation returns a new result object on every render. Depending on the
   // whole object makes autosave timers restart during unrelated renders and
   // can starve a recovered draft indefinitely. These members are stable (or
   // primitive) and are safe effect dependencies.
   const mutateSave = saveMutation.mutate;
+  const mutateSaveAsync = saveMutation.mutateAsync;
   const saveMutationPending = saveMutation.isPending;
+
+  const editorShortcutBlocked = Boolean(
+    historyOpen ||
+      shareOpen ||
+      aiAssistantOpen ||
+      systemInfoOpen ||
+      mobileNotebookSheetOpen ||
+      noteLinkPickerOpen ||
+      externalLinkDialogOpen ||
+      resourceDialog ||
+      imagePreview
+  );
+
+  useEffect(() => {
+    if (handledAiAssistantOpenTokenRef.current === aiAssistantOpenToken) return;
+    handledAiAssistantOpenTokenRef.current = aiAssistantOpenToken;
+    if (editorShortcutBlocked || effectiveReadOnly || !memoRef.current) return;
+    openAiAssistant();
+  }, [aiAssistantOpenToken, editorShortcutBlocked, effectiveReadOnly, openAiAssistant]);
+
+  useEffect(() => {
+    if (handledReadingProtectionToggleTokenRef.current === readingProtectionToggleToken) return;
+    handledReadingProtectionToggleTokenRef.current = readingProtectionToggleToken;
+    if (editorShortcutBlocked || isMobileViewport || readOnly || !memoRef.current) return;
+    toggleDesktopReadingProtection();
+  }, [editorShortcutBlocked, isMobileViewport, readOnly, readingProtectionToggleToken, toggleDesktopReadingProtection]);
+
+  useEffect(() => {
+    if (handledEditorModeToggleTokenRef.current === editorModeToggleToken) {
+      return;
+    }
+
+    handledEditorModeToggleTokenRef.current = editorModeToggleToken;
+    if (editorShortcutBlocked || useMobilePlainTextEditor) {
+      return;
+    }
+
+    handleMarkdownModeChange();
+  }, [editorModeToggleToken, editorShortcutBlocked, handleMarkdownModeChange, useMobilePlainTextEditor]);
+
+  useEffect(() => {
+    if (handledOutlineToggleTokenRef.current === outlineToggleToken) {
+      return;
+    }
+
+    handledOutlineToggleTokenRef.current = outlineToggleToken;
+    if (editorShortcutBlocked || isMobileViewport || useMobilePlainTextEditor || useMarkdownSourceEditor) {
+      return;
+    }
+
+    setEditorOutlineCollapsed((current) => !current);
+  }, [editorShortcutBlocked, isMobileViewport, outlineToggleToken, useMarkdownSourceEditor, useMobilePlainTextEditor]);
+
+  useEffect(() => {
+    if (handledSaveAndSyncTokenRef.current === saveAndSyncToken || saveMutationPending) {
+      return;
+    }
+
+    handledSaveAndSyncTokenRef.current = saveAndSyncToken;
+    if (
+      editorShortcutBlocked ||
+      effectiveReadOnly ||
+      !memoRef.current ||
+      !isEditorReady(editorRef.current) ||
+      saveState === "conflict"
+    ) {
+      return;
+    }
+
+    void (async () => {
+      try {
+        await saveAndSyncEditor({
+          hasUnsavedChanges: hasUnsavedChangesRef.current,
+          save: mutateSaveAsync,
+          sync: onSyncRequested,
+        });
+      } catch {
+        // The save mutation owns its visible error/conflict state. Do not sync
+        // after a failed save because the queue may not contain this snapshot.
+      }
+    })();
+  }, [
+    editorShortcutBlocked,
+    effectiveReadOnly,
+    mutateSaveAsync,
+    onSyncRequested,
+    saveAndSyncToken,
+    saveMutationPending,
+    saveState,
+  ]);
 
   const replaceAttachmentLabel = useCallback((target: AttachmentMenuTarget, filename: string) => {
     const activeEditor = editorRef.current;
@@ -2722,35 +3159,26 @@ const RichEditorPane = ({
   const getResourceActionFailure = useCallback((target: ResourceMenuTarget) =>
     target.kind === "image" ? t("editor.imageActions.failed") : t("editor.attachmentActions.failed"), [t]);
 
-  const fetchResourceBlob = useCallback(async (target: ResourceMenuTarget) => {
-    try {
-      return await api.getResourceBlob(target.url);
-    } catch (error) {
-      if (target.resourceId) throw error;
-      const response = await fetch(target.url);
-      if (!response.ok) throw new Error(response.statusText || getResourceActionFailure(target));
-      return response.blob();
-    }
+  const fetchResourceResponse = useCallback(async (target: ResourceMenuTarget) => {
+    const response = target.url.startsWith("edgeever-resource:") || target.url.startsWith("edgeever-staged:")
+      ? await fetch(target.url)
+      : await api.getResourceResponse(target.url);
+    if (!response.ok) throw new Error(response.statusText || getResourceActionFailure(target));
+    return response;
   }, [getResourceActionFailure]);
 
-  const downloadBlob = useCallback((blob: Blob, filename: string) => {
-    const objectUrl = URL.createObjectURL(blob);
+  const downloadResourceDirectly = useCallback((target: ResourceMenuTarget) => {
     const anchor = document.createElement("a");
-    anchor.href = objectUrl;
-    anchor.download = filename;
+    anchor.href = target.url;
+    anchor.download = target.filename;
     anchor.click();
-    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
   }, []);
 
   const handleResourceDownload = useCallback(async (target: ResourceMenuTarget) => {
     hideResourceMenu();
     clearResourceActionError();
-    try {
-      downloadBlob(await fetchResourceBlob(target), target.filename);
-    } catch (error) {
-      failResourceAction(error instanceof Error ? error.message : getResourceActionFailure(target));
-    }
-  }, [clearResourceActionError, downloadBlob, failResourceAction, fetchResourceBlob, getResourceActionFailure, hideResourceMenu]);
+    downloadResourceDirectly(target);
+  }, [clearResourceActionError, downloadResourceDirectly, hideResourceMenu]);
 
   const handleResourceSaveAs = useCallback(async (target: ResourceMenuTarget) => {
     hideResourceMenu();
@@ -2758,25 +3186,25 @@ const RichEditorPane = ({
     try {
       const savePicker = (window as Window & {
         showSaveFilePicker?: (options: { suggestedName: string }) => Promise<{
-          createWritable: () => Promise<{ write: (data: Blob) => Promise<void>; close: () => Promise<void> }>;
+          createWritable: () => Promise<WritableStream<Uint8Array>>;
         }>;
       }).showSaveFilePicker;
 
       if (!savePicker) {
-        downloadBlob(await fetchResourceBlob(target), target.filename);
+        downloadResourceDirectly(target);
         return;
       }
 
       const handle = await savePicker.call(window, { suggestedName: target.filename });
-      const blob = await fetchResourceBlob(target);
+      const response = await fetchResourceResponse(target);
+      if (!response.body) throw new Error(getResourceActionFailure(target));
       const writable = await handle.createWritable();
-      await writable.write(blob);
-      await writable.close();
+      await response.body.pipeTo(writable);
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       failResourceAction(error instanceof Error ? error.message : getResourceActionFailure(target));
     }
-  }, [clearResourceActionError, downloadBlob, failResourceAction, fetchResourceBlob, getResourceActionFailure, hideResourceMenu]);
+  }, [clearResourceActionError, downloadResourceDirectly, failResourceAction, fetchResourceResponse, getResourceActionFailure, hideResourceMenu]);
 
   const openResourceDialog = useCallback((action: ResourceDialogState["action"], target: ResourceMenuTarget) => {
     openResourceActionDialog(action, target);
@@ -2849,7 +3277,7 @@ const RichEditorPane = ({
     if (!hasUnsavedChangesRef.current) {
       setHasUnsavedChanges(true);
       setSaveState((current) => (current === "conflict" ? current : "idle"));
-    } else if (saveState === "saved") {
+    } else if (saveState === "saved" || saveState === "error") {
       setSaveState("idle");
     }
 
@@ -2871,7 +3299,8 @@ const RichEditorPane = ({
         memoRef.current.isDeleted ||
         !hasUnsavedChangesRef.current ||
         saveMutationPending ||
-        saveState === "conflict"
+        saveState === "conflict" ||
+        saveState === "error"
       ) {
         return;
       }
@@ -2879,10 +3308,6 @@ const RichEditorPane = ({
       mutateSave();
     }, EDITOR_LOCAL_SAVE_DELAY_MS);
   }, [getMobilePlainTextValue, mutateSave, persistCurrentDraft, saveMutationPending, saveState, tagsText, title]);
-
-  useEffect(() => {
-    markMobilePlainTextDirtyRef.current = markMobilePlainTextDirty;
-  }, [markMobilePlainTextDirty]);
 
   useEffect(() => {
     if (!useMobilePlainTextEditor) {
@@ -2894,35 +3319,13 @@ const RichEditorPane = ({
       return;
     }
 
-    const recordNativeEvent = (event: Event) => {
-      mobileImeDebugRecorderRef.current(event.type, event);
-    };
-    const handleNativeInput = (event: Event) => {
-      mobileImeDebugRecorderRef.current(event.type, event);
-      markMobilePlainTextDirtyRef.current();
-    };
-
-    plainTextElement.addEventListener("focus", recordNativeEvent);
-    plainTextElement.addEventListener("blur", recordNativeEvent);
-    plainTextElement.addEventListener("click", recordNativeEvent);
-    plainTextElement.addEventListener("beforeinput", recordNativeEvent);
-    plainTextElement.addEventListener("compositionstart", recordNativeEvent);
-    plainTextElement.addEventListener("compositionupdate", recordNativeEvent);
-    plainTextElement.addEventListener("compositionend", recordNativeEvent);
+    const handleNativeInput = () => markMobilePlainTextDirty();
     plainTextElement.addEventListener("input", handleNativeInput);
-    mobileImeDebugRecorderRef.current("native-listeners-ready");
 
     return () => {
-      plainTextElement.removeEventListener("focus", recordNativeEvent);
-      plainTextElement.removeEventListener("blur", recordNativeEvent);
-      plainTextElement.removeEventListener("click", recordNativeEvent);
-      plainTextElement.removeEventListener("beforeinput", recordNativeEvent);
-      plainTextElement.removeEventListener("compositionstart", recordNativeEvent);
-      plainTextElement.removeEventListener("compositionupdate", recordNativeEvent);
-      plainTextElement.removeEventListener("compositionend", recordNativeEvent);
       plainTextElement.removeEventListener("input", handleNativeInput);
     };
-  }, [useMobilePlainTextEditor]);
+  }, [markMobilePlainTextDirty, useMobilePlainTextEditor]);
 
   useEffect(() => () => clearMobileEditorTimers(), [clearMobileEditorTimers]);
 
@@ -2940,7 +3343,8 @@ const RichEditorPane = ({
       !editor ||
       !hasUnsavedChanges ||
       saveMutationPending ||
-      saveState === "conflict"
+      saveState === "conflict" ||
+      saveState === "error"
     ) {
       return;
     }
@@ -3050,6 +3454,9 @@ const RichEditorPane = ({
       setTagsText(nextTagsText);
       setMobilePlainText(nextMarkdown);
       setMarkdownSource(nextMarkdown);
+      markdownModeSnapshotRef.current = isMarkdownMode
+        ? createMarkdownModeSnapshot(remoteMemo.id, nextContent, nextMarkdown)
+        : null;
       setMobilePlainTextElementValue(mobileTextAreaRef.current, nextMarkdown);
 
       const currentEditor = editorRef.current;
@@ -3084,7 +3491,7 @@ const RichEditorPane = ({
     } finally {
       setConflictActionPending(null);
     }
-  }, [conflictActionPending, onSaved, queryClient, repository, t]);
+  }, [conflictActionPending, isMarkdownMode, onSaved, queryClient, repository, t]);
 
   if (isSelectionMode) {
     return (
@@ -3097,6 +3504,7 @@ const RichEditorPane = ({
   if (isLoading && !memo) {
     return (
       <div className="flex h-full min-w-0 flex-col bg-white">
+        <EmptyEditorHeader />
         {selectionActionBar}
         <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-slate-500">{t("editor.loading")}</div>
       </div>
@@ -3106,6 +3514,7 @@ const RichEditorPane = ({
   if (!memo) {
     return (
       <div className="flex h-full min-w-0 flex-col bg-white">
+        <EmptyEditorHeader />
         {selectionActionBar}
         <div className="flex min-h-0 flex-1 items-center justify-center px-8 text-center">
           <div>
@@ -3160,44 +3569,19 @@ const RichEditorPane = ({
 
   const updatedLabel = formatDateTime(memo.updatedAt);
   const currentNotebookLabel = notebookOptions.find((notebook) => notebook.id === memo.notebookId)?.name ?? t("editor.notebookFallback");
+  const currentMarkdownForAi = getCurrentMarkdownForAi();
 
   const mobileDoneDisabled =
     saveMutation.isPending ||
     notebookUpdatePending ||
     imageUploadState === "compressing" ||
     imageUploadState === "uploading";
-  const noteSearchMatchLabel = formatNoteSearchMatchLabel(
-    noteSearchQuery,
-    noteSearchIndex,
-    noteSearchMatches.length,
-  );
-  const mobileImeDebugEditorFocused =
-    typeof document !== "undefined" && mobileTextAreaRef.current === document.activeElement;
-  const mobileImeDebugLogText = [
-    `memoId=${memo.id}`,
-    `mobile=${isMobileViewport}`,
-    `editingState=${isMobileEditing}`,
-    `editingActive=${mobileEditingActive}`,
-    `plainTextEditor=${useMobilePlainTextEditor}`,
-    `editorFocused=${mobileImeDebugEditorFocused}`,
-    `activeElement=${mobileImeDebugActiveElement}`,
-    `valueLength=${getMobilePlainTextValue().length}`,
-    `saveState=${saveState}`,
-    ...mobileImeDebugEvents.map((entry) =>
-      `${entry.time} ${entry.event} active=${entry.activeElement} len=${entry.valueLength}` +
-      `${entry.inputType ? ` inputType=${entry.inputType}` : ""}` +
-      `${entry.isComposing !== undefined ? ` composing=${entry.isComposing}` : ""}` +
-      `${entry.key ? ` key=${entry.key}` : ""}`
-    ),
-  ].join("\n");
-
-  const appendMobilePlainText = (nextText: string, eventName: string) => {
+  const appendMobilePlainText = (nextText: string) => {
     const currentText = getMobilePlainTextValue();
     const nextValue = `${currentText}${currentText ? "\n" : ""}${nextText}`;
     setMobilePlainText(nextValue);
     setMobilePlainTextElementValue(mobileTextAreaRef.current, nextValue);
     markMobilePlainTextDirty();
-    recordMobileImeDebugEvent(eventName);
     window.requestAnimationFrame(() => focusMobileInputTarget());
   };
 
@@ -3208,21 +3592,19 @@ const RichEditorPane = ({
       return;
     }
 
-    appendMobilePlainText(nextText, "prompt-input");
+    appendMobilePlainText(nextText);
   };
 
   const handleMobileClipboardInput = async () => {
     try {
       const nextText = await navigator.clipboard?.readText();
       if (!nextText?.trim()) {
-        recordMobileImeDebugEvent("clipboard-empty");
         focusMobileInputTarget();
         return;
       }
 
-      appendMobilePlainText(nextText, "clipboard-input");
+      appendMobilePlainText(nextText);
     } catch {
-      recordMobileImeDebugEvent("clipboard-error");
       window.alert(t("editor.clipboardReadFailed"));
       focusMobileInputTarget();
     }
@@ -3350,51 +3732,15 @@ const RichEditorPane = ({
         onRemove={removeExternalLink}
       />
       {noteLinkPickerOpen && (
-        <div className="absolute left-3 right-3 top-14 z-30 h-[min(22rem,calc(100%-4rem))] max-w-xl rounded-lg border border-slate-200 bg-white shadow-xl sm:left-5 sm:right-auto sm:w-[28rem]" role="dialog" aria-label={t("noteLinkPicker.title")}>
-          <Command shouldFilter={false}>
-            <div className="flex items-center justify-between border-b border-slate-100 pr-2">
-              <CommandInput
-                autoFocus
-                value={noteLinkQuery}
-                placeholder={t("noteLinkPicker.searchPlaceholder")}
-                onValueChange={setNoteLinkQuery}
-                onKeyDown={(event) => {
-                  if (event.key === "Escape") {
-                    setNoteLinkPickerOpen(false);
-                  }
-                }}
-              />
-              <button
-                type="button"
-                className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                aria-label={t("noteLinkPicker.close")}
-                onClick={() => setNoteLinkPickerOpen(false)}
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <CommandList>
-              {noteLinkResultsQuery.isLoading ? (
-                <div className="p-6 text-center text-sm text-slate-500">{t("noteLinkPicker.loading")}</div>
-              ) : (
-                <>
-                  <CommandEmpty>{t("noteLinkPicker.empty")}</CommandEmpty>
-                  <CommandGroup>
-                    {(noteLinkResultsQuery.data?.memos ?? [])
-                      .filter((candidate) => candidate.id !== memo?.id && !candidate.isDeleted)
-                      .map((candidate) => (
-                        <CommandItem key={candidate.id} value={candidate.id} onSelect={() => insertMemoLink(candidate)}>
-                          <Link2 className="h-4 w-4 shrink-0 text-emerald-600" />
-                          <span className="min-w-0 flex-1 truncate">{candidate.title || t("common.untitledMemo")}</span>
-                          <span className="max-w-40 truncate text-xs text-slate-400">{candidate.excerpt}</span>
-                        </CommandItem>
-                      ))}
-                  </CommandGroup>
-                </>
-              )}
-            </CommandList>
-          </Command>
-        </div>
+        <EditorNoteLinkPicker
+          query={noteLinkQuery}
+          isLoading={noteLinkResultsQuery.isLoading}
+          memos={noteLinkResultsQuery.data?.memos ?? []}
+          currentMemoId={memo.id}
+          onQueryChange={setNoteLinkQuery}
+          onClose={() => setNoteLinkPickerOpen(false)}
+          onInsert={insertMemoLink}
+        />
       )}
       <header className="shrink-0 border-b border-slate-200 bg-white">
         <div className="flex min-h-12 items-center justify-between gap-2 border-b border-slate-100 px-3 py-2 sm:px-5">
@@ -3474,6 +3820,7 @@ const RichEditorPane = ({
                 type="button"
                 title={t("sharing.manage")}
                 aria-label={t("sharing.manage")}
+                disabled={effectiveReadOnly}
                 onClick={() => setShareOpen(true)}
               >
                 <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -3586,8 +3933,8 @@ const RichEditorPane = ({
                 <Search className="h-5 w-5" strokeWidth={2.25} />
               </Button>
             </IconTooltip>
-            {!readOnly && (
-              <IconTooltip label={t("aiAssistant.open")}>
+            {!effectiveReadOnly && (
+              <IconTooltip label={`${t("aiAssistant.open")} (${formatShortcutBinding(shortcutSettings.openAiAssistant)})`}>
                 <Button className="hidden h-8 w-8 text-emerald-600 transition-colors hover:bg-emerald-50 hover:text-emerald-800 focus-visible:ring-2 focus-visible:ring-emerald-300 sm:inline-flex" size="icon" variant="ghost" aria-label={t("aiAssistant.open")} onClick={openAiAssistant}>
                   <Sparkles className="h-5 w-5" strokeWidth={2.25} />
                 </Button>
@@ -3607,7 +3954,7 @@ const RichEditorPane = ({
                     variant="ghost"
                     aria-label={t("editor.copyToWeChat")}
                     onClick={() => void handleCopyToWeChat()}
-                    disabled={!editor || effectiveReadOnly || useMobilePlainTextEditor || wechatCopyState === "copying"}
+                    disabled={!editor || useMobilePlainTextEditor || wechatCopyState === "copying"}
                   >
                     {wechatCopyState === "copying" ? (
                       <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -3634,16 +3981,21 @@ const RichEditorPane = ({
             <IconTooltip label={t("systemInfo.title")}>
               <Button className="relative hidden h-8 w-8 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-emerald-500/70 min-[1600px]:inline-flex" size="icon" variant="ghost" aria-label={t("systemInfo.title")} onClick={() => setSystemInfoOpen(true)}>
                 <Info className="h-5 w-5" strokeWidth={2.25} />
-                {updateAvailable ? <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-emerald-500 ring-2 ring-white" /> : null}
+                {deployedUpdateUnseen ? <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-emerald-500 ring-2 ring-white" /> : null}
               </Button>
             </IconTooltip>
             <ThemeToggle />
-            {!readOnly && (
+            {!effectiveReadOnly && (
               <IconTooltip label={t("editor.save")}>
                 <Button
-                  className="hidden sm:inline-flex"
+                  className={cn(
+                    "hidden h-8 w-8 transition-colors sm:inline-flex",
+                    hasUnsavedChanges
+                      ? "text-emerald-600 hover:bg-emerald-50 hover:text-emerald-800 focus-visible:ring-2 focus-visible:ring-emerald-300"
+                      : "text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus-visible:ring-2 focus-visible:ring-slate-300"
+                  )}
                   size="icon"
-                  variant="solid"
+                  variant="ghost"
                   aria-label={t("editor.save")}
                   onClick={() => saveMutation.mutate()}
                   disabled={!editor || saveMutation.isPending || !hasUnsavedChanges}
@@ -3665,7 +4017,7 @@ const RichEditorPane = ({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44 bg-white border border-slate-200 rounded-md py-1 shadow-md">
-                {!readOnly && (
+                {!effectiveReadOnly && (
                   <DropdownMenuItem
                     className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-emerald-700 hover:bg-emerald-50 cursor-pointer outline-none"
                     onClick={openAiAssistant}
@@ -3692,6 +4044,7 @@ const RichEditorPane = ({
                 <DropdownMenuItem
                   className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer outline-none"
                   onClick={openNoteReplace}
+                  disabled={effectiveReadOnly}
                 >
                   <ReplaceAll className="h-4 w-4 text-slate-500" />
                   {t("editor.replaceCurrentMemo")}
@@ -3705,7 +4058,7 @@ const RichEditorPane = ({
                   <History className="h-4 w-4 text-slate-500" />
                   {t("editor.versionHistory")}
                 </DropdownMenuItem>
-                {!readOnly && (
+                {!effectiveReadOnly && (
                   <DropdownMenuItem
                     className={cn(
                       "flex h-9 w-full items-center gap-2 px-3 text-left text-sm hover:bg-slate-50 cursor-pointer outline-none",
@@ -3715,7 +4068,7 @@ const RichEditorPane = ({
                     onClick={() => setShareOpen(true)}
                   >
                     <Link2 className={cn("h-4 w-4", isMemoShared ? "text-emerald-600" : "text-slate-500")} />
-                    {t(isMemoShared ? "sharing.manage" : "sharing.action")}
+                    {t(isLocalMemoId(memo.id) ? "sharing.afterSync" : isMemoShared ? "sharing.manage" : "sharing.action")}
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem
@@ -3738,6 +4091,13 @@ const RichEditorPane = ({
                 >
                   <Printer className="h-4 w-4 text-slate-500" />
                   {t("editor.exportPdf")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer outline-none"
+                  onClick={handleOpenImageShare}
+                >
+                  <Share2 className="h-4 w-4 text-slate-500" />
+                  {t("editor.imageShare.action")}
                 </DropdownMenuItem>
                 {readOnly ? (
                   <>
@@ -3762,6 +4122,7 @@ const RichEditorPane = ({
                     <DropdownMenuItem
                       className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer outline-none"
                       onClick={handleSaveAsTemplate}
+                      disabled={effectiveReadOnly}
                     >
                       <Pencil className="h-4 w-4 text-slate-500" />
                       {t("templates.saveAsTemplate")}
@@ -3770,6 +4131,7 @@ const RichEditorPane = ({
                     <DropdownMenuItem
                       className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-rose-700 hover:bg-rose-50 cursor-pointer outline-none"
                       onClick={() => void onDeleted(memo.id)}
+                      disabled={effectiveReadOnly}
                     >
                       <Trash2 className="h-4 w-4" />
                       {t("editor.deleteMemo")}
@@ -3781,7 +4143,7 @@ const RichEditorPane = ({
           </div>
         </div>
 
-        <div className="space-y-3 px-4 pb-4 pt-4 sm:px-7 lg:space-y-0 lg:pb-1 lg:pt-2">
+        <div className="space-y-1.5 px-4 pb-2.5 pt-2.5 sm:space-y-3 sm:px-7 sm:pb-4 sm:pt-4 lg:space-y-0 lg:pb-0.5 lg:pt-1.5">
           <input
             value={title}
             readOnly={effectiveReadOnly}
@@ -3790,12 +4152,12 @@ const RichEditorPane = ({
               persistCurrentDraft(event.target.value, tagsText, getMobilePlainTextValue());
               markDirty();
             }}
-            className="block w-full rounded-md border-0 bg-transparent text-2xl font-bold leading-tight text-slate-950 outline-none transition placeholder:text-slate-300 focus-visible:bg-muted focus-visible:shadow-[inset_3px_0_0_var(--brand-green)] sm:text-3xl"
+            className="block w-full rounded-md border-0 bg-transparent text-xl font-bold leading-snug text-slate-950 outline-none transition placeholder:text-slate-300 focus-visible:bg-muted focus-visible:shadow-[inset_3px_0_0_var(--brand-green)] sm:text-2xl lg:text-[26px]"
             placeholder={t("common.untitledMemo")}
           />
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <button
-              className="flex h-8 min-w-0 max-w-full items-center gap-1 rounded-md border border-transparent bg-transparent px-2 text-sm font-medium text-slate-600 outline-none transition hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900 focus-visible:border-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-500/20 disabled:opacity-50 sm:hidden"
+              className="flex h-7 min-w-0 max-w-full items-center gap-1 rounded-md border border-transparent bg-transparent px-1.5 text-xs font-medium text-slate-600 outline-none transition hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900 focus-visible:border-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-500/20 disabled:opacity-50 sm:hidden"
               type="button"
               disabled={effectiveReadOnly || notebookUpdatePending}
               title={t("editor.currentNotebook")}
@@ -3812,7 +4174,7 @@ const RichEditorPane = ({
                 onValueChange={(value) => handleNotebookChange(value)}
               >
                 <SelectTrigger className="h-8 min-w-0 border-transparent bg-transparent px-2 text-sm font-medium text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900 whitespace-nowrap">
-                  <SelectValue placeholder={t("editor.notebookPlaceholder")} />
+                  <SelectValue placeholder={t("editor.notebookPlaceholder")}>{currentNotebookLabel}</SelectValue>
                 </SelectTrigger>
                 <SelectContent className="max-h-60 bg-white border border-slate-200 rounded-md py-1 shadow-md">
                   {notebookOptions.map((notebook) => (
@@ -3823,161 +4185,77 @@ const RichEditorPane = ({
                 </SelectContent>
               </Select>
             </div>
-            <label className="flex h-8 min-w-[12rem] flex-1 items-center gap-2 rounded-md border border-transparent px-2 text-sm text-slate-500 transition focus-within:border-slate-200 focus-within:bg-slate-50 focus-within:ring-2 focus-within:ring-emerald-500/15">
-              <Tags className="h-4 w-4" />
-              <input
-                value={tagsText}
-                readOnly={effectiveReadOnly}
-                onChange={(event) => {
-                  setTagsText(event.target.value);
-                  persistCurrentDraft(title, event.target.value, getMobilePlainTextValue());
-                  markDirty();
-                }}
-                className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-slate-400"
-                placeholder={t("editor.tagPlaceholder")}
-              />
-            </label>
-          </div>
-        </div>
-        {noteSearchOpen && (
-          <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-4 py-2 sm:px-7">
-            <Search className="h-4 w-4 shrink-0 text-slate-400" />
-            <Input
-              ref={noteSearchInputRef}
-              value={noteSearchQuery}
-              className="h-8 min-w-[12rem] flex-1"
-              placeholder={t("editor.searchPlaceholder")}
-              onChange={(event) => setNoteSearchQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  moveNoteSearchMatch(event.shiftKey ? -1 : 1);
-                }
-
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  closeNoteSearch();
-                }
+            <EditorTagPicker
+              contentMarkdown={currentMarkdownForAi}
+              disabled={effectiveReadOnly}
+              loadTags={() => repository.listTags()}
+              title={title}
+              value={tagsText}
+              onChange={(nextTagsText) => {
+                setTagsText(nextTagsText);
+                persistCurrentDraft(title, nextTagsText, getMobilePlainTextValue());
+                markDirty();
               }}
             />
-            {noteSearchReplaceOpen && (
-              <Input
-                ref={noteReplaceInputRef}
-                value={noteSearchReplacement}
-                className="h-8 min-w-[12rem] flex-1"
-                placeholder={t("editor.replacePlaceholder")}
-                disabled={effectiveReadOnly}
-                onChange={(event) => setNoteSearchReplacement(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    replaceAllNoteSearchMatches();
-                  }
-
-                  if (event.key === "Escape") {
-                    event.preventDefault();
-                    closeNoteSearch();
-                  }
-                }}
-              />
+            {!readOnly && (
+              <IconTooltip label={`${t(desktopReadingProtection ? "editor.disableReadingProtection" : "editor.enableReadingProtection")} (${formatShortcutBinding(shortcutSettings.toggleReadingProtection)})`}>
+                <Button
+                  className={cn(
+                    "hidden shrink-0 sm:inline-flex",
+                    desktopReadingProtection && "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-200 hover:text-slate-900"
+                  )}
+                  size="icon"
+                  variant={desktopReadingProtection ? "soft" : "ghost"}
+                  aria-label={`${t(desktopReadingProtection ? "editor.disableReadingProtection" : "editor.enableReadingProtection")} (${formatShortcutBinding(shortcutSettings.toggleReadingProtection)})`}
+                  aria-pressed={desktopReadingProtection}
+                  onClick={toggleDesktopReadingProtection}
+                >
+                  {desktopReadingProtection ? <Lock className="h-4 w-4" /> : <LockOpen className="h-4 w-4" />}
+                </Button>
+              </IconTooltip>
             )}
-            <span
-              className={cn(
-                "w-12 shrink-0 text-center text-xs tabular-nums",
-                noteSearchQuery.trim() && noteSearchMatches.length === 0 ? "text-rose-500" : "text-slate-500"
-              )}
-              aria-live="polite"
-            >
-              {noteSearchMatchLabel}
-            </span>
-            <Button
-              size="icon"
-              variant="ghost"
-              title={t("editor.previousSearchResult")}
-              aria-label={t("editor.previousSearchResult")}
-              disabled={noteSearchMatches.length === 0}
-              onClick={() => moveNoteSearchMatch(-1)}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              title={t("editor.nextSearchResult")}
-              aria-label={t("editor.nextSearchResult")}
-              disabled={noteSearchMatches.length === 0}
-              onClick={() => moveNoteSearchMatch(1)}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            {noteSearchReplaceOpen && (
-              <Button
-                size="sm"
-                variant="solid"
-                title={t("editor.replaceAll")}
-                aria-label={t("editor.replaceAll")}
-                disabled={effectiveReadOnly || noteSearchMatches.length === 0}
-                onClick={replaceAllNoteSearchMatches}
-              >
-                <ReplaceAll className="h-4 w-4" />
-                {t("editor.replaceAll")}
-              </Button>
-            )}
-            <Button size="icon" variant="ghost" title={t("editor.closeSearch")} aria-label={t("editor.closeSearch")} onClick={closeNoteSearch}>
-              <X className="h-4 w-4" />
-            </Button>
           </div>
-        )}
+        </div>
+        {noteSearchOpen ? (
+          <EditorNoteSearchBar
+            inputRef={noteSearchInputRef}
+            query={noteSearchQuery}
+            replacement={noteSearchReplacement}
+            replaceOpen={noteSearchReplaceOpen}
+            readOnly={effectiveReadOnly}
+            matchCount={noteSearchMatches.length}
+            matchLabel={noteSearchMatchLabel}
+            onQueryChange={setNoteSearchQuery}
+            onReplacementChange={setNoteSearchReplacement}
+            onMoveMatch={moveNoteSearchMatch}
+            onReplaceAll={replaceAllNoteSearchMatches}
+            onClose={closeNoteSearch}
+          />
+        ) : null}
         {(!isMobileViewport || (mobileToolbarOpen && !useMobilePlainTextEditor)) && (
           <EditorToolbar
             editor={editor}
             readOnly={effectiveReadOnly}
             markdownMode={useMarkdownSourceEditor}
             onMarkdownModeChange={handleMarkdownModeChange}
+            markdownModeShortcut={shortcutSettings.toggleEditorMode}
             onPickAttachment={() => fileInputRef.current?.click()}
             onPickExternalLink={openExternalLinkDialog}
             externalLinkActive={externalLinkActive}
             onPickNoteLink={() => setNoteLinkPickerOpen(true)}
           />
         )}
-        {saveState === "conflict" && saveConflictReason ? (
-          <div
-            className="flex flex-col gap-2 border-t border-rose-100 bg-rose-50 px-3 py-2 text-xs leading-relaxed text-rose-800 sm:px-5"
-            role="alert"
-          >
-            <div className="flex items-start gap-2">
-              <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              <span className="min-w-0 flex-1">{saveConflictReason}</span>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 pl-5">
-              <Button
-                size="sm"
-                variant="solid"
-                className="h-7 bg-rose-700 px-2.5 text-[11px] text-white hover:bg-rose-800"
-                disabled={conflictActionPending !== null}
-                onClick={() => void handleAdoptCloudAndReload()}
-              >
-                {conflictActionPending === "adopt"
-                  ? t("editor.saveState.conflictAdopting")
-                  : t("editor.saveState.conflictAdoptCloud")}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 px-2.5 text-[11px] text-rose-800 hover:bg-rose-100"
-                disabled={conflictActionPending !== null}
-                onClick={() => void handleCopyLocalDraft()}
-              >
-                {t("editor.saveState.conflictCopyDraft")}
-              </Button>
-              {conflictActionMessage ? (
-                <span className="text-[11px] font-medium text-rose-700" role="status" aria-live="polite">
-                  {conflictActionMessage}
-                </span>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
+        <EditorSaveRecoveryBanner
+          saveState={saveState}
+          conflictReason={saveConflictReason}
+          storageSaveError={storageSaveError}
+          savePending={saveMutationPending}
+          actionPending={conflictActionPending}
+          actionMessage={conflictActionMessage}
+          onAdoptCloud={handleAdoptCloudAndReload}
+          onCopyDraft={handleCopyLocalDraft}
+          onRetry={mutateSave}
+        />
       </header>
 
       <div
@@ -3987,7 +4265,8 @@ const RichEditorPane = ({
           editorTheme === "minimal-emerald" ||
           editorTheme === "outline-emerald" ||
           editorTheme === "wechat-green" ||
-          editorTheme === "modern-mint"
+          editorTheme === "modern-mint" ||
+          editorTheme === "marxico"
             ? editorTheme
             : "custom"
         }
@@ -3995,21 +4274,28 @@ const RichEditorPane = ({
           "--editor-body-font-size": `${MEMO_CONTENT_STYLE.body.fontSize}px`,
           "--editor-body-line-height": String(MEMO_CONTENT_STYLE.body.lineHeight / MEMO_CONTENT_STYLE.body.fontSize),
           "--editor-paragraph-spacing": `${MEMO_CONTENT_STYLE.body.paragraphSpacing}px`,
-          "--memo-content-divider-color": MEMO_CONTENT_STYLE.divider.color[resolvedTheme],
           "--memo-content-divider-spacing": `${MEMO_CONTENT_STYLE.divider.marginVertical}px`,
           ...(editorTheme !== "default" &&
           editorTheme !== "minimal-emerald" &&
           editorTheme !== "outline-emerald" &&
           editorTheme !== "wechat-green" &&
-          editorTheme !== "modern-mint"
+          editorTheme !== "modern-mint" &&
+          editorTheme !== "marxico"
             ? {
-                "--editor-theme-bg": (resolvedTheme === "dark" ? customEditorTheme.dark : customEditorTheme.light).background,
-                "--editor-theme-text": (resolvedTheme === "dark" ? customEditorTheme.dark : customEditorTheme.light).text,
-                "--editor-theme-muted": (resolvedTheme === "dark" ? customEditorTheme.dark : customEditorTheme.light).muted,
-                "--editor-theme-heading": (resolvedTheme === "dark" ? customEditorTheme.dark : customEditorTheme.light).heading,
-                "--editor-theme-accent": (resolvedTheme === "dark" ? customEditorTheme.dark : customEditorTheme.light).accent,
-                "--editor-theme-soft": (resolvedTheme === "dark" ? customEditorTheme.dark : customEditorTheme.light).soft,
-                "--editor-theme-border": (resolvedTheme === "dark" ? customEditorTheme.dark : customEditorTheme.light).border,
+                "--editor-theme-light-bg": customEditorTheme.light.background,
+                "--editor-theme-light-text": customEditorTheme.light.text,
+                "--editor-theme-light-muted": customEditorTheme.light.muted,
+                "--editor-theme-light-heading": customEditorTheme.light.heading,
+                "--editor-theme-light-accent": customEditorTheme.light.accent,
+                "--editor-theme-light-soft": customEditorTheme.light.soft,
+                "--editor-theme-light-border": customEditorTheme.light.border,
+                "--editor-theme-dark-bg": customEditorTheme.dark.background,
+                "--editor-theme-dark-text": customEditorTheme.dark.text,
+                "--editor-theme-dark-muted": customEditorTheme.dark.muted,
+                "--editor-theme-dark-heading": customEditorTheme.dark.heading,
+                "--editor-theme-dark-accent": customEditorTheme.dark.accent,
+                "--editor-theme-dark-soft": customEditorTheme.dark.soft,
+                "--editor-theme-dark-border": customEditorTheme.dark.border,
               }
             : {}),
         } as CSSProperties}
@@ -4028,6 +4314,7 @@ const RichEditorPane = ({
           editorTheme !== "outline-emerald" &&
           editorTheme !== "wechat-green" &&
           editorTheme !== "modern-mint" &&
+          editorTheme !== "marxico" &&
           customEditorTheme.customCss && (
             <style
               data-theme-custom-css
@@ -4036,14 +4323,21 @@ const RichEditorPane = ({
             />
           )}
         <div
+          onClickCapture={
+            !useMobilePlainTextEditor && !useMarkdownSourceEditor
+              ? handleEditorClickCapture
+              : undefined
+          }
           className={cn(
             "flex gap-8 transition-all duration-200",
             useMarkdownSourceEditor
               ? "h-full min-h-0 flex-1 items-stretch px-0 py-0"
-              : "min-h-full items-start px-6 py-6 sm:px-10",
+              : "min-h-full items-start px-4 py-2 sm:px-7 lg:px-10",
             desktopFocusMode
               ? "mx-auto w-full max-w-[1400px] justify-center"
-              : "w-full justify-start"
+              : editorContentAlignment === "center"
+                ? "w-full justify-center"
+                : "w-full justify-start"
           )}
         >
           <div
@@ -4102,39 +4396,35 @@ const RichEditorPane = ({
                 </div>
               </>
             ) : useMarkdownSourceEditor ? (
-              // Absolute fill: native <textarea> often ignores flex-1 height; pin to the pane instead.
               <div className="relative min-h-0 flex-1">
-                <textarea
-                  ref={markdownTextAreaRef}
-                  value={markdownSource}
-                  onChange={(event) => handleMarkdownSourceChange(event.target.value)}
-                  onKeyDown={(event) => {
-                    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "k") {
-                      event.preventDefault();
-                      openExternalLinkDialog();
-                    }
-                  }}
-                  readOnly={effectiveReadOnly}
-                  spellCheck={false}
-                  aria-label={t("editor.markdownSourceAria")}
-                  className="absolute inset-0 h-full w-full resize-none border-0 bg-slate-950 px-4 py-3 font-mono text-sm leading-6 text-slate-100 outline-none placeholder:text-slate-500 sm:px-6"
-                  placeholder={`# ${t("editor.placeholder")}`}
-                />
+                <Suspense fallback={<div className="h-full w-full" />}>
+                  <MarkdownSourceEditor
+                    ref={markdownSourceEditorRef}
+                    value={markdownSource}
+                    onChange={handleMarkdownSourceChange}
+                    themeName={markdownTheme}
+                    readOnly={effectiveReadOnly}
+                    placeholder={`# ${t("editor.placeholder")}`}
+                    ariaLabel={t("editor.markdownSourceAria")}
+                    onSlashCommandTrigger={() => {
+                      openAiAssistant();
+                    }}
+                    onLinkShortcut={openExternalLinkDialog}
+                    className="absolute inset-0 h-full w-full"
+                  />
+                </Suspense>
               </div>
             ) : (
               <div
                 onMouseOver={handleEditorMouseOver}
                 onMouseOut={handleEditorMouseOut}
-                onClickCapture={handleEditorClickCapture}
                 onFocusCapture={handleEditorFocusCapture}
                 onBlurCapture={handleEditorBlurCapture}
               >
                 <BubbleMenu
                   editor={editor}
-                  shouldShow={({ editor: activeEditor }) =>
-                    activeEditor.isEditable && !activeEditor.state.selection.empty && !aiAssistantOpen
-                  }
-                  options={{ placement: "top" }}
+                  shouldShow={aiBubbleMenu.shouldShow}
+                  options={aiBubbleMenu.options}
                 >
                   <Button
                     type="button"
@@ -4157,6 +4447,7 @@ const RichEditorPane = ({
               editor={editor}
               scrollContainer={editorScrollContainer}
               collapsed={editorOutlineCollapsed}
+              shortcutLabel={formatShortcutBinding(shortcutSettings.toggleOutline)}
               onCollapsedChange={setEditorOutlineCollapsed}
             />
           )}
@@ -4169,6 +4460,17 @@ const RichEditorPane = ({
           position={noteLinkHintPosition}
         />
       )}
+
+      <ImageViewer
+        alt={imagePreview?.alt ?? ""}
+        closeLabel={t("editor.closeImagePreview")}
+        open={Boolean(imagePreview)}
+        src={imagePreview?.url ?? ""}
+        viewerLabel={t("editor.imageViewer")}
+        zoomInLabel={t("editor.imageZoomIn")}
+        zoomOutLabel={t("editor.imageZoomOut")}
+        onClose={() => setImagePreview(null)}
+      />
 
       {resourceMenuTarget && (
         <ResourceActionMenu
@@ -4196,162 +4498,22 @@ const RichEditorPane = ({
         />
       )}
 
-      <Dialog
-        open={resourceDialog?.action === "rename"}
-        onOpenChange={(open) => {
-          if (!open) closeResourceDialog();
-        }}
-      >
-        <DialogContent>
-          <form
-            className="contents"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void handleResourceRename();
-            }}
-          >
-            <DialogHeader>
-              <DialogTitle>{resourceDialogLabels.renameTitle}</DialogTitle>
-              <DialogDescription>{resourceDialogLabels.renameDescription}</DialogDescription>
-            </DialogHeader>
-            <label className="grid gap-2 text-sm font-medium text-slate-700">
-              {resourceDialogLabels.filenameLabel}
-              <Input
-                autoFocus
-                value={resourceFilename}
-                maxLength={160}
-                disabled={resourceActionPending}
-                onChange={(event) => setResourceFilename(event.target.value)}
-              />
-            </label>
-            {resourceActionError && (
-              <p className="text-sm text-rose-600" role="alert">{resourceActionError}</p>
-            )}
-            <DialogFooter>
-              <Button type="button" variant="ghost" disabled={resourceActionPending} onClick={closeResourceDialog}>
-                {t("common.cancel")}
-              </Button>
-              <Button type="submit" variant="solid" disabled={resourceActionPending || !resourceFilename.trim()}>
-                {resourceActionPending ? t("common.saving") : t("common.save")}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={resourceDialog?.action === "delete"}
-        onOpenChange={(open) => {
-          if (!open) closeResourceDialog();
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{resourceDialogLabels.deleteTitle}</DialogTitle>
-            <DialogDescription>{resourceDialogLabels.deleteDescription}</DialogDescription>
-          </DialogHeader>
-          <p className="truncate rounded-md bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
-            {resourceDialog?.target.filename}
-          </p>
-          {resourceActionError && (
-            <p className="text-sm text-rose-600" role="alert">{resourceActionError}</p>
-          )}
-          <DialogFooter>
-            <Button type="button" variant="ghost" disabled={resourceActionPending} onClick={closeResourceDialog}>
-              {t("common.cancel")}
-            </Button>
-            <Button type="button" variant="danger" disabled={resourceActionPending} onClick={() => void handleResourceDelete()}>
-              {resourceActionPending ? t("common.processing") : t("common.delete")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {resourceActionError && !resourceDialog && (
-        <div className="fixed bottom-5 left-1/2 z-[120] -translate-x-1/2 rounded-md bg-rose-600 px-3 py-2 text-sm font-medium text-white shadow-lg" role="alert">
-          {resourceActionError}
-        </div>
-      )}
+      <EditorResourceDialogs
+        dialog={resourceDialog}
+        labels={resourceDialogLabels}
+        filename={resourceFilename}
+        pending={resourceActionPending}
+        error={resourceActionError}
+        onFilenameChange={setResourceFilename}
+        onClose={closeResourceDialog}
+        onRename={handleResourceRename}
+        onDelete={handleResourceDelete}
+      />
 
       {memoIdCopyNotice && (
-        <div
-          className={cn(
-            "fixed bottom-5 left-1/2 z-[120] max-w-[calc(100vw-2rem)] -translate-x-1/2 truncate rounded-md px-3 py-2 text-sm font-medium text-white shadow-lg",
-            memoIdCopyNotice.status === "copied" ? "bg-emerald-700" : "bg-rose-600",
-          )}
-          role={memoIdCopyNotice.status === "copied" ? "status" : "alert"}
-        >
+        <ClipboardCopyNotice status={memoIdCopyNotice.status}>
           {t(memoIdCopyNotice.status === "copied" ? "editor.noteIdCopied" : "editor.noteIdCopyFailed", { id: memoIdCopyNotice.id })}
-        </div>
-      )}
-
-      {false && useMobilePlainTextEditor && (
-        <div className="fixed left-2 right-2 top-[max(3.5rem,env(safe-area-inset-top))] z-[70] rounded-md border border-amber-200 bg-amber-50/95 p-2 text-[11px] text-slate-800 shadow-lg backdrop-blur sm:hidden">
-          <div className="flex items-center justify-between gap-2">
-            <button
-              className="min-w-0 flex-1 truncate text-left font-semibold"
-              type="button"
-              onClick={() => setMobileImeDebugOpen((open) => !open)}
-            >
-              IME 诊断：{mobileImeDebugEditorFocused ? "正文已聚焦" : "正文未聚焦"} · len {getMobilePlainTextValue().length}
-            </button>
-            <button
-              className="rounded border border-amber-300 bg-white px-2 py-1 font-medium text-slate-700"
-              type="button"
-              onClick={() => void handleMobileClipboardInput()}
-            >
-              粘贴
-            </button>
-            <button
-              className="rounded border border-amber-300 bg-white px-2 py-1 font-medium text-slate-700"
-              type="button"
-              onClick={handleMobilePromptInput}
-            >
-              输入
-            </button>
-            <button
-              className="rounded border border-amber-300 bg-white px-2 py-1 font-medium text-slate-700"
-              type="button"
-              onClick={() => {
-                focusMobileInputTarget();
-                recordMobileImeDebugEvent("debug-focus-button");
-              }}
-            >
-              聚焦
-            </button>
-            <button
-              className="rounded border border-amber-300 bg-white px-2 py-1 font-medium text-slate-700"
-              type="button"
-              onClick={() => {
-                void navigator.clipboard?.writeText(mobileImeDebugLogText);
-              }}
-            >
-              复制
-            </button>
-          </div>
-          {mobileImeDebugOpen && (
-            <div className="mt-2 max-h-40 overflow-auto rounded border border-amber-200 bg-white/80 p-2 font-mono leading-5">
-              <div>active: {mobileImeDebugActiveElement}</div>
-              <div>editorFocused: {String(mobileImeDebugEditorFocused)}</div>
-              <div>mode: mobile={String(isMobileViewport)} editingState={String(isMobileEditing)} editingActive={String(mobileEditingActive)} plain={String(useMobilePlainTextEditor)}</div>
-              <div>save: {saveState} dirty={String(hasUnsavedChanges)}</div>
-              <div className="mt-1 border-t border-amber-100 pt-1">
-                {mobileImeDebugEvents.length === 0 ? (
-                  <div>暂无事件。点正文或按键后这里应该变化。</div>
-                ) : (
-                  mobileImeDebugEvents.map((entry) => (
-                    <div key={entry.id}>
-                      {entry.time} {entry.event} len={entry.valueLength}
-                      {entry.inputType ? ` type=${entry.inputType}` : ""}
-                      {entry.isComposing !== undefined ? ` comp=${entry.isComposing}` : ""}
-                      {entry.key ? ` key=${entry.key}` : ""}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        </ClipboardCopyNotice>
       )}
 
       {isMobileViewport && !mobileEditingActive && !readOnly && (
@@ -4399,14 +4561,24 @@ const RichEditorPane = ({
 
       <AiAssistantDialog
         open={aiAssistantOpen}
+        anchor={aiAssistantAnchor}
         title={title}
-        contentMarkdown={getCurrentMarkdownForAi()}
+        contentMarkdown={currentMarkdownForAi}
         selectionMarkdown={aiSelection?.contentMarkdown}
         onOpenChange={handleAiAssistantOpenChange}
         onApply={applyAiDraft}
+        onOpenPromptLibrary={onOpenAiPrompts}
       />
 
       <ShareMemoDialog memoId={memo.id} open={shareOpen} onOpenChange={setShareOpen} />
+
+      {imageShareSource && (
+        <ShareNoteImageDialog
+          open={imageShareOpen}
+          source={imageShareSource}
+          onOpenChange={setImageShareOpen}
+        />
+      )}
 
       {mobileNotebookSheetOpen && (
         <MobileNotebookSelectSheet

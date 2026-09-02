@@ -1,11 +1,13 @@
 import type { Context } from "hono";
-import type { CloudflareStorageBindings, StorageAdapter } from "./storage-contract";
+import type { CloudflareStorageBindings } from "./cloudflare-storage-adapter";
+import type { StorageAdapter } from "./storage-contract";
 
-export type Bindings = CloudflareStorageBindings & {
+export type Bindings = {
   /** The only persistence dependency exposed to application code. */
   storage: StorageAdapter;
   EDGE_EVER_AUTH_USERNAME?: string;
   EDGE_EVER_RUNTIME?: string;
+  EDGE_EVER_CONTAINER_IMAGE?: string;
   EDGE_EVER_AUTH_PASSWORD?: string;
   EDGE_EVER_AUTH_PASSWORD_HASH?: string;
   EDGE_EVER_SESSION_TTL_DAYS?: string;
@@ -22,7 +24,7 @@ export type Bindings = CloudflareStorageBindings & {
   EDGE_EVER_ALLOW_UNAUTHENTICATED?: string;
 };
 
-export type WorkerBindings = Omit<Bindings, "storage">;
+export type WorkerBindings = Omit<Bindings, "storage"> & CloudflareStorageBindings;
 
 export type AuthContext = {
   kind: "user" | "agent";
