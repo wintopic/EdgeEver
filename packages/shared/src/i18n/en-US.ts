@@ -1224,6 +1224,8 @@ export const enUS = {
   },
   memoCard: {
     yesterday: "Yesterday",
+    createdAt: "Created {{time}}",
+    updatedAt: "Updated {{time}}",
     emptyMemo: "Empty note",
     select: "Select {{title}}",
     unselect: "Deselect {{title}}",
@@ -1424,6 +1426,7 @@ export const enUS = {
     enableReadingProtection: "Enable reading protection",
     disableReadingProtection: "Disable reading protection and edit",
     updatedAt: "Updated {{time}}",
+    timestamps: "Created {{createdTime}} · Updated {{updatedTime}}",
     done: "Done",
     uploadAttachment: "Upload attachment",
     collapseFormat: "Collapse formatting",

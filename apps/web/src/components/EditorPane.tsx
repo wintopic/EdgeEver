@@ -113,7 +113,7 @@ import { ShareNoteImageDialog, type ShareNoteImageSource } from "./dialogs/Share
 import { AiAssistantDialog, type AiAssistantAnchor } from "./dialogs/AiAssistantDialog";
 import { api } from "@/lib/api";
 import { isDesktopResourceRuntime, stageDesktopResource, toDesktopResourceUrl } from "@/lib/desktop-resources";
-import { cn, formatDateTime, parseTagsText } from "@/lib/utils";
+import { cn, formatDateTime, formatLocalizedDateTime, parseTagsText } from "@/lib/utils";
 import { EDITOR_CONTENT_MAX_WIDTH, EDITOR_CONTENT_MAX_WIDTH_COLLAPSED } from "@/lib/workspace-ui";
 import {
   countMemoCharacters,
@@ -3610,7 +3610,9 @@ const RichEditorPane = ({
         ? "bg-emerald-50 text-emerald-700"
         : saveStateClassName;
 
-  const updatedLabel = formatDateTime(memo.updatedAt);
+  const memoDateLocale = i18n.resolvedLanguage ?? i18n.language;
+  const createdLabel = formatLocalizedDateTime(memo.createdAt, memoDateLocale);
+  const updatedLabel = formatLocalizedDateTime(memo.updatedAt, memoDateLocale);
   const currentNotebookLabel = notebookOptions.find((notebook) => notebook.id === memo.notebookId)?.name ?? t("editor.notebookFallback");
   const currentMarkdownForAi = getCurrentMarkdownForAi();
 
@@ -3851,9 +3853,6 @@ const RichEditorPane = ({
                 </Button>
               </IconTooltip>
             </div>
-            <span className="hidden truncate text-xs text-slate-400 sm:inline">
-              {t("editor.updatedAt", { time: updatedLabel })}
-            </span>
           </div>
 
           <div className="flex shrink-0 items-center gap-1">
@@ -4237,6 +4236,9 @@ const RichEditorPane = ({
                 markDirty();
               }}
             />
+            <span className="w-full px-1.5 text-xs leading-5 text-slate-400">
+              {t("editor.timestamps", { createdTime: createdLabel, updatedTime: updatedLabel })}
+            </span>
             {!readOnly && (
               <IconTooltip label={`${t(desktopReadingProtection ? "editor.disableReadingProtection" : "editor.enableReadingProtection")} (${formatShortcutBinding(shortcutSettings.toggleReadingProtection)})`}>
                 <Button
