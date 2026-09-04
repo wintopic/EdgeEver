@@ -19,5 +19,5 @@ export interface PluginPublicFetchResponse {
   status: number;
   statusText: string;
   headers: Record<string, string>;
-  bodyBase64: string;
+  body: ArrayBuffer;
 }

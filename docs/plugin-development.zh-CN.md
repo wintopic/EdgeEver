@@ -485,7 +485,7 @@ const result = await context.ai.generate({
 });
 ```
 
-`system` 最多 8,000 字符，`prompt` 最多 90,000 字符，输出最多 5,000 token，生成最长 120 秒。后端要求交互式用户会话，公开演示模式禁用这些能力，供应商错误脱敏。每工作区、每应用运行实例的 AI／网络两组调用各最多四路并发，不是分布式配额。模型费用沿用已配置供应商的计费；停用插件会中止其调用。
+`system` 最多 8,000 字符，`prompt` 最多 90,000 字符，输出最多 5,000 token，生成最长 120 秒。后端要求交互式用户会话，公开演示模式禁用 AI，供应商错误脱敏。每个后端实例对每工作区的 AI 调用设置四路并发保护，不是分布式配额。模型费用沿用已配置供应商的计费；停用插件会中止其调用。
 
 已有 `network.fetch(url, init)` 保留浏览器 fetch 行为，受 CORS 限制并省略凭据。使用通用公开网络传输时，需要同时声明 `network`、`network:public` 和 `networkHosts`，并显式选择 `transport: "public"`：
 
@@ -508,6 +508,8 @@ const feed = await response.text(); // 插件自己解析。
 
 公开模式仅支持 443 端口的 HTTPS GET／HEAD，不携带请求体和凭据；超时 20 秒，解码后的响应正文最多 2,000,000 字节。重定向只返回、不跟随（`redirect: "error"` 会拒绝）。来源的 403／429 保留为来源状态，不绕过平台访问限制。允许的请求头为 Accept、Accept-Language、If-None-Match、If-Modified-Since、Range；仅返回内容／缓存元数据、Location 和 Retry-After，不返回 Set-Cookie。响应在上限内缓冲，不是无限流式代理。
 
-Web 和桌面客户端共用认证后的后端传输。Cloudflare 使用 workerd 默认的仅公开 Internet 出口，不使用私网服务绑定。Bun 自托管使用 TLS lookup 回调，校验 DNS 结果后直接连接这些地址；私网、特殊用途和混合公私地址全部拒绝。VPN／fake-IP DNS 返回的保留地址也会拒绝，不应禁用检查；非标准 workerd 部署须保留仅公开网络出口。
+宿主在不改变插件 API 的前提下选择成本最低的安全传输。Web 先尝试浏览器请求：CORS 可读的响应完全留在客户端；只有浏览器以网络／CORS `TypeError` 拒绝时，才回退到已认证的后端中继。桌面端通过 Electron 主进程和用户本机网络请求，最多四路并发，不再把公开内容转发到 EdgeEver 后端。取消信号会传递到所有传输路径。
+
+桌面端、自托管与云端驱动共用同一策略包。桌面端和 Bun 自托管会校验全部 DNS 结果，并把已校验地址直接交给 TLS；私网、特殊用途和混合公私地址全部拒绝。Cloudflare 回退使用 workerd 默认的仅公开 Internet 出口，不使用私网服务绑定。VPN／fake-IP DNS 返回的保留地址也会拒绝，不应禁用检查；非标准 workerd 部署须保留仅公开网络出口。Web 回退返回有大小限制的二进制正文，不再使用 Base64 JSON，避免 Base64 的额外传输体积。
 
 插件权限和域名检查在可信客户端宿主执行。后端独立要求用户认证并限制仅公开网络，不信任客户端提交的插件 ID 或白名单，也不声称提供服务端证明的插件隔离；仍遵循可信 JavaScript 边界。后端不接收来源枚举、搜索时间范围、证据结构或报告流程。

@@ -158,7 +158,9 @@ import {
   getEditableMemoTitle,
   getNotebookMoveOptions,
   readDesktopReadingProtectionPreference,
+  readEditorOutlineCollapsedPreference,
   writeDesktopReadingProtectionPreference,
+  writeEditorOutlineCollapsedPreference,
   type EditorContentAlignment,
   type MemoDocumentActionRequest,
   type ShortcutSettings,
@@ -640,7 +642,7 @@ const RichEditorPane = ({
   const [markdownSource, setMarkdownSource] = useState("");
   const [isMarkdownMode, setIsMarkdownMode] = useState(false);
   const [mobileToolbarOpen, setMobileToolbarOpen] = useState(false);
-  const [editorOutlineCollapsed, setEditorOutlineCollapsed] = useState(false);
+  const [editorOutlineCollapsed, setEditorOutlineCollapsed] = useState(readEditorOutlineCollapsedPreference);
   const [wechatCopyState, setWechatCopyState] = useState<"idle" | "copying" | "copied" | "error">("idle");
   const [memoIdCopyNotice, setMemoIdCopyNotice] = useState<{ status: "copied" | "error"; id: string } | null>(null);
   const handledSaveAndSyncTokenRef = useRef(saveAndSyncToken);
@@ -711,6 +713,19 @@ const RichEditorPane = ({
       const nextProtectedMode = !protectedMode;
       writeDesktopReadingProtectionPreference(nextProtectedMode);
       return nextProtectedMode;
+    });
+  }, []);
+
+  const handleEditorOutlineCollapsedChange = useCallback((collapsed: boolean) => {
+    setEditorOutlineCollapsed(collapsed);
+    writeEditorOutlineCollapsedPreference(collapsed);
+  }, []);
+
+  const toggleEditorOutline = useCallback(() => {
+    setEditorOutlineCollapsed((collapsed) => {
+      const nextCollapsed = !collapsed;
+      writeEditorOutlineCollapsedPreference(nextCollapsed);
+      return nextCollapsed;
     });
   }, []);
 
@@ -3121,8 +3136,8 @@ const RichEditorPane = ({
       return;
     }
 
-    setEditorOutlineCollapsed((current) => !current);
-  }, [editorShortcutBlocked, isMobileViewport, outlineToggleToken, useMarkdownSourceEditor, useMobilePlainTextEditor]);
+    toggleEditorOutline();
+  }, [editorShortcutBlocked, isMobileViewport, outlineToggleToken, toggleEditorOutline, useMarkdownSourceEditor, useMobilePlainTextEditor]);
 
   useEffect(() => {
     if (handledSaveAndSyncTokenRef.current === saveAndSyncToken || saveMutationPending) {
@@ -4492,7 +4507,7 @@ const RichEditorPane = ({
               scrollContainer={editorScrollContainer}
               collapsed={editorOutlineCollapsed}
               shortcutLabel={formatShortcutBinding(shortcutSettings.toggleOutline)}
-              onCollapsedChange={setEditorOutlineCollapsed}
+              onCollapsedChange={handleEditorOutlineCollapsedChange}
             />
           )}
         </div>

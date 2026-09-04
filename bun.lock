@@ -43,7 +43,6 @@
         "fflate": "^0.8.3",
         "hono": "latest",
         "i18next": "^26.3.4",
-        "ipaddr.js": "^2.2.0",
         "katex": "0.16.22",
         "lucide-react": "latest",
         "marked": "^18.0.5",
@@ -90,11 +89,15 @@
     "apps/api": {
       "name": "@edgeever/api",
       "version": "0.1.3",
+      "dependencies": {
+        "@edgeever/public-network": "workspace:*",
+      },
     },
     "apps/desktop": {
       "name": "@edgeever/desktop",
       "version": "1.54.0",
       "dependencies": {
+        "@edgeever/public-network": "workspace:*",
         "croner": "^10.0.1",
         "electron-updater": "^6.6.2",
       },
@@ -235,6 +238,13 @@
     "packages/plugin-api": {
       "name": "@edgeever/plugin-api",
       "version": "0.1.0",
+    },
+    "packages/public-network": {
+      "name": "@edgeever/public-network",
+      "version": "0.1.0",
+      "dependencies": {
+        "ipaddr.js": "^2.2.0",
+      },
     },
     "packages/shared": {
       "name": "@edgeever/shared",
@@ -642,6 +652,8 @@
     "@edgeever/mobile": ["@edgeever/mobile@workspace:apps/mobile"],
 
     "@edgeever/plugin-api": ["@edgeever/plugin-api@workspace:packages/plugin-api"],
+
+    "@edgeever/public-network": ["@edgeever/public-network@workspace:packages/public-network"],
 
     "@edgeever/shared": ["@edgeever/shared@workspace:packages/shared"],
 

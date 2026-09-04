@@ -180,7 +180,7 @@ interface PluginHostOptions {
   scope: string;
   aiAdapter?: PluginContext['ai'];
   publicNetworkAdapter?: {
-    fetchPublic(input: { url: string; method: 'GET' | 'HEAD'; headers: Record<string, string> }, options?: { signal?: AbortSignal }): Promise<{ status: number; statusText: string; url: string; headers: Record<string, string>; bodyBase64: string }>;
+    fetchPublic(input: { url: string; method: 'GET' | 'HEAD'; headers: Record<string, string> }, options?: { signal?: AbortSignal }): Promise<{ status: number; statusText: string; url: string; headers: Record<string, string>; body: ArrayBuffer }>;
   };
   onWorkspaceChanged?: () => void | Promise<void>;
   onNotice?: (message: string) => void;
@@ -1399,8 +1399,7 @@ export class EdgeEverPluginHost {
             const data = await this.publicNetworkAdapter.fetchPublic({ url: url.href, method: method as 'GET' | 'HEAD', headers: Object.fromEntries(new Headers(requestInit.headers)) }, { signal });
             signal.throwIfAborted();
             if (requestInit.redirect === 'error' && data.status >= 300 && data.status < 400) throw new Error('Public request returned a redirect.');
-            const bytes = Uint8Array.from(atob(data.bodyBase64), c => c.charCodeAt(0));
-            const response = new Response(method === 'HEAD' || [204, 205, 304].includes(data.status) ? null : bytes, { status: data.status, statusText: data.statusText, headers: data.headers });
+            const response = new Response(method === 'HEAD' || [204, 205, 304].includes(data.status) ? null : data.body, { status: data.status, statusText: data.statusText, headers: data.headers });
             Object.defineProperty(response, 'url', { value: data.url });
             return response;
           }

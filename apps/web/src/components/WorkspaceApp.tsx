@@ -99,6 +99,7 @@ import { useWorkspacePreferences } from "@/hooks/useWorkspacePreferences";
 import { useWorkspaceSelection } from "@/hooks/useWorkspaceSelection";
 import { useWorkspaceQueuedSync } from "@/hooks/useWorkspaceQueuedSync";
 import { EdgeEverPluginHost, type RegisteredPluginPanel } from "@/lib/plugins/plugin-host";
+import { createPublicNetworkAdapter } from "@/lib/plugins/public-network-adapter";
 import { clearRendererRecoveryRequired, isRendererRecoveryRequired } from "@/lib/renderer-recovery";
 import { EditorPaneErrorBoundary, EditorRecoveryPane } from "./EditorPaneErrorBoundary";
 
@@ -744,11 +745,14 @@ export const WorkspaceApp = ({
     ? createPluginScheduleAdapter(scheduledTaskDeviceId, () =>
         queryClient.invalidateQueries({ queryKey: ["scheduled-tasks"] }))
     : undefined, [queryClient, scheduledTaskDeviceId]);
+  const pluginPublicNetworkAdapter = useMemo(() => createPublicNetworkAdapter(api.pluginNetwork, {
+    desktop: window.edgeeverDesktop?.isAvailable ? window.edgeeverDesktop : undefined,
+  }), []);
   const pluginHost = useMemo(() => new EdgeEverPluginHost({
     repository,
     scope: localDataScope,
     aiAdapter: api.pluginAi,
-    publicNetworkAdapter: api.pluginNetwork,
+    publicNetworkAdapter: pluginPublicNetworkAdapter,
     onNotice: (message) => setAppNoticeDialog({ title: t("plugins.noticeTitle"), description: message }),
     scheduleAdapter: pluginScheduleAdapter,
     onWorkspaceChanged: async () => {
@@ -761,7 +765,7 @@ export const WorkspaceApp = ({
         queryClient.invalidateQueries({ queryKey: ["resources"] }),
       ]);
     },
-  }), [localDataScope, pluginScheduleAdapter, queryClient, repository, t]);
+  }), [localDataScope, pluginPublicNetworkAdapter, pluginScheduleAdapter, queryClient, repository, t]);
   const [pluginHostReady, setPluginHostReady] = useState(false);
   const pluginHostSnapshot = useSyncExternalStore(pluginHost.subscribe, pluginHost.getSnapshot, pluginHost.getSnapshot);
   useEffect(() => {

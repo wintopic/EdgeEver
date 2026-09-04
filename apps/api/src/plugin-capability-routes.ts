@@ -56,9 +56,17 @@ export function registerPluginCapabilityRoutes(app: Hono<AppEnv>, dependencies: 
       const signal = AbortSignal.any([c.req.raw.signal, AbortSignal.timeout(PUBLIC_NETWORK_TIMEOUT_MS)]);
       const response = await c.env.publicNetworkFetch(url.href, { method: input.method, headers: { ...headers, 'User-Agent': 'EdgeEver-Plugins/1.0' }, redirect: 'manual', credentials: 'omit', signal });
       const bytes = await readPublicBody(response, signal);
-      let binary = ''; for (const byte of bytes) binary += String.fromCharCode(byte);
-      c.header('Cache-Control', 'no-store');
-      return c.json({ url: url.href, status: response.status, statusText: response.statusText, headers: publicResponseHeaders(response.headers), bodyBase64: btoa(binary) });
+      const outputHeaders = new Headers({
+        'Cache-Control': 'no-store',
+        'Content-Type': 'application/octet-stream',
+        'X-EdgeEver-Upstream-Status': String(response.status),
+        'X-EdgeEver-Upstream-Status-Text': encodeURIComponent(response.statusText),
+      });
+      for (const [name, value] of Object.entries(publicResponseHeaders(response.headers))) outputHeaders.set(`X-EdgeEver-Upstream-Header-${name}`, value);
+      const body = bytes.buffer instanceof ArrayBuffer
+        ? bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+        : new Uint8Array(bytes).buffer;
+      return new Response(body, { headers: outputHeaders });
     } catch { return apiError(c, 'plugin_network_failed', 'Public request failed, was blocked, exceeded its size limit, or timed out.', 502); }
   });
 }
