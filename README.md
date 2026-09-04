@@ -184,6 +184,8 @@ bun install
 bun run dev
 ```
 
+Local development signs in automatically; fresh databases use `owner` / `edgeever-local-dev`. Log out to test the login screen.
+
 ## Project Structure
 
 ```text

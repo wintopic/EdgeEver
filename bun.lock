@@ -43,6 +43,7 @@
         "fflate": "^0.8.3",
         "hono": "latest",
         "i18next": "^26.3.4",
+        "ipaddr.js": "^2.2.0",
         "katex": "0.16.22",
         "lucide-react": "latest",
         "marked": "^18.0.5",
@@ -92,7 +93,7 @@
     },
     "apps/desktop": {
       "name": "@edgeever/desktop",
-      "version": "1.53.0",
+      "version": "1.54.0",
       "dependencies": {
         "croner": "^10.0.1",
         "electron-updater": "^6.6.2",
@@ -2639,6 +2640,8 @@
     "internmap": ["internmap@1.0.1", "", {}, "sha512-lDB5YccMydFBtasVtxnZ3MRBHuaoE8GKsppq+EchKL2U4nK/DmEpPHNH8MZe5HkMtpSiTSOZwfN0tzYjO/lJEw=="],
 
     "invariant": ["invariant@2.2.4", "", { "dependencies": { "loose-envify": "^1.0.0" } }, "sha512-phJfQVBuaJM5raOpJjSfkiD6BpbCE4Ns//LaXl6wGYtUBY83nWS6Rf9tXm2e8VaK60JEjYldbPif/A2B1C2gNA=="],
+
+    "ipaddr.js": ["ipaddr.js@2.5.0", "", {}, "sha512-aq+t5NAc+cS6rZQQVWC2x98CPqGtKKTMDd4Gaodv0wShnItdKg/51djkGJ1hqH+Oy0ivDftCbSLCQob8zso01w=="],
 
     "iron-webcrypto": ["iron-webcrypto@1.2.1", "", {}, "sha512-feOM6FaSr6rEABp/eDfVseKyTMDt+KGpeB35SkVn9Tyn0CqvVsY3EwI0v5i8nMHyJnzCIQf7nsy3p41TPkJZhg=="],
 

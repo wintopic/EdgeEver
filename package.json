@@ -104,9 +104,6 @@
       "EDGE_EVER_AUTH_PASSWORD": {
         "description": "首次登录密码，必填。请设置一个仅用于此实例的强密码；部署后可在个人设置中修改。"
       },
-      "EDGE_EVER_STORAGE_ENCRYPTION_KEY": {
-        "description": "可选。启用高级设置中的第三方 OSS 时必填，用于加密保存在 D1 中的对象存储访问密钥。"
-      },
       "EDGE_EVER_CREDENTIALS_ENCRYPTION_KEY": {
         "description": "可选的高级配置。覆盖从实例认证 Secret 自动派生的 AI 凭据加密密钥，用于独立密钥轮换。"
       }
@@ -151,6 +148,7 @@
     "fflate": "^0.8.3",
     "hono": "latest",
     "i18next": "^26.3.4",
+    "ipaddr.js": "^2.2.0",
     "katex": "0.16.22",
     "lucide-react": "latest",
     "marked": "^18.0.5",

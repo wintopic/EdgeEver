@@ -1,4 +1,5 @@
 export * from "./content";
+export * from "./companion";
 export * from "./public-demo";
 export * from "./ai-assistant";
 export * from "./ai-prompt-seeds";
@@ -26,7 +27,9 @@ export * from "./schemas";
 export * from "./sharing";
 export * from "./sync";
 export * from "./desktop-rpc";
+export * from "./deployment-metadata";
 export * from "./file-attachment";
 export * from "./note-image-card";
 export * from "./pdf-attachment";
 export * from "./types";
+export * from './plugin-capabilities';

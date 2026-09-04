@@ -182,6 +182,8 @@ bun install
 bun run dev
 ```
 
+本地开发默认自动登录，首次账号为 `owner` / `edgeever-local-dev`；测试登录页可主动退出登录。
+
 ## 目录结构
 
 ```text
