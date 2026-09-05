@@ -1,4 +1,8 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, test } from "bun:test";
+
+const originalWindow = globalThis.window;
+const originalDocument = globalThis.document;
+const originalMutationObserver = globalThis.MutationObserver;
 
 const values = new Map();
 const styles = new Map();
@@ -40,6 +44,12 @@ const { EdgeEverPluginHost, applyPluginMarkdownEdits } = await import("./plugin-
 const { sha256Hex } = await import("./github-plugin-distribution.ts");
 const { withRepositoryMutationEvents } = await import("../repository-events.ts");
 const { results: capabilityResults } = await import('./plugin-capabilities.fixture.mjs');
+
+afterAll(() => {
+  globalThis.window = originalWindow;
+  globalThis.document = originalDocument;
+  globalThis.MutationObserver = originalMutationObserver;
+});
 
 const repository = {
   listMemos: async () => ({ memos: [], totalCount: 0, nextCursor: null }),

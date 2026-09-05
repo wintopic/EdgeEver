@@ -95,7 +95,7 @@
     },
     "apps/desktop": {
       "name": "@edgeever/desktop",
-      "version": "1.54.0",
+      "version": "1.57.0",
       "dependencies": {
         "@edgeever/public-network": "workspace:*",
         "croner": "^10.0.1",
@@ -241,7 +241,7 @@
     },
     "packages/public-network": {
       "name": "@edgeever/public-network",
-      "version": "0.1.0",
+      "version": "0.1.3",
       "dependencies": {
         "ipaddr.js": "^2.2.0",
       },
@@ -259,6 +259,7 @@
         "@tiptap/pm": "3.31.0",
         "@tiptap/starter-kit": "3.31.0",
         "katex": "0.16.22",
+        "zod": "4.4.3",
       },
     },
     "packages/wrangler": {

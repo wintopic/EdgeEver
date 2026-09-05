@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { MockLanguageModelV4 } from "ai/test";
+import { CompanionDiscoveryOutputSchema } from "@edgeever/shared";
 import { discoveryContext, discoveryInputHash } from "./companion-discovery-context.ts";
 import { generateCompanionDiscovery } from "./companion-discovery-runtime.ts";
 
@@ -29,6 +30,18 @@ test("only exact supplied aliases can resolve to real note IDs", () => {
   expect(context.decode({ suggestion: null })).toEqual({ suggestion: null });
   expect(() => discoveryContext({ ...input, anchorId: "missing" })).toThrow();
   expect(() => discoveryContext({ ...input, candidates: [candidates[0], candidates[0]] })).toThrow();
+});
+
+test("discovery copy is constrained to compact three-line content", () => {
+  const context = discoveryContext(input);
+  expect(context.instructions).toContain("at most 3 short lines");
+  expect(context.instructions).toContain("specific evidence or content connection");
+  expect(context.instructions).toContain("never paraphrase the action");
+  expect(context.instructions).toContain("If there is no useful non-redundant reason, return null");
+  const base = { kind: "insight", title: "Short title", sourceIds: ["n1", "n2"], targetId: null };
+  expect(CompanionDiscoveryOutputSchema.safeParse({ suggestion: { ...base, body: "One\nTwo\nThree" } }).success).toBe(true);
+  expect(CompanionDiscoveryOutputSchema.safeParse({ suggestion: { ...base, body: "One\nTwo\nThree\nFour" } }).success).toBe(false);
+  expect(CompanionDiscoveryOutputSchema.safeParse({ suggestion: { ...base, body: "x".repeat(181) } }).success).toBe(false);
 });
 
 test("analysis fingerprint includes content, real IDs, context and model configuration", async () => {

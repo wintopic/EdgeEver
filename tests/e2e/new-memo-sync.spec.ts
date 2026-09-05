@@ -61,6 +61,35 @@ const holdNextMemoCreate = async (page: Page) => {
   return { createResponse, createStarted, releaseCreate };
 };
 
+const holdNextMemoCreateResponse = async (page: Page) => {
+  let releaseCreate!: () => void;
+  let resolveCreatedMemo!: (memo: { id: string }) => void;
+  const createGate = new Promise<void>((resolve) => {
+    releaseCreate = resolve;
+  });
+  const createdMemo = new Promise<{ id: string }>((resolve) => {
+    resolveCreatedMemo = resolve;
+  });
+  const createResponse = page.waitForResponse(
+    (response) => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/v1/memos",
+  );
+
+  await page.route("**/api/v1/memos", async (route: Route) => {
+    if (route.request().method() !== "POST") {
+      await route.continue();
+      return;
+    }
+
+    const response = await route.fetch();
+    const created = await response.json() as { memo: { id: string } };
+    resolveCreatedMemo(created.memo);
+    await createGate;
+    await route.fulfill({ response });
+  });
+
+  return { createdMemo, createResponse, releaseCreate };
+};
+
 const editNewMemo = async (page: Page, title: string, content: string) => {
   await page.getByRole("button", { name: "新建笔记", exact: true }).click();
 
@@ -177,14 +206,22 @@ const finishSyncAndVerifyReload = async (
 };
 
 test.describe("new memo synchronization", () => {
-  test("keeps the new memo editor mounted and focused while its local id is remapped", async ({ page }) => {
-    const heldCreate = await holdNextMemoCreate(page);
+  test("keeps the new memo editor editable and focused when desktop sync remaps its id early", async ({ page }) => {
+    const heldCreate = await holdNextMemoCreateResponse(page);
     let memoId: string | null = null;
 
     try {
       await page.goto("/");
       await page.getByRole("button", { name: "新建笔记", exact: true }).click();
-      await heldCreate.createStarted;
+      const createdMemo = await heldCreate.createdMemo;
+      memoId = createdMemo.id;
+
+      let temporaryMemoId: string | null = null;
+      await expect.poll(async () => {
+        const items = await readIndexedDbStore<StoredQueueItem>(page, "syncQueue");
+        temporaryMemoId = items.find((item) => item.kind === "memo.create")?.memoId ?? null;
+        return temporaryMemoId;
+      }).toMatch(/^local_/);
 
       const editor = page.locator(".ProseMirror[contenteditable='true']");
       await expect(editor).toBeEditable();
@@ -234,21 +271,29 @@ test.describe("new memo synchronization", () => {
         }, { once: true });
       }));
 
-      heldCreate.releaseCreate();
-      const createResponse = await heldCreate.createResponse;
-      expect(createResponse.status()).toBe(201);
-      const created = await createResponse.json() as { memo: { id: string } };
-      memoId = created.memo.id;
+      await page.evaluate(({ localId, remoteId }) => {
+        window.dispatchEvent(new CustomEvent("edgeever:memo-id-remapped", {
+          detail: new Map([[localId, remoteId]]),
+        }));
+      }, { localId: temporaryMemoId!, remoteId: memoId });
 
       const observation = await editorObservation;
-      expect(observation.mapping).toContainEqual([expect.any(String), memoId]);
-      expect(observation.mapping[0]?.[0]).not.toBe(memoId);
+      expect(observation.mapping).toContainEqual([temporaryMemoId, memoId]);
       expect(observation).toMatchObject({
         disconnected: false,
         focusLost: false,
         replaced: false,
         stillFocused: true,
       });
+      await expect(editor).toBeEditable();
+      await expect(editor).toBeFocused();
+
+      heldCreate.releaseCreate();
+      const createResponse = await heldCreate.createResponse;
+      expect(createResponse.status()).toBe(201);
+      const created = await createResponse.json() as { memo: { id: string } };
+      expect(created.memo.id).toBe(memoId);
+      await expect(editor).toBeEditable();
       await expect(editor).toBeFocused();
     } finally {
       heldCreate.releaseCreate();

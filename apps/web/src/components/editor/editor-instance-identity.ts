@@ -21,6 +21,17 @@ export const reconcileEditorInstanceMemoIdentity = (
   ? identity
   : createEditorInstanceMemoIdentity(memoId);
 
+export const isEditorInstanceHydratedForMemo = (
+  identity: EditorInstanceMemoIdentity,
+  hydratedMemoId: string | null,
+  renderedMemoId: string | null,
+) => Boolean(
+  hydratedMemoId
+  && renderedMemoId
+  && identity.aliases.has(hydratedMemoId)
+  && identity.aliases.has(renderedMemoId)
+);
+
 export const remapEditorInstanceMemoIdentity = (
   identity: EditorInstanceMemoIdentity,
   memoIdMappings: ReadonlyMap<string, string>,

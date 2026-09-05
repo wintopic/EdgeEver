@@ -5,6 +5,7 @@ import {
   DESKTOP_READING_PROTECTION_STORAGE_KEY,
   EDITOR_OUTLINE_COLLAPSED_STORAGE_KEY,
   EDITOR_CONTENT_ALIGNMENT_STORAGE_KEY,
+  EDITOR_TOOLBAR_EXPANDED_STORAGE_KEY,
   NOTEBOOK_SORT_STORAGE_KEY,
   SHORTCUT_SETTINGS_STORAGE_KEY,
   getSearchShortcutScope,
@@ -15,12 +16,14 @@ import {
   readDesktopFocusModePreference,
   readDesktopReadingProtectionPreference,
   readEditorOutlineCollapsedPreference,
+  readEditorToolbarExpandedPreference,
   readShortcutSettingsPreference,
   writeEditorContentAlignmentPreference,
   writeNotebookSortPreference,
   writeDesktopFocusModePreference,
   writeDesktopReadingProtectionPreference,
   writeEditorOutlineCollapsedPreference,
+  writeEditorToolbarExpandedPreference,
 } from "./app-helpers.ts";
 
 const originalWindow = globalThis.window;
@@ -91,6 +94,29 @@ describe("desktop focus mode preference", () => {
 
     expect(readDesktopFocusModePreference()).toBe(false);
     expect(() => writeDesktopFocusModePreference(true)).not.toThrow();
+  });
+});
+
+describe("editor toolbar expanded preference", () => {
+  test("defaults to collapsed and only accepts an explicit true value", () => {
+    const values = installLocalStorage();
+    expect(readEditorToolbarExpandedPreference()).toBe(false);
+
+    values.set(EDITOR_TOOLBAR_EXPANDED_STORAGE_KEY, "false");
+    expect(readEditorToolbarExpandedPreference()).toBe(false);
+
+    values.set(EDITOR_TOOLBAR_EXPANDED_STORAGE_KEY, "true");
+    expect(readEditorToolbarExpandedPreference()).toBe(true);
+  });
+
+  test("persists expanded and collapsed values", () => {
+    const values = installLocalStorage();
+
+    writeEditorToolbarExpandedPreference(true);
+    expect(values.get(EDITOR_TOOLBAR_EXPANDED_STORAGE_KEY)).toBe("true");
+
+    writeEditorToolbarExpandedPreference(false);
+    expect(values.get(EDITOR_TOOLBAR_EXPANDED_STORAGE_KEY)).toBe("false");
   });
 });
 

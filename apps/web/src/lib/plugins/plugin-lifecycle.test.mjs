@@ -1,9 +1,17 @@
-import { expect, test } from 'bun:test';
+import { afterAll, expect, test } from 'bun:test';
+const originalWindow = globalThis.window;
+const originalDocument = globalThis.document;
+const originalMutationObserver = globalThis.MutationObserver;
 const values = new Map();
 globalThis.window = { location: { href: 'https://example.test' }, localStorage: { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, String(value)), removeItem: key => values.delete(key) }, addEventListener() {}, removeEventListener() {} };
 globalThis.document = { documentElement: { classList: { contains: () => false }, dataset: {}, style: { setProperty() {}, removeProperty() {} }, removeAttribute() {} } };
 globalThis.MutationObserver = class { observe() {} disconnect() {} };
 const { EdgeEverPluginHost } = await import('./plugin-host');
+afterAll(() => {
+  globalThis.window = originalWindow;
+  globalThis.document = originalDocument;
+  globalThis.MutationObserver = originalMutationObserver;
+});
 function setup() {
   values.clear();
   let release, entered, calls = 0;

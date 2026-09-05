@@ -369,6 +369,25 @@ export const SettingsPane = ({
                 </button>
               );
             })}
+            <div className="mt-auto overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <button
+                type="button"
+                onClick={() => setSystemInfoOpen(true)}
+                className="flex min-h-16 w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left text-slate-600 transition-colors hover:bg-slate-200/50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/70"
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
+                    <Info className="h-4 w-4 text-emerald-600" />
+                    {deployedUpdateUnseen ? <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-emerald-500 ring-1 ring-white" /> : null}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold">{t("systemInfo.title")}</span>
+                    <span className="mt-0.5 block truncate text-xs font-normal text-slate-500">{t("systemInfo.description")}</span>
+                  </span>
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+              </button>
+            </div>
           </aside>
 
           {/* 右侧设置内容区 */}

@@ -27,6 +27,7 @@
     "@tiptap/markdown": "3.31.0",
     "@tiptap/pm": "3.31.0",
     "@tiptap/starter-kit": "3.31.0",
-    "katex": "0.16.22"
+    "katex": "0.16.22",
+    "zod": "4.4.3"
   }
 }
