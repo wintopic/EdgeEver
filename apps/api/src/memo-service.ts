@@ -917,13 +917,15 @@ export const mergeMemosRecord = async (
 export const createMemoRecord = async (
   db: DatabaseAdapter,
   workspaceId: string,
-  input: { notebookId: string; title?: string; contentMarkdown?: string; tags?: string[]; createdAt?: string; updatedAt?: string },
+  input: { notebookId: string; title?: string; contentJson?: unknown; contentMarkdown?: string; tags?: string[]; createdAt?: string; updatedAt?: string },
   actor: { actorType: "user" | "agent"; actorId: string | null },
   actorLabel: string
 ): Promise<MemoDetail> => {
   const tags = normalizeTags(input.tags);
   const contentMarkdown = input.contentMarkdown ?? "";
-  const contentJson = markdownToDoc(contentMarkdown);
+  const contentJson = input.contentJson && typeof input.contentJson === "object"
+    ? input.contentJson as TiptapDoc
+    : markdownToDoc(contentMarkdown);
   const contentText = docToText(contentJson);
   const title = normalizeMemoTitle(input.title);
   const excerpt = createExcerpt(contentText);

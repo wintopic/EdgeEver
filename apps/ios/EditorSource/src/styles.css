@@ -838,6 +838,23 @@ html[data-theme="dark"] .ProseMirror pre code {
   height: auto;
 }
 
+.edgeever-x6-diagram {
+  width: 100%;
+  height: min(56vh, 520px);
+  min-height: 360px;
+  margin: 18px 16px;
+  overflow: hidden;
+  border: 1px solid #e3ece7;
+  border-radius: 14px;
+  background: #f8faf9;
+  touch-action: none;
+}
+
+html[data-theme="dark"] .edgeever-x6-diagram {
+  border-color: #26382f;
+  background: #101311;
+}
+
 /* Viewer: no toolbar band, full-area scroll still via #editor */
 body.viewer-mode #toolbar {
   display: none !important;

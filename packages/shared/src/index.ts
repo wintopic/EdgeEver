@@ -29,6 +29,8 @@ export * from "./sharing";
 export * from "./sync";
 export * from "./desktop-rpc";
 export * from "./deployment-metadata";
+export * from "./diagram";
+export * from "./diagram-view";
 export * from "./file-attachment";
 export * from "./note-image-card";
 export * from "./pdf-attachment";
