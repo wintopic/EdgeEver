@@ -82,6 +82,7 @@ describe("diagram document", () => {
 
   test("round-trips architecture components, boundaries, and semantic connections", () => {
     const document = createDefaultDiagramDocument("architecture");
+    document.nodes.find((node) => node.id === "api").resourceIcon = "container";
     const parsed = parseDiagramDocument(serializeDiagramDocument(document));
     expect(parsed).toEqual(document);
     expect(parsed.schemaVersion).toBe(2);
@@ -95,6 +96,23 @@ describe("diagram document", () => {
     expect(fallback).toContain('shape: cyl, label: "数据库"');
     expect(fallback).toContain('shape: disk, label: "对象存储"');
     expect(fallback).toContain("classDef archDatabase");
+  });
+
+  test("keeps legacy architecture nodes valid and projects resource-specific icons", () => {
+    const legacy = createDefaultDiagramDocument("architecture");
+    expect(legacy.nodes.every((node) => node.resourceIcon === undefined)).toBe(true);
+    expect(parseDiagramDocument(serializeDiagramDocument(legacy))).toEqual(legacy);
+
+    const container = legacy.nodes.find((node) => node.id === "api");
+    const database = legacy.nodes.find((node) => node.id === "database");
+    container.resourceIcon = "container";
+    database.resourceIcon = "noSqlDatabase";
+    const projected = diagramDocumentToX6Cells(legacy, "light");
+    const containerCell = projected.nodes.find((node) => node.id === "api");
+    const databaseCell = projected.nodes.find((node) => node.id === "database");
+    expect(containerCell.attrs.resourceIcon.text).toBe("⬡");
+    expect(databaseCell.attrs.resourceIcon.text).toBe("ϟ");
+    expect(containerCell.attrs.resourceIcon.text).not.toBe(databaseCell.attrs.resourceIcon.text);
   });
 
   test("rejects malformed and dangling graph data", () => {
@@ -115,4 +133,15 @@ describe("diagram document", () => {
     architecture.nodes.find((node) => node.id === "api").parentId = "database";
     expect(parseDiagramDocument(serializeDiagramDocument(architecture))).toBeNull();
   });
+});
+
+test('native flowchart projection shares label sizing and obstacle routing without mutating content', () => {
+  const document = createDefaultDiagramDocument('flowchart');
+  document.nodes[1].label = 'Transformer 前向计算\n因果注意力以及前馈网络'.repeat(4);
+  const original = structuredClone(document);
+  const projection = diagramDocumentToX6Cells(document, 'dark');
+  expect(projection.nodes[1].height).toBeGreaterThan(document.nodes[1].height);
+  expect(projection.nodes[1].attrs.label.text.replaceAll('\n', '')).toBe(document.nodes[1].label.replaceAll('\n', ''));
+  expect(projection.edges[0].router.name).toBe('manhattan');
+  expect(document).toEqual(original);
 });

@@ -1,11 +1,17 @@
 {
-  "version": "1.59.0",
+  "version": "1.61.0",
   "changes": {
     "en-US": [
-      "Add visual architecture diagram notes with semantic components, system boundaries, labeled connections, automatic layout, revision history, and PNG/SVG export on Web and desktop; Android and iOS preserve the same data and provide a semantic read-only view."
+      "Create and edit semantic diagrams through MCP tools.",
+      "Improve diagram reading, layout, drag placement, controls, and scrolling across clients.",
+      "Make note editors more compact and consistent, with clearer focus mode and settings access.",
+      "Update the WeChat community QR code."
     ],
     "zh-CN": [
-      "新增可视化架构图笔记：Web 与桌面端支持语义组件、系统边界、连线说明、自动布局、历史版本及 PNG/SVG 导出；Android 与 iOS 保留同一份数据并提供语义化只读视图。"
+      "支持通过 MCP 工具创建和编辑语义图。",
+      "改进跨客户端的图表阅读、布局、拖放、控件与滚动体验。",
+      "让笔记编辑器更紧凑一致，并改善专注模式与设置入口的清晰度。",
+      "更新微信交流群二维码。"
     ]
   }
 }

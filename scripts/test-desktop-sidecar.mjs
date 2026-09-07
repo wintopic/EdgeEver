@@ -47,6 +47,52 @@ if (process.platform !== "win32") {
   assert.equal(statSync(join(dataDir, "edgeever.sqlite")).mode & 0o777, 0o600, "sidecar database should be private");
 }
 
+const remoteMemo = (id, { mergedIntoMemoId = null, sourceMemoIds = [] } = {}) => ({
+  id,
+  notebookId: inbox.id,
+  title: id,
+  excerpt: "",
+  tags: [],
+  isPinned: false,
+  isArchived: false,
+  isDeleted: Boolean(mergedIntoMemoId),
+  revision: 0,
+  createdAt: "2026-09-06T00:00:00.000Z",
+  updatedAt: "2026-09-06T00:00:00.000Z",
+  deletedAt: mergedIntoMemoId ? "2026-09-06T00:00:00.000Z" : null,
+  contentJson: { type: "doc", content: [] },
+  contentMarkdown: "",
+  contentText: "",
+  contentHash: id,
+  sourceMemoIds,
+  mergeSourceCount: sourceMemoIds.length,
+  mergedIntoMemoId,
+});
+const applyRemoteMemo = (memo) => request("sync.apply", {
+  changes: [{ entityType: "memo", operation: "upsert", entityId: memo.id, memo, notebook: null }],
+});
+
+// Regression for #362: bootstrap memo pages are sorted by id, so a deleted
+// merge source can reach the real sidecar process before its merge target.
+await applyRemoteMemo(remoteMemo("memo_e2e_merge_source_before", { mergedIntoMemoId: "memo_e2e_merge_target" }));
+assert.equal(
+  (await request("memo.get", { memoId: "memo_e2e_merge_source_before", includeDeleted: true })).memo.mergedIntoMemoId,
+  null,
+  "an unresolved merge target must not fail the bootstrap page",
+);
+await applyRemoteMemo(remoteMemo("memo_e2e_merge_target", {
+  sourceMemoIds: ["memo_e2e_merge_source_before", "memo_e2e_merge_source_after"],
+}));
+await applyRemoteMemo(remoteMemo("memo_e2e_merge_source_after", { mergedIntoMemoId: "memo_e2e_merge_target" }));
+for (const sourceId of ["memo_e2e_merge_source_before", "memo_e2e_merge_source_after"]) {
+  assert.equal(
+    (await request("memo.get", { memoId: sourceId, includeDeleted: true })).memo.mergedIntoMemoId,
+    "memo_e2e_merge_target",
+    "merge links should converge regardless of bootstrap page order",
+  );
+}
+assert.equal((await request("memo.emptyTrash")).deleted, 2, "merge-order fixtures should not leak into later scenarios");
+
 const first = await request("memo.create", { notebookId: inbox.id, title: "Local first", contentMarkdown: "searchable body", tags: ["local"] });
 assert.deepEqual(await request("sync.bootstrap.prepare"), { clearedSeedData: false, rebuiltMirror: false });
 assert.equal((await request("memo.get", { memoId: first.memo.id })).memo.id, first.memo.id, "bootstrap preparation must preserve local user data");
@@ -340,4 +386,4 @@ assert.equal((await request("sync.status")).conflict, 0);
 
 child.stdin.end();
 await new Promise((resolve) => child.once("close", resolve));
-console.log(JSON.stringify({ ok: true, checked: ["memo.create", "memo.list.search", "memo.list.subtree", "memo.update", "memo.update.coalesce", "memo.revisions", "memo.restoreRevision", "memo.revision.cache", "tag.rename", "memo.moveBatch", "memo.pinBatch", "memo.deleteBatch", "memo.restore", "memo.emptyTrash", "memo.merge", "template.cache", "template.create.payload", "template.delete", "storage.backup", "storage.backups", "storage.restore", "sync.outbox", "sync.outbox.retry", "sync.outbox.recoverMemoUpdate", "sync.outbox.discard"] }));
+console.log(JSON.stringify({ ok: true, checked: ["memo.create", "memo.list.search", "memo.list.subtree", "memo.update", "memo.update.coalesce", "memo.revisions", "memo.restoreRevision", "memo.revision.cache", "tag.rename", "memo.moveBatch", "memo.pinBatch", "memo.deleteBatch", "memo.restore", "memo.emptyTrash", "memo.merge", "template.cache", "template.create.payload", "template.delete", "storage.backup", "storage.backups", "storage.restore", "sync.apply.merge-page-order", "sync.outbox", "sync.outbox.retry", "sync.outbox.recoverMemoUpdate", "sync.outbox.discard"] }));

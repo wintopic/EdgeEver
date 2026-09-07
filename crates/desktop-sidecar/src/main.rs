@@ -345,4 +345,108 @@ mod tests {
             "Unsynced draft"
         );
     }
+
+    #[test]
+    fn remote_merge_links_tolerate_bootstrap_page_order() {
+        let database = Connection::open_in_memory().unwrap();
+        database
+            .execute_batch(
+                "PRAGMA foreign_keys = ON;
+                 CREATE TABLE _edgeever_sidecar_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL);
+                 CREATE TABLE notebooks (id TEXT PRIMARY KEY);
+                 CREATE TABLE memos (
+                   id TEXT PRIMARY KEY,
+                   notebook_id TEXT NOT NULL REFERENCES notebooks(id),
+                   title TEXT,
+                   excerpt TEXT NOT NULL,
+                   tags_json TEXT NOT NULL,
+                   is_pinned INTEGER NOT NULL,
+                   is_archived INTEGER NOT NULL,
+                   is_deleted INTEGER NOT NULL,
+                   source_memo_ids TEXT NOT NULL,
+                   merge_source_count INTEGER NOT NULL,
+                   merged_into_memo_id TEXT REFERENCES memos(id),
+                   created_at TEXT NOT NULL,
+                   updated_at TEXT NOT NULL,
+                   deleted_at TEXT
+                 );
+                 CREATE TABLE memo_contents (
+                   memo_id TEXT PRIMARY KEY REFERENCES memos(id) ON DELETE CASCADE,
+                   content_json TEXT NOT NULL,
+                   content_markdown TEXT NOT NULL,
+                   content_text TEXT NOT NULL,
+                   content_hash TEXT NOT NULL,
+                   revision INTEGER NOT NULL,
+                   updated_at TEXT NOT NULL DEFAULT 'now'
+                 );
+                 INSERT INTO notebooks VALUES ('notebook-1');",
+            )
+            .unwrap();
+
+        let memo = |id: &str, merged_into: Option<&str>, source_ids: Vec<&str>| {
+            json!({
+                "id": id,
+                "notebookId": "notebook-1",
+                "title": id,
+                "excerpt": "",
+                "tags": [],
+                "isPinned": false,
+                "isArchived": false,
+                "isDeleted": merged_into.is_some(),
+                "sourceMemoIds": source_ids,
+                "mergeSourceCount": 0,
+                "mergedIntoMemoId": merged_into,
+                "createdAt": "2026-09-06T00:00:00.000Z",
+                "updatedAt": "2026-09-06T00:00:00.000Z",
+                "deletedAt": merged_into.map(|_| "2026-09-06T00:00:00.000Z"),
+                "contentJson": { "type": "doc", "content": [] },
+                "contentMarkdown": "",
+                "contentText": "",
+                "contentHash": id,
+                "revision": 0
+            })
+        };
+        let apply_memo = |value: Value| {
+            let id = value.get("id").and_then(Value::as_str).unwrap().to_owned();
+            apply_sync_changes(
+                &database,
+                &json!({ "changes": [{
+                    "entityType": "memo",
+                    "operation": "upsert",
+                    "entityId": id,
+                    "memo": value
+                }] }),
+            )
+            .unwrap();
+        };
+
+        apply_memo(memo("source-before", Some("merged"), vec![]));
+        assert_eq!(
+            database
+                .query_row(
+                    "SELECT merged_into_memo_id FROM memos WHERE id = 'source-before'",
+                    [],
+                    |row| row.get::<_, Option<String>>(0),
+                )
+                .unwrap(),
+            None
+        );
+
+        apply_memo(memo("merged", None, vec!["source-before", "source-after"]));
+        apply_memo(memo("source-after", Some("merged"), vec![]));
+
+        for source_id in ["source-before", "source-after"] {
+            assert_eq!(
+                database
+                    .query_row(
+                        "SELECT merged_into_memo_id FROM memos WHERE id = ?1",
+                        [source_id],
+                        |row| row.get::<_, Option<String>>(0),
+                    )
+                    .unwrap()
+                    .as_deref(),
+                Some("merged")
+            );
+        }
+    }
 }

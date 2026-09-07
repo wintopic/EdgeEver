@@ -1,4 +1,5 @@
-import type { DiagramDocument, DiagramNodeShape, DiagramTheme } from "./diagram";
+import { flowchartNodePresentation } from "./diagram-node-presentation";
+import type { ArchitectureResourceIcon, DiagramDocument, DiagramNodeShape, DiagramTheme } from "./diagram";
 
 export type DiagramAppearance = "light" | "dark";
 
@@ -47,6 +48,32 @@ const architectureAccent: Partial<Record<DiagramNodeShape, string>> = {
   external: "#64748B",
 };
 
+// Native X6 viewers do not bundle React icon components. These compact,
+// monochrome glyphs preserve each resource's visual identity in that portable
+// projection while the Web editor renders the matching Lucide pictogram.
+const architectureResourceGlyphs: Record<ArchitectureResourceIcon, string> = {
+  client: "▣", webApp: "▤", mobileApp: "▯", website: "◎", apiClient: "</>",
+  service: "▤", virtualMachine: "⚙", container: "⬡", kubernetes: "⌘", serverless: "ƒ",
+  relationalDatabase: "◉", noSqlDatabase: "ϟ", cache: "▱", dataWarehouse: "▥", searchEngine: "⌕",
+  objectStorage: "☁", fileStorage: "▧", blockStorage: "▰", backup: "↶", cdn: "⇧",
+  messageQueue: "≡", eventBus: "⑂", streamProcessing: "≋", webhook: "⌁", serviceMesh: "⋮",
+  apiGateway: "⇄", loadBalancer: "↔", dns: "◎", vpc: "◇", subnet: "⊞", vpn: "⌁",
+  identity: "◆", firewall: "▦", waf: "✓", secretManager: "⌑", certificate: "◈", systemBoundary: "□",
+  monitoring: "◴", logging: "▤", metrics: "↗", tracing: "∿", alerting: "!",
+  saas: "☁", externalApi: "⌁", thirdPartyService: "ϟ",
+};
+
+const architectureShapeGlyphs: Partial<Record<DiagramNodeShape, string>> = {
+  client: "▣",
+  frontend: "▤",
+  service: "▥",
+  database: "◉",
+  storage: "▰",
+  queue: "≡",
+  security: "✓",
+  external: "☁",
+};
+
 /** Plain X6 metadata shared by native WebView viewers. */
 export const diagramDocumentToX6Cells = (
   document: DiagramDocument,
@@ -54,6 +81,7 @@ export const diagramDocumentToX6Cells = (
 ) => {
   const palette = resolvePortableDiagramPalette(document.theme ?? "brand", appearance);
   const nodes = document.nodes.map((node) => {
+    const presentation = document.kind === "flowchart" ? flowchartNodePresentation(node.shape, node.label) : { width: node.width, height: node.height, text: node.label };
     const isRootTopic = node.shape === "topic" && !node.parentId;
     const isTerminator = node.shape === "terminator";
     const isBoundary = node.shape === "boundary";
@@ -65,14 +93,24 @@ export const diagramDocumentToX6Cells = (
         ? (appearance === "dark" ? palette.nodeFill : `${accent}12`)
         : emphasized ? palette.topicFill : palette.nodeFill;
     const stroke = isBoundary ? palette.nodeStroke : accent ?? (emphasized ? palette.topicStroke : palette.nodeStroke);
+    const usesArchitectureIcon = document.kind === "architecture" && !isBoundary;
+    const iconGlyph = node.resourceIcon
+      ? architectureResourceGlyphs[node.resourceIcon]
+      : architectureShapeGlyphs[node.shape];
     return {
       id: node.id,
       shape: node.shape === "decision" ? "polygon" : "rect",
       x: node.x,
       y: node.y,
-      width: node.width,
-      height: node.height,
+      width: presentation.width,
+      height: presentation.height,
       zIndex: isBoundary ? 0 : 2,
+      ...(usesArchitectureIcon ? { markup: [
+        { tagName: "rect", selector: "body" },
+        { tagName: "rect", selector: "iconFrame" },
+        { tagName: "text", selector: "resourceIcon" },
+        { tagName: "text", selector: "label" },
+      ] } : {}),
       attrs: {
         body: {
           fill,
@@ -84,12 +122,36 @@ export const diagramDocumentToX6Cells = (
           ...(node.shape === "decision" ? { refPoints: "0,10 10,0 20,10 10,20" } : {}),
         },
         label: {
-          text: node.label,
+          text: presentation.text,
+          lineHeight: 18,
           fill: emphasized ? palette.topicText : palette.nodeText,
           fontSize: node.shape === "topic" ? 14 : isBoundary ? 12 : 13,
           fontWeight: emphasized || isBoundary || accent ? 650 : 500,
           ...(isBoundary ? { refX: 18, refY: 22, textAnchor: "start", textVerticalAnchor: "middle" } : {}),
+          ...(usesArchitectureIcon ? { refX: 54, refY: "50%", textAnchor: "start", textVerticalAnchor: "middle" } : {}),
         },
+        ...(usesArchitectureIcon ? {
+          iconFrame: {
+            x: 10,
+            y: Math.round((node.height - 34) / 2),
+            width: 34,
+            height: 34,
+            rx: node.shape === "database" ? 17 : node.shape === "security" ? 12 : 8,
+            ry: node.shape === "database" ? 17 : node.shape === "security" ? 12 : 8,
+            fill: appearance === "dark" ? `${accent}30` : `${accent}18`,
+            stroke: "none",
+          },
+          resourceIcon: {
+            text: iconGlyph,
+            x: 27,
+            y: node.height / 2,
+            fill: accent,
+            fontSize: iconGlyph === "</>" ? 10 : 17,
+            fontWeight: 700,
+            textAnchor: "middle",
+            textVerticalAnchor: "middle",
+          },
+        } : {}),
       },
     };
   });
@@ -100,6 +162,7 @@ export const diagramDocumentToX6Cells = (
       id: edge.id,
       source: { cell: edge.source },
       target: { cell: edge.target },
+      router: document.kind === "flowchart" ? { name: "manhattan", args: { padding: 28, step: 10 } } : undefined,
       connector: { name: document.kind === "mind-map" ? "smooth" : "rounded", args: { radius: 10 } },
       attrs: { line: {
         stroke,
@@ -109,8 +172,8 @@ export const diagramDocumentToX6Cells = (
         targetMarker: document.kind === "mind-map" ? null : { name: "block", width: 8, height: 6 },
       } },
       labels: edge.label ? [{ attrs: {
-        label: { text: edge.label, fill: palette.nodeText, fontSize: 12 },
-        body: { fill: palette.canvas, stroke: palette.nodeStroke, strokeWidth: 1, rx: 5, ry: 5 },
+        label: { text: edge.label, fill: palette.nodeText, fontSize: 12, lineHeight: 16, textWrap: { width: 140, height: 512 } },
+        body: { ref: "label", refWidth: 1, refHeight: 1, refWidth2: 12, refHeight2: 8, refX: -6, refY: -4, fill: palette.canvas, stroke: palette.nodeStroke, strokeWidth: 1, rx: 5, ry: 5 },
       } }] : undefined,
     };
   });
