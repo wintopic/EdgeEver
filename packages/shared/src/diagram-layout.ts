@@ -1,5 +1,12 @@
-import { visualTextUnits, compactFlowchartNodeSize, flowchartNodePresentation } from "./diagram-node-presentation";
+import { compactFlowchartNodeSize, flowchartNodePresentation } from "./diagram-node-presentation";
 export { compactFlowchartNodeSize, flowchartNodePresentation } from "./diagram-node-presentation";
+import {
+  MIND_MAP_HORIZONTAL_GAP,
+  MIND_MAP_VERTICAL_GAP,
+  mindMapNodePresentation,
+  mindMapNodeRole,
+} from "./diagram-mindmap-style";
+export { compactMindMapNodeSize } from "./diagram-mindmap-style";
 import { graphlib, layout as runDagreLayout } from "@dagrejs/dagre";
 import {
   ARCHITECTURE_DIAGRAM_SCHEMA_VERSION,
@@ -76,8 +83,6 @@ export type DiagramIr = {
   }>;
 };
 
-const MIND_MAP_HORIZONTAL_GAP = 72;
-const MIND_MAP_VERTICAL_GAP = 16;
 const MIND_MAP_TWO_SIDED_THRESHOLD = 5;
 const FLOWCHART_DETACHED_GAP = 72;
 const FLOWCHART_DETACHED_ROW_GAP = 24;
@@ -85,11 +90,6 @@ const FLOWCHART_DETACHED_ROW_WIDTH = 960;
 const ARCHITECTURE_LAYOUT_ROW_WIDTH = 1480;
 const ARCHITECTURE_GROUP_HORIZONTAL_GAP = 72;
 const ARCHITECTURE_GROUP_VERTICAL_GAP = 88;
-
-export const compactMindMapNodeSize = (label: string, isRoot: boolean) => ({
-  width: Math.round(Math.min(isRoot ? 168 : 156, Math.max(isRoot ? 112 : 92, visualTextUnits(label) * 13 + 28))),
-  height: isRoot ? 42 : 36,
-});
 
 export const compactArchitectureNodeSize = (
   shape: DiagramNodeShape,
@@ -545,7 +545,7 @@ export const compileDiagramIr = (ir: DiagramIr): DiagramDocument => {
   const nodes = ir.nodes.map((node, index) => {
     const shape = irNodeShape(ir.kind, node.type);
     const size = ir.kind === "mind-map"
-      ? compactMindMapNodeSize(node.label, !node.parentId)
+      ? mindMapNodePresentation(node.label, mindMapNodeRole(ir.nodes, node.id))
       : ir.kind === "architecture"
         ? compactArchitectureNodeSize(shape)
         : flowchartNodePresentation(shape, node.label);

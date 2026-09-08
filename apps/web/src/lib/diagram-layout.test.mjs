@@ -19,9 +19,9 @@ describe("diagram auto layout", () => {
   });
 
   test("uses compact topic sizes while allowing longer labels to grow within a cap", () => {
-    expect(compactMindMapNodeSize("分支主题", false)).toEqual({ width: 92, height: 36 });
-    expect(compactMindMapNodeSize("核心主题", true)).toEqual({ width: 112, height: 42 });
-    expect(compactMindMapNodeSize("A much longer topic label", false).width).toBeLessThanOrEqual(156);
+    expect(compactMindMapNodeSize("分支主题", false)).toEqual({ width: 96, height: 36 });
+    expect(compactMindMapNodeSize("核心主题", true)).toEqual({ width: 124, height: 46 });
+    expect(compactMindMapNodeSize("A much longer topic label", false).width).toBeLessThanOrEqual(168);
   });
 
   test("inserts a sibling after the selected branch and pushes following subtrees down", () => {
@@ -45,7 +45,7 @@ describe("diagram auto layout", () => {
     for (let index = 1; index < orderedSiblings.length; index += 1) {
       const previous = document.nodes.find((node) => node.id === orderedSiblings[index - 1]);
       expect(positions[orderedSiblings[index]].y).toBeGreaterThanOrEqual(
-        positions[orderedSiblings[index - 1]].y + previous.height + 16,
+        positions[orderedSiblings[index - 1]].y + previous.height + 20,
       );
     }
     expect(positions["topic-1-child"].x).toBeGreaterThan(positions["topic-1"].x);
@@ -54,7 +54,7 @@ describe("diagram auto layout", () => {
       positions["topic-1-child"].y + 36,
       positions["topic-1-child-2"].y + 36,
     );
-    expect(positions["topic-new"].y).toBeGreaterThanOrEqual(selectedSubtreeBottom + 16);
+    expect(positions["topic-new"].y).toBeGreaterThanOrEqual(selectedSubtreeBottom + 20);
   });
 
   test("orders a connected flow from top to bottom and places detached nodes afterwards", () => {

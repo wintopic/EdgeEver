@@ -225,7 +225,7 @@ const PluginDetailView = ({
               <h3 className="text-xs font-semibold text-slate-700">{t("plugins.details.permissions")}</h3>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {manifest.permissions.map((permission) => (
-                  <span key={permission} className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">{permissionLabel(permission)}</span>
+                  <span key={permission} className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">{permission === "network:public" ? t("plugins.permissions.publicNetwork") : permissionLabel(permission)}</span>
                 ))}
               </div>
             </section>
@@ -613,7 +613,7 @@ export const PluginManagerCard = ({
                     <div className="mt-2 flex flex-wrap gap-1">
                       {extension.manifest.permissions.slice(0, 3).map((permission) => (
                         <span key={permission} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-600">
-                          {permissionLabel(permission)}
+                          {permission === "network:public" ? t("plugins.permissions.publicNetwork") : permissionLabel(permission)}
                         </span>
                       ))}
                       {extension.manifest.permissions.length > 3 ? (

@@ -111,7 +111,7 @@ Registry 格式：
 - `ui:panels`
 - `ui:embeds`
 
-通过 `context.network.fetch()` 访问网络时，还必须在 Manifest 的 `networkHosts` 中声明目标域名。
+通过 `context.network.fetch()` 访问网络时需要声明 `network` 能力，但不受静态域名列表限制。`networkHosts` 仅作为兼容旧版的描述性元数据保留，不参与拦截。插件需要无凭据读取跨域公开响应时，可以声明匿名只读的 `network:public` 传输。
 
 ## 插件入口
 
@@ -312,17 +312,19 @@ await context.storage.set("cursor", "next-page");
 const cursor = await context.storage.get<string>("cursor");
 ```
 
-网络请求只能使用 HTTPS；本地开发允许 localhost HTTP，并且目标域名必须提前声明：
+直接请求可以访问任意 HTTP 或 HTTPS 地址，并使用任意方法、请求头、正文和浏览器凭据模式。Web 运行时仍遵循浏览器的 CORS 与 Cookie 规则：
 
 ```json
 {
-  "permissions": ["network"],
-  "networkHosts": ["api.example.com", "*.trusted.example.com"]
+  "permissions": ["network"]
 }
 ```
 
 ```ts
-await context.network.fetch("https://api.example.com/items");
+await context.network.fetch("https://api.example.com/items", {
+  headers: { Authorization: `Bearer ${token}`, "X-Client": "my-plugin" },
+  credentials: "include",
+});
 ```
 
 普通 `storage` 适合游标和偏好设置。API Key 等敏感字符串应使用 `secrets`：
@@ -487,12 +489,11 @@ const result = await context.ai.generate({
 
 `system` 最多 8,000 字符，`prompt` 最多 90,000 字符，输出最多 5,000 token，生成最长 120 秒。后端要求交互式用户会话，公开演示模式禁用 AI，供应商错误脱敏。每个后端实例对每工作区的 AI 调用设置四路并发保护，不是分布式配额。模型费用沿用已配置供应商的计费；停用插件会中止其调用。
 
-已有 `network.fetch(url, init)` 保留浏览器 fetch 行为，受 CORS 限制并省略凭据。使用通用公开网络传输时，需要同时声明 `network`、`network:public` 和 `networkHosts`，并显式选择 `transport: "public"`：
+默认的 `network.fetch(url, init)` 是受信任的浏览器请求，可以访问任意 HTTP／HTTPS 地址，使用任意方法、正文、`Authorization` 等请求头以及调用方指定的浏览器凭据模式；它仍受所在运行时的 CORS 与 Cookie 策略约束。`networkHosts` 仅为兼容旧版保留，不是安全边界。需要无凭据读取跨域公开订阅或 API 时，同时声明 `network` 和 `network:public`，并显式选择 `transport: "public"`：
 
 ```json
 {
-  "permissions": ["network", "network:public"],
-  "networkHosts": ["example.org"]
+  "permissions": ["network", "network:public"]
 }
 ```
 
@@ -506,10 +507,10 @@ const response = await context.network.fetch("https://example.org/feed.xml", {
 const feed = await response.text(); // 插件自己解析。
 ```
 
-公开模式仅支持 443 端口的 HTTPS GET／HEAD，不携带请求体和凭据；超时 20 秒，解码后的响应正文最多 2,000,000 字节。重定向只返回、不跟随（`redirect: "error"` 会拒绝）。来源的 403／429 保留为来源状态，不绕过平台访问限制。允许的请求头为 Accept、Accept-Language、If-None-Match、If-Modified-Since、Range；仅返回内容／缓存元数据、Location 和 Retry-After，不返回 Set-Cookie。响应在上限内缓冲，不是无限流式代理。
+公开模式允许访问任意公开域名，但仅支持 443 端口的 HTTPS GET／HEAD，不携带请求体和凭据；超时 20 秒，解码后的响应正文最多 2,000,000 字节。重定向只返回、不跟随（`redirect: "error"` 会拒绝），插件可以检查目标后再单独请求。来源的 403／429 保留为来源状态，不绕过平台访问限制。允许的请求头为 Accept、Accept-Language、If-None-Match、If-Modified-Since、Range；仅返回内容／缓存元数据、Location 和 Retry-After，不返回 Set-Cookie。响应在上限内缓冲，不是无限流式代理。
 
 宿主在不改变插件 API 的前提下选择成本最低的安全传输。Web 先尝试浏览器请求：CORS 可读的响应完全留在客户端；只有浏览器以网络／CORS `TypeError` 拒绝时，才回退到已认证的后端中继。桌面端通过 Electron 主进程和用户本机网络请求，最多四路并发，不再把公开内容转发到 EdgeEver 后端。取消信号会传递到所有传输路径。
 
 桌面端、自托管与云端驱动共用同一策略包。桌面端和 Bun 自托管会校验全部 DNS 结果，并把已校验地址直接交给 TLS；私网、特殊用途和混合公私地址全部拒绝。Cloudflare 回退使用 workerd 默认的仅公开 Internet 出口，不使用私网服务绑定。VPN／fake-IP DNS 返回的保留地址也会拒绝，不应禁用检查；非标准 workerd 部署须保留仅公开网络出口。Web 回退返回有大小限制的二进制正文，不再使用 Base64 JSON，避免 Base64 的额外传输体积。
 
-插件权限和域名检查在可信客户端宿主执行。后端独立要求用户认证并限制仅公开网络，不信任客户端提交的插件 ID 或白名单，也不声称提供服务端证明的插件隔离；仍遵循可信 JavaScript 边界。后端不接收来源枚举、搜索时间范围、证据结构或报告流程。
+插件能力声明主要用于告知意图并发现误用；启用后的插件属于受信任 JavaScript，不是安全沙箱。一个同时能够读取笔记和访问网络的插件可以把笔记发送出去。公开传输有意允许匿名读取任意公开 HTTPS 域名。后端仍独立要求用户认证并限制仅公开网络，避免共享的 EdgeEver 服务被用来访问私网；它不声称提供服务端证明的插件隔离。后端不接收来源枚举、搜索时间范围、证据结构或报告流程。

@@ -185,6 +185,7 @@ const writeDiagnostic = async (event, details = {}) => {
 
 const desktopRuntimeSystemInfo = () => ({
   appVersion: app.getVersion(),
+  autoUpdateSupported: process.platform !== "linux",
   platform: process.platform,
   architecture: process.arch,
   osVersion: process.getSystemVersion?.() || "unknown",
@@ -797,7 +798,7 @@ const promptForDownloadedUpdate = async (version) => {
 };
 
 const checkForDesktopUpdate = (reason, { force = false, throwOnError = false } = {}) => {
-  if (!app.isPackaged || process.env.EDGE_EVER_DISABLE_AUTO_UPDATE === "1" || updateState === "downloaded") {
+  if (process.platform === "linux" || !app.isPackaged || process.env.EDGE_EVER_DISABLE_AUTO_UPDATE === "1" || updateState === "downloaded") {
     return Promise.resolve(null);
   }
   if (updateCheckInFlight) {
@@ -843,7 +844,9 @@ const checkForDesktopUpdate = (reason, { force = false, throwOnError = false } =
 };
 
 const configureAutoUpdater = () => {
-  if (!app.isPackaged || process.env.EDGE_EVER_DISABLE_AUTO_UPDATE === "1") return;
+  // Linux Preview updates stay manual until a real AppImage-to-AppImage
+  // transition has passed the same cross-version gate as established clients.
+  if (process.platform === "linux" || !app.isPackaged || process.env.EDGE_EVER_DISABLE_AUTO_UPDATE === "1") return;
   autoUpdater.autoDownload = process.platform !== "win32";
   autoUpdater.autoInstallOnAppQuit = process.platform !== "win32";
   autoUpdater.autoRunAppAfterInstall = true;

@@ -65,24 +65,30 @@ beforeEach(() => {
 });
 
 describe("EdgeEverPluginHost", () => {
-  test('generic AI/public network calls require declared permissions and destination hosts', async () => {
+  test('generic AI/public network calls require declared permissions while public reads allow arbitrary public hosts', async () => {
     const calls = [];
+    const directCalls = [];
+    globalThis.window.fetch = async (...input) => { directCalls.push(input); return new Response('direct'); };
     const host = new EdgeEverPluginHost({ repository, scope: 'test',
       aiAdapter: { status: async () => ({ configured: true }), generate: async input => { calls.push(input); return { text: 'HELLO' }; } },
       publicNetworkAdapter: { fetchPublic: async input => { calls.push(input); return { url: input.url, status: 429, statusText: 'Too Many Requests', headers: {}, body: new TextEncoder().encode('limited').buffer }; } },
     });
-    const install = async (id, permissions) => {
-      host.installManifest({ type: 'plugin', id, name: id, version: '1.0.0', apiVersion: '1', entry: new URL('./plugin-capabilities.fixture.mjs', import.meta.url).href, permissions: ['ui:commands', ...permissions], networkHosts: ['example.org'] }, 'https://example.org/manifest.json');
+    const install = async (id, permissions, networkHosts) => {
+      host.installManifest({ type: 'plugin', id, name: id, version: '1.0.0', apiVersion: '1', entry: new URL('./plugin-capabilities.fixture.mjs', import.meta.url).href, permissions: ['ui:commands', ...permissions], ...(networkHosts ? { networkHosts } : {}) }, 'https://example.org/manifest.json');
       await host.setEnabled(id, true);
     };
     await install('org.test.denied', ['network']);
     await expect(host.runCommand('org.test.denied', 'ai')).rejects.toThrow();
     await expect(host.runCommand('org.test.denied', 'public')).rejects.toThrow(); expect(calls).toHaveLength(0);
+    await host.runCommand('org.test.denied', 'direct-unlisted');
+    expect(String(directCalls[0][0])).toBe('http://192.168.1.8/feed');
+    expect(directCalls[0][1].credentials).toBe('include');
+    expect(new Headers(directCalls[0][1].headers).get('Authorization')).toBe('Bearer test');
     await install('org.test.allowed', ['network', 'network:public', 'ai:generate']);
-    await expect(host.runCommand('org.test.allowed', 'unlisted')).rejects.toThrow();
     await expect(host.runCommand('org.test.allowed', 'post')).rejects.toThrow(); expect(calls).toHaveLength(0);
     await host.runCommand('org.test.allowed', 'ai'); expect(capabilityResults.get('org.test.allowed')).toEqual({ text: 'HELLO' });
     await host.runCommand('org.test.allowed', 'public'); expect(capabilityResults.get('org.test.allowed')).toEqual({ status: 429, text: 'limited', url: 'https://example.org/feed' });
+    await host.runCommand('org.test.allowed', 'unlisted'); expect(calls.at(-1).url).toBe('https://unlisted.org/feed');
     expect(calls[0].signal.aborted).toBe(false); await host.setEnabled('org.test.allowed', false); expect(calls[0].signal.aborted).toBe(true);
     await host.dispose();
   });

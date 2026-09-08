@@ -62,9 +62,13 @@ describe("diagram document", () => {
     const light = diagramDocumentToX6Cells(document, "light");
     expect(light.canvas).toBe("#F8FAF9");
     expect(light.nodes[0].attrs.body.fill).toBe("#16A06E");
+    expect(light.nodes[0].attrs.body.rx).toBe(23);
     expect(light.nodes[1].attrs.body.fill).toBe("#F0F8F4");
+    expect(light.nodes.find((node) => node.id === "topic-1-a").attrs.body.fill).toBe("#F8FAF9");
     expect(light.edges[0].attrs.line.stroke).toBe("#55B891");
     expect(light.edges[0].attrs.line.targetMarker).toBeNull();
+    expect(light.edges[0].connector.name).toBe("edgeever-mindmap");
+    expect(light.edges[0].source.anchor.name).toBe("right");
 
     const dark = diagramDocumentToX6Cells(document, "dark");
     expect(dark.canvas).toBe("#101311");
@@ -77,7 +81,8 @@ describe("diagram document", () => {
     const source = diagramDocumentToMermaid(document);
     expect(source).toContain("flowchart LR");
     expect(source).toContain("核心 &lt;主题&gt; &quot;A&amp;B&quot;");
-    expect(source).toContain("n0 --> n1");
+    expect(source).toContain("n0 --- n1");
+    expect(source).toContain("class n0 mindRoot");
   });
 
   test("round-trips architecture components, boundaries, and semantic connections", () => {
@@ -143,5 +148,6 @@ test('native flowchart projection shares label sizing and obstacle routing witho
   expect(projection.nodes[1].height).toBeGreaterThan(document.nodes[1].height);
   expect(projection.nodes[1].attrs.label.text.replaceAll('\n', '')).toBe(document.nodes[1].label.replaceAll('\n', ''));
   expect(projection.edges[0].router.name).toBe('manhattan');
+  expect(projection.edges[0].attrs.line.fill).toBe('none');
   expect(document).toEqual(original);
 });

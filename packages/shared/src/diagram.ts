@@ -304,7 +304,17 @@ export const diagramDocumentToMermaid = (document: DiagramDocument) => {
     const target = nodeIds.get(edge.target);
     if (!source || !target) continue;
     const label = edge.label ? `|"${escapeMermaidLabel(edge.label)}"|` : "";
-    lines.push(`  ${source} -->${label} ${target}`);
+    const connector = document.kind === "mind-map" ? "---" : "-->";
+    lines.push(`  ${source} ${connector}${label} ${target}`);
+  }
+
+  if (document.kind === "mind-map") {
+    const root = document.nodes.find((node) => node.shape === "topic" && !node.parentId);
+    const rootId = root ? nodeIds.get(root.id) : undefined;
+    if (rootId) {
+      lines.push("  classDef mindRoot fill:#16A06E,stroke:#12845B,color:#fff,stroke-width:1.5px");
+      lines.push(`  class ${rootId} mindRoot`);
+    }
   }
 
   return lines.join("\n");
@@ -319,15 +329,23 @@ export const createDefaultDiagramDocument = (kind: DiagramKind): DiagramDocument
       schemaVersion: DIAGRAM_SCHEMA_VERSION,
       kind,
       nodes: [
-        { id: "topic-root", label: "核心主题", x: 72, y: 150, width: 112, height: 42, shape: "topic" },
-        { id: "topic-1", label: "分支主题", x: 256, y: 88, width: 92, height: 36, shape: "topic", parentId: "topic-root" },
-        { id: "topic-2", label: "分支主题", x: 256, y: 153, width: 92, height: 36, shape: "topic", parentId: "topic-root" },
-        { id: "topic-3", label: "分支主题", x: 256, y: 218, width: 92, height: 36, shape: "topic", parentId: "topic-root" },
+        { id: "topic-root", label: "核心主题", x: 72, y: 168, width: 124, height: 46, shape: "topic" },
+        { id: "topic-1", label: "采集想法", x: 268, y: 117, width: 96, height: 36, shape: "topic", parentId: "topic-root" },
+        { id: "topic-2", label: "整理结构", x: 268, y: 201, width: 96, height: 36, shape: "topic", parentId: "topic-root" },
+        { id: "topic-3", label: "输出分享", x: 268, y: 257, width: 96, height: 36, shape: "topic", parentId: "topic-root" },
+        { id: "topic-1-a", label: "快速记录", x: 436, y: 89, width: 96, height: 36, shape: "topic", parentId: "topic-1" },
+        { id: "topic-1-b", label: "跨设备同步", x: 436, y: 145, width: 96, height: 36, shape: "topic", parentId: "topic-1" },
+        { id: "topic-2-a", label: "笔记本", x: 436, y: 201, width: 96, height: 36, shape: "topic", parentId: "topic-2" },
+        { id: "topic-3-a", label: "公开链接", x: 436, y: 257, width: 96, height: 36, shape: "topic", parentId: "topic-3" },
       ],
       edges: [
         { id: "branch-1", source: "topic-root", target: "topic-1" },
         { id: "branch-2", source: "topic-root", target: "topic-2" },
         { id: "branch-3", source: "topic-root", target: "topic-3" },
+        { id: "branch-1-a", source: "topic-1", target: "topic-1-a" },
+        { id: "branch-1-b", source: "topic-1", target: "topic-1-b" },
+        { id: "branch-2-a", source: "topic-2", target: "topic-2-a" },
+        { id: "branch-3-a", source: "topic-3", target: "topic-3-a" },
       ],
     };
   }
