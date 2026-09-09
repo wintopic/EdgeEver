@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { BadgeCheck, BookOpen, CalendarClock, Download, ExternalLink, History, PanelRightOpen, Play, Puzzle, RefreshCw, Settings2, Trash2 } from "lucide-react";
+import { BookOpen, CalendarClock, Download, ExternalLink, History, PanelRightOpen, Play, Puzzle, RefreshCw, Settings2, Trash2 } from "lucide-react";
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -8,18 +8,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import type { EdgeEverPluginHost, InstalledExtension, RegisteredPluginCommand, RegisteredPluginPanel } from "@/lib/plugins/plugin-host";
+import { PluginCatalogCard } from "@/components/plugins/PluginCatalogCard";
 import { PluginPanelDialog } from "@/components/plugins/PluginPanelDialog";
-import { loadPluginMarketplace } from "@/lib/plugins/plugin-marketplace";
+import { loadResolvedPluginMarketplace } from "@/lib/plugins/plugin-marketplace";
 import { GitHubMark } from "@/components/GitHubRepositoryLink";
-import { checkPluginUpdates, type PluginUpdateInfo } from "@/lib/plugins/plugin-updates";
+import { applyPluginUpdate, checkPluginUpdates, type PluginUpdateInfo } from "@/lib/plugins/plugin-updates";
 import { PluginUpdateDialog } from "@/components/plugins/PluginUpdateDialog";
 import { PluginSettingsSection } from "@/components/plugins/PluginSettingsSection";
+import { buildPluginCatalogItems } from "@/lib/plugins/plugin-catalog";
 import { getPluginDetailPage, getPluginDetailPath, hasPluginSettings, type PluginDetailPage } from "@/lib/plugins/plugin-navigation";
 import type { ScheduledTask } from "@edgeever/shared";
 import { api, getOrCreateClientDeviceId } from "@/lib/api";
 import { ScheduledTaskRunHistoryDialog } from "@/components/execution/ScheduledTaskRunHistoryDialog";
+import { AppConfirmDialog } from "@/components/dialogs/ConfirmDialogs";
+import {
+  acknowledgePluginTrustWarning,
+  hasAcknowledgedPluginTrustWarning,
+  PLUGIN_TRUST_WARNING_COPY,
+  shouldRequestPluginTrustAcknowledgement,
+} from "@/lib/plugins/plugin-trust";
 
 const permissionLabel = (permission: string) => permission.replace(":", " · ");
+const PLUGIN_CARD_GRID_CLASS_NAME = "grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3";
 
 const LegacyManualScheduledTasksSection = () => {
   const { t } = useTranslation();
@@ -301,7 +311,8 @@ export const PluginManagerCard = ({
   const [error, setError] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<RegisteredPluginPanel | null>(null);
   const [pendingUpdate, setPendingUpdate] = useState<PluginUpdateInfo | null>(null);
-  const marketplaceQuery = useQuery({ queryKey: ["plugin-marketplace", "v1"], queryFn: () => loadPluginMarketplace(), staleTime: 5 * 60_000 });
+  const [pendingTrustPluginId, setPendingTrustPluginId] = useState<string | null>(null);
+  const marketplaceQuery = useQuery({ queryKey: ["plugin-marketplace", "v1"], queryFn: () => loadResolvedPluginMarketplace(), staleTime: 5 * 60_000 });
   const extensionVersionKey = snapshot.extensions
     .map((extension) => `${extension.manifest.id}:${extension.manifest.version}:${extension.source.kind}`)
     .join("|");
@@ -315,6 +326,7 @@ export const PluginManagerCard = ({
     refetchInterval: 30 * 60_000,
     refetchOnWindowFocus: true,
   });
+  const catalogItems = buildPluginCatalogItems(marketplaceQuery.data?.entries ?? [], snapshot.extensions);
   const selectedExtension = selectedPluginId
     ? snapshot.extensions.find((extension) => extension.manifest.id === selectedPluginId)
     : undefined;
@@ -365,8 +377,11 @@ export const PluginManagerCard = ({
         ["plugin-updates", extensionVersionKey, refreshedMarketplace.data?.updatedAt ?? "unavailable"],
         result,
       );
-      setLastManualCheckCount(result.updates.length);
-      const firstCheckError = Object.values(result.errors)[0];
+      const firstCheckError = Object.values({
+        ...(refreshedMarketplace.data?.resolutionErrors ?? {}),
+        ...result.errors,
+      })[0];
+      setLastManualCheckCount(firstCheckError ? null : result.updates.length);
       if (firstCheckError) setError(t("plugins.updates.checkFailed", { message: firstCheckError }));
     } catch (checkError) {
       setError(checkError instanceof Error ? checkError.message : String(checkError));
@@ -375,18 +390,28 @@ export const PluginManagerCard = ({
     }
   };
 
-  const applyUpdate = async (update: PluginUpdateInfo) => {
-    const extension = snapshot.extensions.find((candidate) => candidate.manifest.id === update.pluginId);
-    if (!extension) throw new Error("Extension is no longer installed.");
-    if (extension.source.kind === "marketplace") {
-      if (!update.marketplaceEntry) throw new Error("The verified marketplace entry is no longer available.");
-      await host.installMarketplaceEntry(update.marketplaceEntry, update.latestManifest);
-    } else if (extension.source.kind === "github") {
-      if (!extension.source.repositoryUrl) throw new Error("Installed GitHub extension is missing its repository URL.");
-      await host.installFromGithubRepository(extension.source.repositoryUrl, undefined, update.latestManifest);
-    } else {
-      await host.installFromManifestUrl(extension.manifestUrl, undefined, update.latestManifest);
+  const toggleExtension = (extension: InstalledExtension, enabled: boolean) => {
+    if (shouldRequestPluginTrustAcknowledgement({
+      acknowledged: hasAcknowledgedPluginTrustWarning(),
+      enabled,
+      extensionType: extension.manifest.type,
+    })) {
+      setPendingTrustPluginId(extension.manifest.id);
+      return;
     }
+    void run(extension.manifest.id, () => host.setEnabled(extension.manifest.id, enabled));
+  };
+
+  const confirmPluginTrust = () => {
+    const pluginId = pendingTrustPluginId;
+    if (!pluginId) return;
+    acknowledgePluginTrustWarning();
+    setPendingTrustPluginId(null);
+    void run(pluginId, () => host.setEnabled(pluginId, true));
+  };
+
+  const applyUpdate = async (update: PluginUpdateInfo) => {
+    await applyPluginUpdate(host, update);
     setPendingUpdate(null);
     setLastManualCheckCount(null);
     await updateQuery.refetch();
@@ -404,7 +429,7 @@ export const PluginManagerCard = ({
             </span>
           </CardTitle>
           <div className="flex items-center gap-1">
-            {snapshot.extensions.length > 0 ? (
+            {snapshot.extensions.length > 0 || (marketplaceQuery.data?.entries.length ?? 0) > 0 ? (
               <Button
                 variant="ghost"
                 size="sm"
@@ -441,6 +466,17 @@ export const PluginManagerCard = ({
       <CardContent className="grid gap-4 p-4 pt-0 sm:px-5 sm:pb-5">
         {error ? <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{error}</div> : null}
 
+        {marketplaceQuery.isError ? (
+          <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+            <span>{t("plugins.marketplace.loadFailed", {
+              message: marketplaceQuery.error instanceof Error ? marketplaceQuery.error.message : String(marketplaceQuery.error),
+            })}</span>
+            <Button size="sm" variant="outline" className="h-7 bg-white px-2 text-xs" onClick={() => void marketplaceQuery.refetch()}>
+              {t("plugins.marketplace.retry")}
+            </Button>
+          </div>
+        ) : null}
+
         {!selectedPluginId ? <LegacyManualScheduledTasksSection /> : null}
 
         {selectedPluginId ? (
@@ -453,7 +489,7 @@ export const PluginManagerCard = ({
               commands={snapshot.commands.filter((command) => command.pluginId === selectedExtension.manifest.id)}
               panels={snapshot.panels.filter((panel) => panel.pluginId === selectedExtension.manifest.id)}
               pendingId={pendingId}
-              onToggle={(enabled) => void run(selectedExtension.manifest.id, () => host.setEnabled(selectedExtension.manifest.id, enabled))}
+              onToggle={(enabled) => toggleExtension(selectedExtension, enabled)}
               onUpdate={() => {
                 const update = updateQuery.data?.updates.find((candidate) => candidate.pluginId === selectedExtension.manifest.id);
                 if (update) setPendingUpdate(update);
@@ -475,64 +511,6 @@ export const PluginManagerCard = ({
           )
         ) : (
           <>
-        {(marketplaceQuery.data?.entries.length ?? 0) > 0 ? (
-          <div className="grid gap-2 md:grid-cols-2">
-            {(marketplaceQuery.data?.entries ?? []).map((entry) => {
-              const installed = snapshot.extensions.find((extension) => extension.manifest.id === entry.id);
-              const currentVerified = installed?.source.verified && installed.manifest.version === entry.verification.version;
-              const marketplaceUpdate = updateQuery.data?.updates.find((update) => update.pluginId === entry.id && update.marketplaceEntry);
-              const actionId = `marketplace:${entry.id}`;
-              return (
-                <article key={entry.id} className="flex min-w-0 flex-col rounded-lg border border-emerald-100 bg-white p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="truncate text-sm font-semibold text-slate-900">{entry.name}</span>
-                          <BadgeCheck className="h-4 w-4 shrink-0 text-emerald-600" aria-label={t("plugins.marketplace.verified")} />
-                        </div>
-                        <div className="mt-0.5 text-[10px] text-slate-400">{entry.author} · {entry.category} · v{entry.verification.version}</div>
-                      </div>
-                      <a
-                        href={entry.repositoryUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/70"
-                        aria-label={t("plugins.marketplace.openRepository", { name: entry.name })}
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                    </div>
-                    <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">{entry.description}</p>
-                    <Button
-                      size="sm"
-                      variant={currentVerified ? "soft" : "outline"}
-                      className="mt-3 h-8 gap-1.5 text-xs"
-                      disabled={Boolean(currentVerified) || pendingId === actionId || Boolean(installed?.source.kind === "marketplace" && !marketplaceUpdate)}
-                      onClick={() => {
-                        if (marketplaceUpdate) {
-                          setPendingUpdate(marketplaceUpdate);
-                          return;
-                        }
-                        void run(actionId, async () => { await host.installMarketplaceEntry(entry); });
-                      }}
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                      {pendingId === actionId
-                        ? t("plugins.installing")
-                        : marketplaceUpdate
-                          ? t("plugins.updates.update")
-                          : currentVerified
-                          ? t("plugins.marketplace.installed")
-                          : installed
-                            ? t("plugins.marketplace.installVerified")
-                            : t("plugins.install")}
-                    </Button>
-                </article>
-              );
-            })}
-          </div>
-        ) : null}
-
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input
             aria-label={t("plugins.installSource")}
@@ -546,145 +524,43 @@ export const PluginManagerCard = ({
           </Button>
         </div>
 
-        {snapshot.extensions.length === 0 ? (
+        {marketplaceQuery.isLoading && catalogItems.length === 0 ? null : catalogItems.length === 0 ? (
           <div className="rounded-lg border border-dashed border-slate-200 p-5 text-center text-xs text-slate-500">
             {t("plugins.empty")}
           </div>
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            {snapshot.extensions.map((extension) => {
-              const id = extension.manifest.id;
-              const availableUpdate = updateQuery.data?.updates.find((update) => update.pluginId === id);
-              const commands = snapshot.commands.filter((command) => command.pluginId === id);
-              const panels = snapshot.panels.filter((panel) => panel.pluginId === id);
-              return (
-                <section
-                  key={id}
-                  role="link"
-                  tabIndex={0}
-                  aria-label={t("plugins.details.open", { name: extension.manifest.name })}
-                  className="flex min-w-0 cursor-pointer flex-col rounded-lg border border-slate-200 bg-white p-3 transition-colors hover:border-emerald-300 hover:bg-emerald-50/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/70"
-                  onClick={(event) => {
-                    if ((event.target as HTMLElement).closest("button, a")) return;
-                    onOpenPlugin?.(id);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
-                      event.preventDefault();
-                      onOpenPlugin?.(id);
-                    }
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="truncate text-sm font-semibold text-slate-900">{extension.manifest.name}</span>
-                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                          {extension.manifest.type}
-                        </span>
-                        <span className="text-[11px] text-slate-400">v{extension.manifest.version}</span>
-                        {availableUpdate ? (
-                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                            {t("plugins.updates.available", { version: availableUpdate.latestVersion })}
-                          </span>
-                        ) : null}
-                        <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] ${extension.source.verified ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                          {extension.source.verified ? <BadgeCheck className="h-3 w-3" /> : extension.source.kind === "github" ? <GitHubMark className="h-3 w-3" /> : null}
-                          {t(`plugins.sources.${extension.source.verified ? "verified" : extension.source.kind}`)}
-                        </span>
-                      </div>
-                      {extension.manifest.description ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{extension.manifest.description}</p> : null}
-                      {extension.source.repositoryUrl ? (
-                        <a className="mt-1 flex max-w-full items-center gap-1 text-[11px] text-slate-400 hover:text-emerald-700" href={extension.source.repositoryUrl} target="_blank" rel="noreferrer">
-                          <GitHubMark className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{extension.source.repositoryUrl.replace("https://github.com/", "")}</span>
-                        </a>
-                      ) : null}
-                    </div>
-                    <Switch
-                      aria-label={t("plugins.toggle", { name: extension.manifest.name })}
-                      checked={extension.enabled}
-                      disabled={pendingId === id}
-                      onCheckedChange={(enabled) => void run(id, () => host.setEnabled(id, enabled))}
-                    />
-                  </div>
-
-                  {extension.manifest.type === "plugin" && extension.manifest.permissions.length > 0 ? (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {extension.manifest.permissions.slice(0, 3).map((permission) => (
-                        <span key={permission} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-600">
-                          {permission === "network:public" ? t("plugins.permissions.publicNetwork") : permissionLabel(permission)}
-                        </span>
-                      ))}
-                      {extension.manifest.permissions.length > 3 ? (
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-600">
-                          +{extension.manifest.permissions.length - 3}
-                        </span>
-                      ) : null}
-                    </div>
-                  ) : null}
-
-                  {extension.error ? <div className="mt-2 text-xs text-rose-600">{extension.error}</div> : null}
-
-                  <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-3">
-                    {hasPluginSettings(extension.manifest) ? (
-                      <Button asChild size="sm" variant="outline" className="h-8 gap-1.5 text-xs">
-                        <Link to={getPluginDetailPath(id, "settings")} aria-label={t("plugins.settings.open", { name: extension.manifest.name })}>
-                          <Settings2 className="h-3.5 w-3.5" />
-                          {t("plugins.settings.title")}
-                        </Link>
-                      </Button>
-                    ) : null}
-                    {availableUpdate ? (
-                      <Button
-                        size="sm"
-                        className="h-8 gap-1.5 text-xs"
-                        disabled={pendingId === `update:${id}`}
-                        onClick={() => setPendingUpdate(availableUpdate)}
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                        {t("plugins.updates.update")}
-                      </Button>
-                    ) : null}
-                    {commands.map((command) => (
-                      <Button
-                        key={command.id}
-                        size="sm"
-                        variant="outline"
-                        className="h-8 gap-1.5 text-xs"
-                        disabled={pendingId === `${id}:${command.id}`}
-                        onClick={() => void run(`${id}:${command.id}`, () => host.runCommand(id, command.id))}
-                      >
-                        <Play className="h-3.5 w-3.5" />
-                        {command.title}
-                      </Button>
-                    ))}
-                    {panels.map((panel) => (
-                      <Button
-                        key={panel.id}
-                        size="sm"
-                        variant="outline"
-                        className="h-8 gap-1.5 text-xs"
-                        onClick={() => setActivePanel(panel)}
-                      >
-                        <PanelRightOpen className="h-3.5 w-3.5" />
-                        {panel.title}
-                      </Button>
-                    ))}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="ml-auto h-8 gap-1.5 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                      disabled={pendingId === `remove:${id}`}
-                      onClick={() => void run(`remove:${id}`, () => host.uninstall(id))}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      {t("plugins.uninstall")}
-                    </Button>
-                  </div>
-                </section>
-              );
-            })}
+          <div className={PLUGIN_CARD_GRID_CLASS_NAME}>
+            {catalogItems.map((item) => (
+              <PluginCatalogCard
+                key={item.id}
+                item={item}
+                update={updateQuery.data?.updates.find((update) => update.pluginId === item.id)}
+                commands={snapshot.commands.filter((command) => command.pluginId === item.id)}
+                panels={snapshot.panels.filter((panel) => panel.pluginId === item.id)}
+                pendingId={pendingId}
+                onOpenPlugin={onOpenPlugin}
+                onToggle={(enabled) => {
+                  if (item.extension) toggleExtension(item.extension, enabled);
+                }}
+                onInstallMarketplace={() => {
+                  const entry = item.marketplaceEntry;
+                  if (!entry) return;
+                  void run(`marketplace:${item.id}`, async () => {
+                    await host.installMarketplaceEntry(entry);
+                  });
+                }}
+                onUpdate={() => {
+                  const nextUpdate = updateQuery.data?.updates.find((candidate) => candidate.pluginId === item.id);
+                  if (nextUpdate) setPendingUpdate(nextUpdate);
+                }}
+                onRunCommand={(command) => void run(
+                  `${item.id}:${command.id}`,
+                  () => host.runCommand(item.id, command.id),
+                )}
+                onOpenPanel={setActivePanel}
+                onUninstall={() => void run(`remove:${item.id}`, () => host.uninstall(item.id))}
+              />
+            ))}
           </div>
         )}
           </>
@@ -697,6 +573,16 @@ export const PluginManagerCard = ({
             isUpdating={pendingId === `update:${pendingUpdate.pluginId}`}
             onCancel={() => setPendingUpdate(null)}
             onConfirm={() => void run(`update:${pendingUpdate.pluginId}`, () => applyUpdate(pendingUpdate))}
+          />
+        ) : null}
+        {pendingTrustPluginId ? (
+          <AppConfirmDialog
+            title={t(PLUGIN_TRUST_WARNING_COPY.titleKey)}
+            description={t(PLUGIN_TRUST_WARNING_COPY.descriptionKey)}
+            confirmLabel={t(PLUGIN_TRUST_WARNING_COPY.confirmLabelKey)}
+            tone="neutral"
+            onCancel={() => setPendingTrustPluginId(null)}
+            onConfirm={confirmPluginTrust}
           />
         ) : null}
       </CardContent>

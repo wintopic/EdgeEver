@@ -47,19 +47,24 @@ if (process.platform !== "win32") {
   assert.equal(statSync(join(dataDir, "edgeever.sqlite")).mode & 0o777, 0o600, "sidecar database should be private");
 }
 
-const remoteMemo = (id, { mergedIntoMemoId = null, sourceMemoIds = [] } = {}) => ({
+const remoteMemo = (id, {
+  mergedIntoMemoId = null,
+  sourceMemoIds = [],
+  notebookId = inbox.id,
+  isDeleted = Boolean(mergedIntoMemoId),
+} = {}) => ({
   id,
-  notebookId: inbox.id,
+  notebookId,
   title: id,
   excerpt: "",
   tags: [],
   isPinned: false,
   isArchived: false,
-  isDeleted: Boolean(mergedIntoMemoId),
+  isDeleted,
   revision: 0,
   createdAt: "2026-09-06T00:00:00.000Z",
   updatedAt: "2026-09-06T00:00:00.000Z",
-  deletedAt: mergedIntoMemoId ? "2026-09-06T00:00:00.000Z" : null,
+  deletedAt: isDeleted ? "2026-09-06T00:00:00.000Z" : null,
   contentJson: { type: "doc", content: [] },
   contentMarkdown: "",
   contentText: "",
@@ -92,6 +97,19 @@ for (const sourceId of ["memo_e2e_merge_source_before", "memo_e2e_merge_source_a
   );
 }
 assert.equal((await request("memo.emptyTrash")).deleted, 2, "merge-order fixtures should not leak into later scenarios");
+
+// Regression for #371: older servers can return a trashed memo whose original
+// notebook is no longer part of the active notebook snapshot.
+await applyRemoteMemo(remoteMemo("memo_e2e_deleted_notebook", {
+  notebookId: "notebook_deleted_on_server",
+  isDeleted: true,
+}));
+assert.equal(
+  (await request("memo.get", { memoId: "memo_e2e_deleted_notebook", includeDeleted: true })).memo.notebookId,
+  inbox.id,
+  "a missing remote notebook should fall back to the local inbox",
+);
+assert.equal((await request("memo.emptyTrash")).deleted, 1, "deleted-notebook fixture should not leak into later scenarios");
 
 const first = await request("memo.create", { notebookId: inbox.id, title: "Local first", contentMarkdown: "searchable body", tags: ["local"] });
 assert.deepEqual(await request("sync.bootstrap.prepare"), { clearedSeedData: false, rebuiltMirror: false });
@@ -386,4 +404,4 @@ assert.equal((await request("sync.status")).conflict, 0);
 
 child.stdin.end();
 await new Promise((resolve) => child.once("close", resolve));
-console.log(JSON.stringify({ ok: true, checked: ["memo.create", "memo.list.search", "memo.list.subtree", "memo.update", "memo.update.coalesce", "memo.revisions", "memo.restoreRevision", "memo.revision.cache", "tag.rename", "memo.moveBatch", "memo.pinBatch", "memo.deleteBatch", "memo.restore", "memo.emptyTrash", "memo.merge", "template.cache", "template.create.payload", "template.delete", "storage.backup", "storage.backups", "storage.restore", "sync.apply.merge-page-order", "sync.outbox", "sync.outbox.retry", "sync.outbox.recoverMemoUpdate", "sync.outbox.discard"] }));
+console.log(JSON.stringify({ ok: true, checked: ["memo.create", "memo.list.search", "memo.list.subtree", "memo.update", "memo.update.coalesce", "memo.revisions", "memo.restoreRevision", "memo.revision.cache", "tag.rename", "memo.moveBatch", "memo.pinBatch", "memo.deleteBatch", "memo.restore", "memo.emptyTrash", "memo.merge", "template.cache", "template.create.payload", "template.delete", "storage.backup", "storage.backups", "storage.restore", "sync.apply.merge-page-order", "sync.apply.deleted-notebook", "sync.outbox", "sync.outbox.retry", "sync.outbox.recoverMemoUpdate", "sync.outbox.discard"] }));

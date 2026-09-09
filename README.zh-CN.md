@@ -2,7 +2,7 @@
 
 [![GitHub Stars](https://img.shields.io/github/stars/tianma-if/edgeever?style=social)](https://github.com/tianma-if/edgeever/stargazers)
 [![GitHub Forks](https://img.shields.io/github/forks/tianma-if/edgeever?style=social)](https://github.com/tianma-if/edgeever/network/members)
-[![Product Hunt](https://img.shields.io/badge/Product%20Hunt-Pre--Launch-ea532a?style=social&logo=product-hunt)](https://www.producthunt.com/products/edgeever?launch=edgeever&utm_source=badge-featured&utm_medium=badge&utm_campaign=edgeever)
+[![Product Hunt](https://img.shields.io/badge/Product%20Hunt-ea532a?style=social&logo=product-hunt)](https://www.producthunt.com/products/edgeever?utm_source=other&utm_medium=social)
 [![爱发电赞助](https://img.shields.io/badge/爱发电-赞助支持-946ce6?style=social&logo=github-sponsors)](https://afdian.com/a/tianma-if)
 
 简体中文 | [English](README.md)
@@ -40,13 +40,13 @@ EdgeEver 是一款现代化的开源笔记与个人知识库工作区。它为�
 <p>
   <a href="https://github.com/tianma-if/edgeever/releases/latest"><img src="assets/readme/platforms/macos.svg" alt="下载 macOS 客户端" width="40" height="40" /></a>&nbsp;&nbsp;
   <a href="https://github.com/tianma-if/edgeever/releases/latest"><img src="assets/readme/platforms/windows.svg" alt="下载 Windows 客户端" width="40" height="40" /></a>&nbsp;&nbsp;
-  <a href="https://github.com/tianma-if/edgeever/releases/latest"><img src="assets/readme/platforms/linux.svg" alt="下载 Linux x86_64 AppImage 预览版" width="40" height="40" /></a>&nbsp;&nbsp;
+  <a href="https://github.com/tianma-if/edgeever/releases/latest"><img src="assets/readme/platforms/tux.svg" alt="下载 Linux x86_64 AppImage 预览版" width="40" height="40" /></a>&nbsp;&nbsp;
   <a href="https://play.google.com/store/apps/details?id=org.edgeever.mobile"><img src="assets/readme/platforms/google-play.svg" alt="从 Google Play 下载 Android 客户端" width="40" height="40" /></a>&nbsp;&nbsp;
   <a href="https://apps.apple.com/us/app/edgeever/id6792625631"><img src="assets/readme/platforms/app-store.svg" alt="从 App Store 下载 iOS 客户端" width="40" height="40" /></a>
 </p>
 
 iOS 客户端需要使用非中国大陆区 Apple ID 下载。
-Linux x86_64 AppImage 当前为手动更新的预览版，详见
+Linux x86_64 AppImage 当前为支持自动更新的预览版，详见
 [Linux 预览版说明](docs/linux-preview.zh-CN.md)。
 
 ## 功能
@@ -167,7 +167,7 @@ EdgeEver 官方容器镜像托管于 GitHub Container Registry（GHCR）。部�
 
 ## 插件与主题
 
-EdgeEver 的 Web 与桌面端支持安装在当前设备的插件和无代码主题，可从插件市场、GitHub 或 Manifest 地址安装。开发者可使用 `@edgeever/plugin-api`，详情参阅[插件开发文档](docs/plugin-development.zh-CN.md)。
+EdgeEver 的 Web 与桌面端支持安装在当前设备的插件和无代码主题，可从插件市场、GitHub 或 Manifest 地址安装。官方插件市场仅收录自由及开源插件，该要求不限制用户直接通过 GitHub 或 Manifest 地址安装其他插件。开发者可使用 `@edgeever/plugin-api`，详情参阅[插件开发文档](docs/plugin-development.zh-CN.md)和[官方插件市场上架政策](docs/plugin-marketplace-policy.zh-CN.md)。
 
 ## 技术栈
 
@@ -267,6 +267,8 @@ Web、PWA 与桌面端会在停止编辑 30 秒后上传笔记，并在页面可
 
 ## 致谢
 
+- EdgeEver 的笔记产品设计也参考了 [Evernote（印象笔记）](https://evernote.com/) 等成熟笔记工具的公开产品体验。相关功能由 EdgeEver 独立设计与实现。
+- 思维导图与可视化图表笔记的产品设计参考了 [XMind](https://xmind.com/) 和 [ProcessOn](https://www.processon.com/) 等图表工具的公开产品体验。相关功能由 EdgeEver 独立设计与实现。
 - “minimal品牌绿”主题排版架构借鉴于 [obsidian-minimal](https://github.com/kepano/obsidian-minimal)。
 - “Outline 品牌绿”主题排版架构借鉴于 [Outline](https://github.com/outline/outline)。
 - “经典蓝白”主题借鉴了早期 [StackEdit](https://github.com/benweet/stackedit)/[Bootstrap](https://github.com/twbs/bootstrap) 系 Markdown 排版风格，并参考[马克飞象](https://maxiang.io/)完善中文排版细节。

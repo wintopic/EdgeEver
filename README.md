@@ -2,7 +2,7 @@
 
 [![GitHub Stars](https://img.shields.io/github/stars/tianma-if/edgeever?style=social)](https://github.com/tianma-if/edgeever/stargazers)
 [![GitHub Forks](https://img.shields.io/github/forks/tianma-if/edgeever?style=social)](https://github.com/tianma-if/edgeever/network/members)
-[![Product Hunt](https://img.shields.io/badge/Product%20Hunt-Pre--Launch-ea532a?style=social&logo=product-hunt)](https://www.producthunt.com/products/edgeever?launch=edgeever&utm_source=badge-featured&utm_medium=badge&utm_campaign=edgeever)
+[![Product Hunt](https://img.shields.io/badge/Product%20Hunt-ea532a?style=social&logo=product-hunt)](https://www.producthunt.com/products/edgeever?utm_source=other&utm_medium=social)
 [![Sponsor on Afdian](https://img.shields.io/badge/Sponsor-Afdian-946ce6?style=social&logo=github-sponsors)](https://afdian.com/a/tianma-if)
 
 [简体中文](README.zh-CN.md) | English
@@ -40,13 +40,13 @@ The public demo resets every day at 3:00 AM (China Standard Time) and restores s
 <p>
   <a href="https://github.com/tianma-if/edgeever/releases/latest"><img src="assets/readme/platforms/macos.svg" alt="Download EdgeEver for macOS" width="40" height="40" /></a>&nbsp;&nbsp;
   <a href="https://github.com/tianma-if/edgeever/releases/latest"><img src="assets/readme/platforms/windows.svg" alt="Download EdgeEver for Windows" width="40" height="40" /></a>&nbsp;&nbsp;
-  <a href="https://github.com/tianma-if/edgeever/releases/latest"><img src="assets/readme/platforms/linux.svg" alt="Download the EdgeEver Linux x86_64 AppImage Preview" width="40" height="40" /></a>&nbsp;&nbsp;
+  <a href="https://github.com/tianma-if/edgeever/releases/latest"><img src="assets/readme/platforms/tux.svg" alt="Download the EdgeEver Linux x86_64 AppImage Preview" width="40" height="40" /></a>&nbsp;&nbsp;
   <a href="https://play.google.com/store/apps/details?id=org.edgeever.mobile"><img src="assets/readme/platforms/google-play.svg" alt="Download EdgeEver for Android from Google Play" width="40" height="40" /></a>&nbsp;&nbsp;
   <a href="https://apps.apple.com/us/app/edgeever/id6792625631"><img src="assets/readme/platforms/app-store.svg" alt="Download EdgeEver for iOS from the App Store" width="40" height="40" /></a>
 </p>
 
 The iOS app requires an Apple ID from outside mainland China.
-The Linux x86_64 AppImage is a Preview with manual updates; see the
+The Linux x86_64 AppImage is a Preview with automatic updates; see the
 [Linux Preview guide](docs/linux-preview.md).
 
 ## Features
@@ -169,7 +169,7 @@ Welcome to the EdgeEver community. Join us to discuss the EdgeEver experience, r
 
 ## Plugins and Themes
 
-EdgeEver supports device-local plugins and code-free themes on Web and desktop, installable from the Plugin Marketplace, GitHub, or a Manifest URL. Developers can use `@edgeever/plugin-api`; see the [plugin development guide](docs/plugin-development.md).
+EdgeEver supports device-local plugins and code-free themes on Web and desktop, installable from the Plugin Marketplace, GitHub, or a Manifest URL. The official marketplace only lists free and open-source plugins; this requirement does not apply to direct installation from GitHub or a Manifest URL. Developers can use `@edgeever/plugin-api`; see the [plugin development guide](docs/plugin-development.md) and [marketplace submission policy](docs/plugin-marketplace-policy.md).
 
 ## Tech Stack
 
@@ -270,6 +270,8 @@ Web, PWA, and desktop upload memo edits after 30 seconds of inactivity and check
 
 ## Acknowledgements
 
+- EdgeEver's note-taking product design was also informed by the publicly available product experiences of mature note-taking tools such as [Evernote](https://evernote.com/). The related features were independently designed and implemented by EdgeEver.
+- The product design of mind-map and visual-diagram notes was informed by the publicly available product experiences of [XMind](https://xmind.com/) and [ProcessOn](https://www.processon.com/). These features were independently designed and implemented by EdgeEver.
 - The "Minimal Emerald" theme typography layout is inspired by [obsidian-minimal](https://github.com/kepano/obsidian-minimal).
 - The "Outline Emerald" theme typography layout is inspired by [Outline](https://github.com/outline/outline).
 - The "Classic Blue & White" theme is inspired by the early [StackEdit](https://github.com/benweet/stackedit)/[Bootstrap](https://github.com/twbs/bootstrap) Markdown typography style, with Chinese typography details informed by [Marxico](https://maxiang.io/).

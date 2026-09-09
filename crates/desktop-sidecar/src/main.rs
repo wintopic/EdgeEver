@@ -347,13 +347,17 @@ mod tests {
     }
 
     #[test]
-    fn remote_merge_links_tolerate_bootstrap_page_order() {
+    fn remote_memo_references_tolerate_bootstrap_order_and_deleted_notebooks() {
         let database = Connection::open_in_memory().unwrap();
         database
             .execute_batch(
                 "PRAGMA foreign_keys = ON;
                  CREATE TABLE _edgeever_sidecar_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL);
-                 CREATE TABLE notebooks (id TEXT PRIMARY KEY);
+                 CREATE TABLE notebooks (
+                   id TEXT PRIMARY KEY,
+                   slug TEXT,
+                   is_deleted INTEGER NOT NULL DEFAULT 0
+                 );
                  CREATE TABLE memos (
                    id TEXT PRIMARY KEY,
                    notebook_id TEXT NOT NULL REFERENCES notebooks(id),
@@ -379,33 +383,34 @@ mod tests {
                    revision INTEGER NOT NULL,
                    updated_at TEXT NOT NULL DEFAULT 'now'
                  );
-                 INSERT INTO notebooks VALUES ('notebook-1');",
+                 INSERT INTO notebooks (id, slug) VALUES ('notebook-1', 'notes'), ('nb_inbox', 'inbox');",
             )
             .unwrap();
 
-        let memo = |id: &str, merged_into: Option<&str>, source_ids: Vec<&str>| {
-            json!({
-                "id": id,
-                "notebookId": "notebook-1",
-                "title": id,
-                "excerpt": "",
-                "tags": [],
-                "isPinned": false,
-                "isArchived": false,
-                "isDeleted": merged_into.is_some(),
-                "sourceMemoIds": source_ids,
-                "mergeSourceCount": 0,
-                "mergedIntoMemoId": merged_into,
-                "createdAt": "2026-09-06T00:00:00.000Z",
-                "updatedAt": "2026-09-06T00:00:00.000Z",
-                "deletedAt": merged_into.map(|_| "2026-09-06T00:00:00.000Z"),
-                "contentJson": { "type": "doc", "content": [] },
-                "contentMarkdown": "",
-                "contentText": "",
-                "contentHash": id,
-                "revision": 0
-            })
-        };
+        let memo =
+            |id: &str, merged_into: Option<&str>, source_ids: Vec<&str>, notebook_id: &str| {
+                json!({
+                    "id": id,
+                    "notebookId": notebook_id,
+                    "title": id,
+                    "excerpt": "",
+                    "tags": [],
+                    "isPinned": false,
+                    "isArchived": false,
+                    "isDeleted": merged_into.is_some(),
+                    "sourceMemoIds": source_ids,
+                    "mergeSourceCount": 0,
+                    "mergedIntoMemoId": merged_into,
+                    "createdAt": "2026-09-06T00:00:00.000Z",
+                    "updatedAt": "2026-09-06T00:00:00.000Z",
+                    "deletedAt": merged_into.map(|_| "2026-09-06T00:00:00.000Z"),
+                    "contentJson": { "type": "doc", "content": [] },
+                    "contentMarkdown": "",
+                    "contentText": "",
+                    "contentHash": id,
+                    "revision": 0
+                })
+            };
         let apply_memo = |value: Value| {
             let id = value.get("id").and_then(Value::as_str).unwrap().to_owned();
             apply_sync_changes(
@@ -420,7 +425,7 @@ mod tests {
             .unwrap();
         };
 
-        apply_memo(memo("source-before", Some("merged"), vec![]));
+        apply_memo(memo("source-before", Some("merged"), vec![], "notebook-1"));
         assert_eq!(
             database
                 .query_row(
@@ -432,8 +437,13 @@ mod tests {
             None
         );
 
-        apply_memo(memo("merged", None, vec!["source-before", "source-after"]));
-        apply_memo(memo("source-after", Some("merged"), vec![]));
+        apply_memo(memo(
+            "merged",
+            None,
+            vec!["source-before", "source-after"],
+            "notebook-1",
+        ));
+        apply_memo(memo("source-after", Some("merged"), vec![], "notebook-1"));
 
         for source_id in ["source-before", "source-after"] {
             assert_eq!(
@@ -448,5 +458,17 @@ mod tests {
                 Some("merged")
             );
         }
+
+        apply_memo(memo("trashed", None, vec![], "deleted-notebook"));
+        assert_eq!(
+            database
+                .query_row(
+                    "SELECT notebook_id FROM memos WHERE id = 'trashed'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .unwrap(),
+            "nb_inbox"
+        );
     }
 }

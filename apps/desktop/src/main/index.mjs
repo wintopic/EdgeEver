@@ -4,11 +4,11 @@ import { appendFile, mkdir, open, readdir, readFile, rename, rm, stat, unlink, w
 import { basename, join } from "node:path";
 import { Readable } from "node:stream";
 import { execFile, spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { release as operatingSystemRelease } from "node:os";
 import { SidecarRpcClient } from "./rpc.mjs";
 import { resourceRequestHeaders } from "./resource-request.mjs";
-import { isSafeResourceId, parseByteRangeHeader, resourceIdFromRequest } from "./resource-url.mjs";
+import { downloadContentDispositionFromRequest, isSafeResourceId, parseByteRangeHeader, resourceIdFromRequest } from "./resource-url.mjs";
 import { isSupportedAssociatedFile } from "./file-association.mjs";
 import { accountDataDirectory, accountScopeKey } from "./account-scope.mjs";
 import { rotateDiagnosticLog } from "./diagnostic-log.mjs";
@@ -41,10 +41,28 @@ import {
 } from "./windows-update-trust.mjs";
 import electronUpdater from "electron-updater";
 import { createPluginPublicNetworkRuntime } from "./plugin-public-network.mjs";
+import {
+  DESKTOP_APP_ENTRY_URL,
+  DESKTOP_APP_ORIGIN,
+  DESKTOP_APP_SCHEME,
+  createDesktopAppProtocolHandler,
+} from "./app-protocol.mjs";
+import {
+  RENDERER_STORAGE_MIGRATION_MARKER,
+  migrateRendererStorageOrigin,
+} from "./renderer-storage-migration.mjs";
 
 const { autoUpdater } = electronUpdater;
 
-const requestedUserDataDirectory = userDataDirectoryFromArguments(process.argv);
+const linuxUpdateTestMode = process.platform === "linux"
+  && process.env.GITHUB_ACTIONS === "true"
+  && process.env.EDGE_EVER_DESKTOP_UPDATE_TEST === "1";
+const linuxUpdateTestFeedUrl = linuxUpdateTestMode
+  ? process.env.EDGE_EVER_DESKTOP_UPDATE_TEST_FEED_URL || ""
+  : "";
+const requestedUserDataDirectory = linuxUpdateTestMode
+  ? process.env.EDGE_EVER_DESKTOP_UPDATE_TEST_USER_DATA || userDataDirectoryFromArguments(process.argv)
+  : userDataDirectoryFromArguments(process.argv);
 if (requestedUserDataDirectory) app.setPath("userData", requestedUserDataDirectory);
 
 const currentDirectory = fileURLToPath(new URL(".", import.meta.url));
@@ -113,6 +131,7 @@ let rendererUnresponsiveTimer = null;
 const pluginPublicNetwork = createPluginPublicNetworkRuntime();
 let rendererUnresponsiveDialogOpen = false;
 let recoveredAfterAbnormalExit = false;
+let usePrivateAppProtocol = false;
 const pendingScheduledTaskRuns = [];
 const sendScheduledTaskRun = (task, scheduledFor) => {
   const payload = { task, scheduledFor: scheduledFor.toISOString() };
@@ -163,6 +182,9 @@ const migrateLegacyAccountData = async (accountId) => {
 };
 
 protocol.registerSchemesAsPrivileged([{
+  scheme: DESKTOP_APP_SCHEME,
+  privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true, codeCache: true },
+}, {
   scheme: "edgeever-resource",
   privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true },
 }, {
@@ -185,7 +207,7 @@ const writeDiagnostic = async (event, details = {}) => {
 
 const desktopRuntimeSystemInfo = () => ({
   appVersion: app.getVersion(),
-  autoUpdateSupported: process.platform !== "linux",
+  autoUpdateSupported: true,
   platform: process.platform,
   architecture: process.arch,
   osVersion: process.getSystemVersion?.() || "unknown",
@@ -581,6 +603,7 @@ const createTray = () => {
 const handleResourceProtocolRequest = async (request) => {
   const resourceId = resourceIdFromRequest(request.url);
   if (!resourceId) return new Response("Invalid resource", { status: 400 });
+  const downloadDisposition = downloadContentDispositionFromRequest(request.url);
 
   const directory = resourceCacheDirectory();
   const bytesPath = join(directory, `${resourceId}.bin`);
@@ -594,6 +617,7 @@ const handleResourceProtocolRequest = async (request) => {
       "Cache-Control": "no-store",
       "Content-Type": contentType || "application/octet-stream",
     });
+    if (downloadDisposition) headers.set("Content-Disposition", downloadDisposition);
     if (range.kind === "invalid") {
       headers.set("Content-Range", `bytes */${size}`);
       return new Response(null, { status: 416, headers });
@@ -640,6 +664,7 @@ const handleResourceProtocolRequest = async (request) => {
         const value = response.headers.get(name);
         if (value) responseHeaders.set(name, value);
       }
+      if (downloadDisposition) responseHeaders.set("Content-Disposition", downloadDisposition);
       return new Response(response.body, { status: 206, headers: responseHeaders });
     }
     if (!response.body) return new Response("Resource response body is empty", { status: 502 });
@@ -684,6 +709,7 @@ const handleResourceProtocolRequest = async (request) => {
     });
     const responseHeaders = new Headers(response.headers);
     responseHeaders.set("Cache-Control", "no-store");
+    if (downloadDisposition) responseHeaders.set("Content-Disposition", downloadDisposition);
     return new Response(streamedBody, { status: 200, headers: responseHeaders });
   } catch (error) {
     void writeDiagnostic("resource.cache-failed", { resourceId, message: error.message });
@@ -704,18 +730,59 @@ const registerResourceProtocol = () => {
       const path = join(directory, `${stagedId}.bin`);
       const { size } = await stat(path);
       const stream = createReadStream(path);
+      const headers = new Headers({
+        "Content-Type": metadata.type || "application/octet-stream",
+        "Content-Length": String(size),
+        "Cache-Control": "no-store",
+      });
+      const downloadDisposition = downloadContentDispositionFromRequest(request.url);
+      if (downloadDisposition) headers.set("Content-Disposition", downloadDisposition);
       return new Response(Readable.toWeb(stream), {
-        headers: {
-          "Content-Type": metadata.type || "application/octet-stream",
-          "Content-Length": String(size),
-          "Cache-Control": "no-store",
-        },
+        headers,
       });
     } catch (error) {
       void writeDiagnostic("resource.staged-read-failed", { stagedId, message: error.message });
       return new Response("Staged resource unavailable", { status: 404 });
     }
   });
+};
+
+const registerDesktopAppProtocol = () => {
+  protocol.handle(DESKTOP_APP_SCHEME, createDesktopAppProtocolHandler({
+    webRoot: join(process.resourcesPath, "web"),
+  }));
+};
+
+const preparePackagedRendererOrigin = async () => {
+  if (!app.isPackaged || process.env.EDGE_EVER_DESKTOP_WEB_URL) return;
+  if (process.env.EDGE_EVER_FORCE_FILE_RENDERER === "1") {
+    void writeDiagnostic("renderer.app-protocol-disabled");
+    return;
+  }
+
+  const bridgePath = join(process.resourcesPath, "web/desktop-storage-bridge.html");
+  try {
+    const result = await migrateRendererStorageOrigin({
+      createWindow: () => new BrowserWindow({
+        show: false,
+        webPreferences: {
+          contextIsolation: true,
+          nodeIntegration: false,
+          sandbox: true,
+        },
+      }),
+      legacyBridgeUrl: pathToFileURL(bridgePath).href,
+      targetBridgeUrl: `${DESKTOP_APP_ORIGIN}/desktop-storage-bridge.html`,
+      markerPath: join(app.getPath("userData"), RENDERER_STORAGE_MIGRATION_MARKER),
+    });
+    usePrivateAppProtocol = true;
+    void writeDiagnostic("renderer.origin-ready", { state: result.state, counts: result.counts });
+  } catch (error) {
+    usePrivateAppProtocol = false;
+    void writeDiagnostic("renderer.origin-migration-failed", {
+      message: String(error?.message || error).slice(0, 2000),
+    });
+  }
 };
 
 const refreshTrayMenu = () => {
@@ -798,7 +865,7 @@ const promptForDownloadedUpdate = async (version) => {
 };
 
 const checkForDesktopUpdate = (reason, { force = false, throwOnError = false } = {}) => {
-  if (process.platform === "linux" || !app.isPackaged || process.env.EDGE_EVER_DISABLE_AUTO_UPDATE === "1" || updateState === "downloaded") {
+  if (!app.isPackaged || process.env.EDGE_EVER_DISABLE_AUTO_UPDATE === "1" || updateState === "downloaded") {
     return Promise.resolve(null);
   }
   if (updateCheckInFlight) {
@@ -844,9 +911,18 @@ const checkForDesktopUpdate = (reason, { force = false, throwOnError = false } =
 };
 
 const configureAutoUpdater = () => {
-  // Linux Preview updates stay manual until a real AppImage-to-AppImage
-  // transition has passed the same cross-version gate as established clients.
-  if (process.platform === "linux" || !app.isPackaged || process.env.EDGE_EVER_DISABLE_AUTO_UPDATE === "1") return;
+  if (!app.isPackaged || process.env.EDGE_EVER_DISABLE_AUTO_UPDATE === "1") return;
+  if (linuxUpdateTestMode) {
+    if (!/^http:\/\/127\.0\.0\.1:\d+\/$/.test(linuxUpdateTestFeedUrl)) {
+      throw new Error("Linux update verification requires a loopback HTTP feed");
+    }
+    autoUpdater.setFeedURL({ provider: "generic", url: linuxUpdateTestFeedUrl });
+    autoUpdater.disableDifferentialDownload = true;
+    void writeDiagnostic("update.test-started", {
+      version: app.getVersion(),
+      appImage: process.env.APPIMAGE || null,
+    });
+  }
   autoUpdater.autoDownload = process.platform !== "win32";
   autoUpdater.autoInstallOnAppQuit = process.platform !== "win32";
   autoUpdater.autoRunAppAfterInstall = true;
@@ -868,7 +944,10 @@ const configureAutoUpdater = () => {
     windowsDownloadedUpdateVerified = false;
     refreshTrayMenu();
     publishDesktopUpdateStatus();
-    void writeDiagnostic("update.not-available");
+    const diagnosticWritten = writeDiagnostic("update.not-available");
+    if (linuxUpdateTestMode) {
+      void diagnosticWritten.finally(() => setTimeout(() => app.quit(), 100));
+    }
   });
   autoUpdater.on("download-progress", (progress) => { void writeDiagnostic("update.download-progress", { percent: progress.percent }); });
   autoUpdater.on("update-downloaded", (info) => {
@@ -889,6 +968,10 @@ const configureAutoUpdater = () => {
       refreshTrayMenu();
       publishDesktopUpdateStatus();
       await writeDiagnostic("update.downloaded", { version: downloadedUpdateVersion });
+      if (linuxUpdateTestMode) {
+        installDownloadedUpdate();
+        return;
+      }
       await promptForDownloadedUpdate(downloadedUpdateVersion).catch((error) => {
         promptedUpdateVersion = null;
         void writeDiagnostic("update.prompt-failed", { message: error.message });
@@ -1088,7 +1171,8 @@ const createWindow = async () => {
 
   try {
     if (app.isPackaged && !process.env.EDGE_EVER_DESKTOP_WEB_URL) {
-      await mainWindow.loadFile(join(process.resourcesPath, "web/index.html"));
+      if (usePrivateAppProtocol) await mainWindow.loadURL(DESKTOP_APP_ENTRY_URL);
+      else await mainWindow.loadFile(join(process.resourcesPath, "web/index.html"));
     } else {
       await mainWindow.loadURL(webUrl);
     }
@@ -1116,7 +1200,7 @@ const createWindow = async () => {
     return { action: "deny" };
   });
   mainWindow.webContents.on("will-navigate", (event, url) => {
-    if (url.startsWith(webUrl) || url.startsWith("edgeever-resource://") || url.startsWith("edgeever-staged://")) return;
+    if (url.startsWith(webUrl) || url.startsWith(`${DESKTOP_APP_ORIGIN}/`) || url.startsWith("edgeever-resource://") || url.startsWith("edgeever-staged://")) return;
     event.preventDefault();
     if (url.startsWith("https://") || url.startsWith("http://")) void shell.openExternal(url);
   });
@@ -1192,7 +1276,9 @@ const startApplication = async () => {
   void writeDiagnostic(recoveredAfterAbnormalExit ? "session.recovered-after-abnormal-exit" : "session.started");
   await writeFile(crashMarkerPath(), new Date().toISOString());
   session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
+  registerDesktopAppProtocol();
   registerResourceProtocol();
+  await preparePackagedRendererOrigin();
   const initialSidecar = await startSidecar();
   if (!initialSidecar) throw new Error("EdgeEver sidecar is unavailable");
   await initialSidecar.waitUntilReady();

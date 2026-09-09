@@ -255,7 +255,7 @@ final class TipTapContentSourceTests: XCTestCase {
         XCTAssertFalse(decision.useJSON)
     }
 
-    /// Live WKWebView regression for the portable projection of visual diagram notes.
+    /// Live WKWebView regression: valid IR renders through X6, not a hidden Mermaid document.
     @MainActor
     func testPackagedViewerRendersAllVisualDiagramFallbacksAsSVG() async throws {
         let htmlURL = try XCTUnwrap(
@@ -315,6 +315,11 @@ final class TipTapContentSourceTests: XCTestCase {
                 try await Task.sleep(nanoseconds: 100_000_000)
             }
             XCTAssertEqual(svgCount, 1, "each visual-note envelope must render through X6 in the iOS viewer")
+            let hiddenMermaidSource = try await evalInt(
+                webView,
+                "document.querySelectorAll('.ProseMirror pre, .ProseMirror code').length"
+            )
+            XCTAssertEqual(hiddenMermaidSource, 0, "valid IR must not leave a hidden Mermaid code block in TipTap")
             let graphWidth = try await evalInt(
                 webView,
                 "Math.round(document.querySelector('.edgeever-x6-diagram')?.getBoundingClientRect().width || 0)"
