@@ -77,4 +77,14 @@ describe("desktop update flow", () => {
     expect(notebookPaneSource).toContain("<DesktopUpdateNotice />");
     expect(notebookPaneSource).toContain('className="flex items-center gap-1"');
   });
+
+  test("holds in-app restart installation while the GitHub release is newer than the instance", () => {
+    expect(mainSource).toContain("shouldHoldAutoRestartUpdate(downloadedUpdateVersion, instanceVersion)");
+    expect(mainSource).toContain("holdAutoRestartUpdate(downloadedUpdateVersion)");
+    expect(mainSource).toContain('writeDiagnostic("update.held-for-instance"');
+    expect(mainSource).toContain("autoUpdater.autoInstallOnAppQuit = false");
+    expect(mainSource).toContain("releaseHeldAutoRestartUpdate()");
+    expect(mainSource).toContain("${configuredApiBaseUrl}/api/release");
+    expect(mainSource).toContain("heldUpdateVersion ||");
+  });
 });

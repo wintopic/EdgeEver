@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "bun:test";
 import { createDefaultDiagramDocument, diagramFallbackMarkdown, serializeDiagramDocument } from "@edgeever/shared";
 import { getMobileVisualDiagramKind, hasMobileVisualDiagram, resolveMobileMemoViewerContent } from "./mobile-diagram";
@@ -33,6 +34,13 @@ describe("mobile visual diagram viewer", () => {
     const viewerContent = resolveMobileMemoViewerContent(null, markdown);
     expect(JSON.stringify(viewerContent)).not.toContain("edgeever-diagram-v1");
     expect(hasMermaidCodeBlock(viewerContent)).toBe(true);
+  });
+
+  test("fills the remaining phone viewport instead of shrinking the canvas to a postage stamp", () => {
+    const source = readFileSync(new URL("../components/LocalTiptapEditor.tsx", import.meta.url), "utf8");
+    expect(source).toContain(".edgeever-editor-scroll:has(.edgeever-x6-document) { display: flex; flex-direction: column; overflow: hidden; }");
+    expect(source).toContain("flex: 1 1 auto");
+    expect(source).not.toContain("height: min(56vh, 520px)");
   });
 
   test("does not leak diagram metadata when browser codec globals are unavailable", () => {

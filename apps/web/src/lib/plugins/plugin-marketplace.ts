@@ -1,6 +1,7 @@
 import { parseMarketplaceRegistry, type MarketplaceEntry, type MarketplaceRegistry } from "@edgeever/plugin-api";
 import {
   downloadGithubExtension,
+  loadGithubInstallableManifest,
   type GithubAssetDownloader,
 } from "@/lib/plugins/github-plugin-distribution";
 import { isVersionOutdated } from "@/lib/version-check";
@@ -30,6 +31,16 @@ const resolveOfficialGithubEntry = async (
   downloadAssetBytes?: GithubAssetDownloader,
 ): Promise<MarketplaceEntry> => {
   if (entry.publisher !== "edgeever" || entry.distribution.type !== "github") return entry;
+  const live = await loadGithubInstallableManifest(entry.distribution.repositoryUrl, request);
+  if (live.manifest.id !== entry.id) {
+    throw new Error("Official repository manifest id does not match the marketplace entry.");
+  }
+  if (isVersionOutdated(live.manifest.version, entry.verification.version)) {
+    throw new Error("Official repository version is older than the marketplace verified version.");
+  }
+  if (live.manifest.version === entry.verification.version && entry.verification.checksums?.manifestJson) {
+    return entry;
+  }
   const downloaded = await downloadGithubExtension(entry.distribution.repositoryUrl, request, downloadAssetBytes);
   if (downloaded.manifest.id !== entry.id) {
     throw new Error("Official repository manifest id does not match the marketplace entry.");

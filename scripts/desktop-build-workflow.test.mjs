@@ -135,8 +135,15 @@ describe("desktop release workflow", () => {
   });
 
   test("builds and audits a Linux x64 AppImage Preview in parallel", () => {
+    const linuxJob = workflow.slice(
+      workflow.indexOf("name: Linux x64 AppImage Preview"),
+      workflow.indexOf("name: Audit Linux Preview asset"),
+    );
+    const linuxAuditJob = workflow.slice(workflow.indexOf("name: Audit Linux Preview asset"));
     expect(workflow).toContain("name: Linux x64 AppImage Preview");
     expect(workflow).toContain("runs-on: ubuntu-22.04");
+    expect(linuxJob).toContain("name: Install AppImage runtime dependencies");
+    expect(linuxJob).toContain("sudo apt-get install --yes libfuse2");
     expect(workflow).toContain("EDGE_EVER_DESKTOP_TARGET: linux");
     expect(desktopBuilderConfig).toContain(
       "artifactName: EdgeEver-${version}-linux-x64.${ext}",
@@ -153,6 +160,9 @@ describe("desktop release workflow", () => {
     expect(step("Build Linux automatic update predecessor")).toContain('gh release download "$PREVIOUS_TAG"');
     expect(step("Build Linux automatic update predecessor")).toContain("EdgeEver-linux-update-source.AppImage");
     expect(workflow).toContain("name: Audit Linux Preview asset");
+    expect(linuxAuditJob).toContain("name: Check out source");
+    expect(linuxAuditJob).toContain("uses: actions/checkout@v5");
+    expect(linuxAuditJob).toContain("node scripts/verify-linux-update-release.mjs release/desktop");
     expect(workflow).toContain("needs: [release-plan, desktop, windows, linux]");
     expect(desktopPackageVerifier).toContain("verifyGlibcBaseline(sidecar)");
   });

@@ -52,6 +52,7 @@ export const RELEASE_VALIDATIONS = [
       "scripts/store-delivery.test.mjs",
       "scripts/download-play-universal-apk.test.mjs",
       "scripts/desktop-icns.test.mjs",
+      "scripts/verify-desktop-cross-version-startup.test.mjs",
       "apps/web/src/lib/version-check.test.mjs",
       "apps/mobile/src/lib/mobile-release.test.ts",
     ],

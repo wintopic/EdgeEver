@@ -15,7 +15,7 @@ import { GitHubMark } from "@/components/GitHubRepositoryLink";
 import { applyPluginUpdate, checkPluginUpdates, type PluginUpdateInfo } from "@/lib/plugins/plugin-updates";
 import { PluginUpdateDialog } from "@/components/plugins/PluginUpdateDialog";
 import { PluginSettingsSection } from "@/components/plugins/PluginSettingsSection";
-import { buildPluginCatalogItems } from "@/lib/plugins/plugin-catalog";
+import { buildPluginCatalogItems, getPluginCatalogSourceKey } from "@/lib/plugins/plugin-catalog";
 import { getPluginDetailPage, getPluginDetailPath, hasPluginSettings, type PluginDetailPage } from "@/lib/plugins/plugin-navigation";
 import type { ScheduledTask } from "@edgeever/shared";
 import { api, getOrCreateClientDeviceId } from "@/lib/api";
@@ -377,12 +377,11 @@ export const PluginManagerCard = ({
         ["plugin-updates", extensionVersionKey, refreshedMarketplace.data?.updatedAt ?? "unavailable"],
         result,
       );
-      const firstCheckError = Object.values({
-        ...(refreshedMarketplace.data?.resolutionErrors ?? {}),
-        ...result.errors,
-      })[0];
-      setLastManualCheckCount(firstCheckError ? null : result.updates.length);
-      if (firstCheckError) setError(t("plugins.updates.checkFailed", { message: firstCheckError }));
+      setLastManualCheckCount(result.updates.length);
+      const checkErrors = Object.values(result.errors);
+      if (checkErrors.length > 0 && checkErrors.length === snapshot.extensions.length) {
+        setError(t("plugins.updates.checkFailed", { message: checkErrors[0] }));
+      }
     } catch (checkError) {
       setError(checkError instanceof Error ? checkError.message : String(checkError));
     } finally {
@@ -391,10 +390,13 @@ export const PluginManagerCard = ({
   };
 
   const toggleExtension = (extension: InstalledExtension, enabled: boolean) => {
+    const catalogItem = catalogItems.find((item) => item.id === extension.manifest.id)
+      ?? { id: extension.manifest.id, extension };
     if (shouldRequestPluginTrustAcknowledgement({
       acknowledged: hasAcknowledgedPluginTrustWarning(),
       enabled,
       extensionType: extension.manifest.type,
+      isOfficial: getPluginCatalogSourceKey(catalogItem) === "official",
     })) {
       setPendingTrustPluginId(extension.manifest.id);
       return;

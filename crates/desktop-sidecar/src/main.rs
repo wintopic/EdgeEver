@@ -471,4 +471,299 @@ mod tests {
             "nb_inbox"
         );
     }
+
+    #[test]
+    fn sync_apply_recreates_inbox_and_orders_notebooks_before_memos() {
+        let database = Connection::open_in_memory().unwrap();
+        database
+            .execute_batch(
+                "PRAGMA foreign_keys = ON;
+                 CREATE TABLE notebooks (
+                   id TEXT PRIMARY KEY,
+                   parent_id TEXT REFERENCES notebooks(id),
+                   name TEXT NOT NULL,
+                   slug TEXT,
+                   icon TEXT,
+                   color TEXT,
+                   sort_order INTEGER NOT NULL DEFAULT 0,
+                   is_deleted INTEGER NOT NULL DEFAULT 0,
+                   created_at TEXT NOT NULL DEFAULT 'now',
+                   updated_at TEXT NOT NULL DEFAULT 'now',
+                   deleted_at TEXT
+                 );
+                 CREATE TABLE memos (
+                   id TEXT PRIMARY KEY,
+                   notebook_id TEXT NOT NULL REFERENCES notebooks(id),
+                   title TEXT,
+                   excerpt TEXT NOT NULL,
+                   tags_json TEXT NOT NULL,
+                   is_pinned INTEGER NOT NULL,
+                   is_archived INTEGER NOT NULL,
+                   is_deleted INTEGER NOT NULL,
+                   source_memo_ids TEXT NOT NULL,
+                   merge_source_count INTEGER NOT NULL,
+                   merged_into_memo_id TEXT REFERENCES memos(id),
+                   created_at TEXT NOT NULL,
+                   updated_at TEXT NOT NULL,
+                   deleted_at TEXT
+                 );
+                 CREATE TABLE memo_contents (
+                   memo_id TEXT PRIMARY KEY REFERENCES memos(id) ON DELETE CASCADE,
+                   content_json TEXT NOT NULL,
+                   content_markdown TEXT NOT NULL,
+                   content_text TEXT NOT NULL,
+                   content_hash TEXT NOT NULL,
+                   revision INTEGER NOT NULL,
+                   updated_at TEXT NOT NULL DEFAULT 'now'
+                 );",
+            )
+            .unwrap();
+
+        let memo = |id: &str, notebook_id: &str| {
+            json!({
+                "id": id,
+                "notebookId": notebook_id,
+                "title": id,
+                "excerpt": "",
+                "tags": [],
+                "isPinned": false,
+                "isArchived": false,
+                "isDeleted": true,
+                "sourceMemoIds": [],
+                "mergeSourceCount": 0,
+                "mergedIntoMemoId": null,
+                "createdAt": "2026-09-10T00:00:00.000Z",
+                "updatedAt": "2026-09-10T00:00:00.000Z",
+                "deletedAt": "2026-09-10T00:00:00.000Z",
+                "contentJson": { "type": "doc", "content": [] },
+                "contentMarkdown": "",
+                "contentText": "",
+                "contentHash": id,
+                "revision": 0
+            })
+        };
+
+        apply_sync_changes(
+            &database,
+            &json!({ "changes": [{
+                "entityType": "memo",
+                "operation": "upsert",
+                "entityId": "orphan-memo",
+                "memo": memo("orphan-memo", "missing-notebook")
+            }] }),
+        )
+        .unwrap();
+        assert_eq!(
+            database
+                .query_row(
+                    "SELECT notebook_id FROM memos WHERE id = 'orphan-memo'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .unwrap(),
+            "nb_inbox"
+        );
+
+        apply_sync_changes(
+            &database,
+            &json!({ "changes": [
+                {
+                    "entityType": "memo",
+                    "operation": "upsert",
+                    "entityId": "page-memo",
+                    "memo": memo("page-memo", "still-missing")
+                },
+                {
+                    "entityType": "notebook",
+                    "operation": "upsert",
+                    "entityId": "child",
+                    "notebook": {
+                        "name": "Child",
+                        "slug": "child",
+                        "parentId": "parent",
+                        "createdAt": "2026-09-10T00:00:00.000Z",
+                        "updatedAt": "2026-09-10T00:00:00.000Z"
+                    }
+                },
+                {
+                    "entityType": "notebook",
+                    "operation": "upsert",
+                    "entityId": "ws_1_inbox",
+                    "notebook": {
+                        "name": "收集箱",
+                        "slug": "shou-ji-xiang",
+                        "parentId": null,
+                        "createdAt": "2026-09-10T00:00:00.000Z",
+                        "updatedAt": "2026-09-10T00:00:00.000Z"
+                    }
+                },
+                {
+                    "entityType": "notebook",
+                    "operation": "upsert",
+                    "entityId": "parent",
+                    "notebook": {
+                        "name": "Parent",
+                        "slug": "parent",
+                        "parentId": null,
+                        "createdAt": "2026-09-10T00:00:00.000Z",
+                        "updatedAt": "2026-09-10T00:00:00.000Z"
+                    }
+                }
+            ] }),
+        )
+        .unwrap();
+
+        assert_eq!(
+            database
+                .query_row(
+                    "SELECT slug FROM notebooks WHERE id = 'ws_1_inbox'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .unwrap(),
+            "inbox"
+        );
+        assert_eq!(
+            database
+                .query_row(
+                    "SELECT parent_id FROM notebooks WHERE id = 'child'",
+                    [],
+                    |row| row.get::<_, Option<String>>(0),
+                )
+                .unwrap()
+                .as_deref(),
+            Some("parent")
+        );
+        assert_eq!(
+            database
+                .query_row(
+                    "SELECT notebook_id FROM memos WHERE id = 'page-memo'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .unwrap(),
+            "nb_inbox"
+        );
+    }
+
+    #[test]
+    fn sync_apply_falls_back_to_renamed_workspace_inbox() {
+        let database = Connection::open_in_memory().unwrap();
+        database
+            .execute_batch(
+                "PRAGMA foreign_keys = ON;
+                 CREATE TABLE notebooks (
+                   id TEXT PRIMARY KEY,
+                   parent_id TEXT REFERENCES notebooks(id),
+                   name TEXT NOT NULL,
+                   slug TEXT,
+                   icon TEXT,
+                   color TEXT,
+                   sort_order INTEGER NOT NULL DEFAULT 0,
+                   is_deleted INTEGER NOT NULL DEFAULT 0,
+                   created_at TEXT NOT NULL DEFAULT 'now',
+                   updated_at TEXT NOT NULL DEFAULT 'now',
+                   deleted_at TEXT
+                 );
+                 CREATE TABLE memos (
+                   id TEXT PRIMARY KEY,
+                   notebook_id TEXT NOT NULL REFERENCES notebooks(id),
+                   title TEXT,
+                   excerpt TEXT NOT NULL,
+                   tags_json TEXT NOT NULL,
+                   is_pinned INTEGER NOT NULL,
+                   is_archived INTEGER NOT NULL,
+                   is_deleted INTEGER NOT NULL,
+                   source_memo_ids TEXT NOT NULL,
+                   merge_source_count INTEGER NOT NULL,
+                   merged_into_memo_id TEXT REFERENCES memos(id),
+                   created_at TEXT NOT NULL,
+                   updated_at TEXT NOT NULL,
+                   deleted_at TEXT
+                 );
+                 CREATE TABLE memo_contents (
+                   memo_id TEXT PRIMARY KEY REFERENCES memos(id) ON DELETE CASCADE,
+                   content_json TEXT NOT NULL,
+                   content_markdown TEXT NOT NULL,
+                   content_text TEXT NOT NULL,
+                   content_hash TEXT NOT NULL,
+                   revision INTEGER NOT NULL,
+                   updated_at TEXT NOT NULL DEFAULT 'now'
+                 );",
+            )
+            .unwrap();
+
+        apply_sync_changes(
+            &database,
+            &json!({ "changes": [
+                {
+                    "entityType": "memo",
+                    "operation": "upsert",
+                    "entityId": "trashed",
+                    "memo": {
+                        "id": "trashed",
+                        "notebookId": "deleted-notebook",
+                        "title": "trashed",
+                        "excerpt": "",
+                        "tags": [],
+                        "isPinned": false,
+                        "isArchived": false,
+                        "isDeleted": true,
+                        "sourceMemoIds": [],
+                        "mergeSourceCount": 0,
+                        "mergedIntoMemoId": null,
+                        "createdAt": "2026-09-10T00:00:00.000Z",
+                        "updatedAt": "2026-09-10T00:00:00.000Z",
+                        "deletedAt": "2026-09-10T00:00:00.000Z",
+                        "contentJson": { "type": "doc", "content": [] },
+                        "contentMarkdown": "",
+                        "contentText": "",
+                        "contentHash": "trashed",
+                        "revision": 0
+                    }
+                },
+                {
+                    "entityType": "notebook",
+                    "operation": "upsert",
+                    "entityId": "ws_1_inbox",
+                    "notebook": {
+                        "name": "收集箱",
+                        "slug": "shou-ji-xiang",
+                        "parentId": null,
+                        "createdAt": "2026-09-10T00:00:00.000Z",
+                        "updatedAt": "2026-09-10T00:00:00.000Z"
+                    }
+                }
+            ] }),
+        )
+        .unwrap();
+
+        assert_eq!(
+            database
+                .query_row(
+                    "SELECT id, slug FROM notebooks WHERE id = 'ws_1_inbox'",
+                    [],
+                    |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+                )
+                .unwrap(),
+            ("ws_1_inbox".to_owned(), "inbox".to_owned())
+        );
+        assert_eq!(
+            database
+                .query_row(
+                    "SELECT notebook_id FROM memos WHERE id = 'trashed'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .unwrap(),
+            "ws_1_inbox"
+        );
+        assert_eq!(
+            database
+                .query_row("SELECT COUNT(*) FROM notebooks", [], |row| row
+                    .get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+    }
 }

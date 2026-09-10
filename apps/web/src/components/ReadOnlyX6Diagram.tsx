@@ -79,11 +79,19 @@ export const ReadOnlyX6Diagram = ({
   return (
     <section className="edgeever-x6-document">
       <style>{`
-        .edgeever-x6-document { min-height: 360px; padding: 8px 12px 24px; }
+        .edgeever-x6-document, .edgeever-diagram-reader-host {
+          display: flex;
+          flex-direction: column;
+          min-height: min(78vh, 760px);
+          height: min(78vh, 760px);
+          padding: 8px 12px 16px;
+        }
+        .edgeever-diagram-reader-controls { flex: 0 0 auto; }
         .edgeever-x6-diagram {
+          flex: 1 1 auto;
           width: 100%;
-          height: min(70vh, 640px);
-          min-height: 360px;
+          height: auto;
+          min-height: 240px;
           overflow: hidden;
           border: 1px solid ${theme === "dark" ? "#26382f" : "#e3ece7"};
           border-radius: 14px;
@@ -91,6 +99,7 @@ export const ReadOnlyX6Diagram = ({
           touch-action: none;
         }
         .edgeever-x6-diagram .x6-graph-svg { overflow: hidden; }
+        .edgeever-x6-diagram .x6-node { cursor: pointer; }
       `}</style>
       <div
         aria-label={diagramTitle(diagram, locale)}

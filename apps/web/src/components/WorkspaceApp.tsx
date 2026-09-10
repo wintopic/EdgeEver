@@ -806,16 +806,10 @@ export const WorkspaceApp = ({
       running = true;
       try {
         const marketplace = await loadResolvedPluginMarketplace();
-        const result = await updateOfficialMarketplacePlugins(pluginHost, marketplace.entries);
+        await updateOfficialMarketplacePlugins(pluginHost, marketplace.entries);
         const firstResolutionError = Object.entries(marketplace.resolutionErrors)[0];
         if (firstResolutionError) {
           console.error(`Official plugin ${firstResolutionError[0]} update resolution failed.`, firstResolutionError[1]);
-        }
-        if (active && result.updated.length > 0) {
-          setAppNoticeDialog({
-            title: t("plugins.noticeTitle"),
-            description: t("plugins.updates.officialAutoUpdated", { count: result.updated.length }),
-          });
         }
       } catch (error) {
         console.error("Official plugin update check failed.", error);
@@ -832,7 +826,7 @@ export const WorkspaceApp = ({
       window.clearInterval(intervalId);
       window.removeEventListener("focus", handleFocus);
     };
-  }, [pluginHost, pluginHostReady, t]);
+  }, [pluginHost, pluginHostReady]);
   const scheduledTasksQuery = useQuery({
     queryKey: ["scheduled-tasks", scheduledTaskDeviceId],
     queryFn: () => api.listScheduledTasks(scheduledTaskDeviceId ?? undefined),

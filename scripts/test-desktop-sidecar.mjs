@@ -41,12 +41,12 @@ assert.ok(seedInbox, "seed inbox notebook should exist");
 assert.deepEqual(await request("sync.bootstrap.prepare"), { clearedSeedData: true, rebuiltMirror: false });
 assert.equal((await request("memo.list", { limit: 20 })).totalCount, 0, "bootstrap preparation should remove only pristine seed data");
 assert.equal((await request("notebook.list")).notebooks.length, 0, "bootstrap preparation should remove pristine seed notebooks");
-const inbox = (await request("notebook.create", { name: "Inbox" })).notebook;
 if (process.platform !== "win32") {
   assert.equal(statSync(dataDir).mode & 0o777, 0o700, "sidecar data directory should be private");
   assert.equal(statSync(join(dataDir, "edgeever.sqlite")).mode & 0o777, 0o600, "sidecar database should be private");
 }
 
+let inbox;
 const remoteMemo = (id, {
   mergedIntoMemoId = null,
   sourceMemoIds = [],
@@ -76,6 +76,61 @@ const remoteMemo = (id, {
 const applyRemoteMemo = (memo) => request("sync.apply", {
   changes: [{ entityType: "memo", operation: "upsert", entityId: memo.id, memo, notebook: null }],
 });
+const notebookPayload = (id, { name = id, slug = id, parentId = null } = {}) => ({
+  id,
+  parentId,
+  name,
+  slug,
+  icon: "notebook",
+  color: "#0f766e",
+  sortOrder: 10,
+  createdAt: "2026-09-06T00:00:00.000Z",
+  updatedAt: "2026-09-06T00:00:00.000Z",
+});
+
+// Regression for #378: first pull after seed clear can receive memos before the
+// renamed workspace inbox, and must not fail when slug is no longer `inbox`.
+await request("sync.apply", {
+  changes: [
+    {
+      entityType: "memo",
+      operation: "upsert",
+      entityId: "memo_e2e_renamed_inbox",
+      memo: remoteMemo("memo_e2e_renamed_inbox", {
+        notebookId: "notebook_deleted_on_server",
+        isDeleted: true,
+      }),
+      notebook: null,
+    },
+    {
+      entityType: "notebook",
+      operation: "upsert",
+      entityId: "ws_1_inbox",
+      notebook: notebookPayload("ws_1_inbox", { name: "收集箱", slug: "shou-ji-xiang" }),
+      memo: null,
+    },
+  ],
+});
+inbox = (await request("notebook.list")).notebooks.find((notebook) => notebook.id === "ws_1_inbox");
+assert.ok(inbox, "sidecar should keep the workspace inbox even when its remote slug was renamed");
+assert.equal(inbox.slug, "inbox", "synced inbox identity should restore slug=inbox");
+assert.equal(
+  (await request("memo.get", { memoId: "memo_e2e_renamed_inbox", includeDeleted: true })).memo.notebookId,
+  inbox.id,
+  "a missing remote notebook should fall back to the workspace inbox in the same page",
+);
+assert.equal((await request("memo.emptyTrash")).deleted, 1, "renamed-inbox fixture should not leak into later scenarios");
+
+await applyRemoteMemo(remoteMemo("memo_e2e_recreated_inbox", {
+  notebookId: "notebook_also_missing",
+  isDeleted: true,
+}));
+assert.equal(
+  (await request("memo.get", { memoId: "memo_e2e_recreated_inbox", includeDeleted: true })).memo.notebookId,
+  inbox.id,
+  "later pulls should keep using the restored inbox",
+);
+assert.equal((await request("memo.emptyTrash")).deleted, 1, "recreated-inbox fixture should not leak into later scenarios");
 
 // Regression for #362: bootstrap memo pages are sorted by id, so a deleted
 // merge source can reach the real sidecar process before its merge target.
@@ -117,6 +172,14 @@ assert.equal((await request("memo.get", { memoId: first.memo.id })).memo.id, fir
 const second = await request("memo.create", { notebookId: inbox.id, title: "Second memo", contentMarkdown: "another body", tags: [] });
 const search = await request("memo.list", { q: "searchable", limit: 20 });
 assert.deepEqual(search.memos.map((memo) => memo.id), [first.memo.id]);
+await request("memo.create", { notebookId: inbox.id, title: "Local daily", contentMarkdown: "prefix overlap", tags: ["local-daily"] });
+const tagged = await request("memo.list", { tag: "local", limit: 20 });
+assert.deepEqual(tagged.memos.map((memo) => memo.id), [first.memo.id], "tag filter should match an exact tag, not a prefix");
+assert.equal(tagged.totalCount, 1, "tag filter total should count only exact matches");
+const taggedCase = await request("memo.list", { tag: "LOCAL", limit: 20 });
+assert.deepEqual(taggedCase.memos.map((memo) => memo.id), [first.memo.id], "tag filter should match tags case-insensitively");
+const missingTag = await request("memo.list", { tag: "missing-tag", limit: 20 });
+assert.equal(missingTag.totalCount, 0, "unknown tags should not leak untagged notes into the list");
 const childNotebook = (await request("notebook.create", { name: "Inbox child", parentId: inbox.id })).notebook;
 const childMemo = await request("memo.create", { notebookId: childNotebook.id, title: "Nested memo", contentMarkdown: "nested body", tags: [] });
 const subtree = await request("memo.list", {
@@ -404,4 +467,4 @@ assert.equal((await request("sync.status")).conflict, 0);
 
 child.stdin.end();
 await new Promise((resolve) => child.once("close", resolve));
-console.log(JSON.stringify({ ok: true, checked: ["memo.create", "memo.list.search", "memo.list.subtree", "memo.update", "memo.update.coalesce", "memo.revisions", "memo.restoreRevision", "memo.revision.cache", "tag.rename", "memo.moveBatch", "memo.pinBatch", "memo.deleteBatch", "memo.restore", "memo.emptyTrash", "memo.merge", "template.cache", "template.create.payload", "template.delete", "storage.backup", "storage.backups", "storage.restore", "sync.apply.merge-page-order", "sync.apply.deleted-notebook", "sync.outbox", "sync.outbox.retry", "sync.outbox.recoverMemoUpdate", "sync.outbox.discard"] }));
+console.log(JSON.stringify({ ok: true, checked: ["memo.create", "memo.list.search", "memo.list.tag", "memo.list.subtree", "memo.update", "memo.update.coalesce", "memo.revisions", "memo.restoreRevision", "memo.revision.cache", "tag.rename", "memo.moveBatch", "memo.pinBatch", "memo.deleteBatch", "memo.restore", "memo.emptyTrash", "memo.merge", "template.cache", "template.create.payload", "template.delete", "storage.backup", "storage.backups", "storage.restore", "sync.apply.merge-page-order", "sync.apply.deleted-notebook", "sync.apply.renamed-inbox", "sync.outbox", "sync.outbox.retry", "sync.outbox.recoverMemoUpdate", "sync.outbox.discard"] }));

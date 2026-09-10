@@ -39,8 +39,10 @@ import {
   fetchTrustedWindowsUpdate,
   verifyDownloadedWindowsUpdate,
 } from "./windows-update-trust.mjs";
+import { instanceReleaseVersionFromPayload, shouldHoldAutoRestartUpdate } from "./instance-update-gate.mjs";
 import electronUpdater from "electron-updater";
 import { createPluginPublicNetworkRuntime } from "./plugin-public-network.mjs";
+import { shouldQuitAfterAllWindowsClosed } from "./window-lifecycle.mjs";
 import {
   DESKTOP_APP_ENTRY_URL,
   DESKTOP_APP_ORIGIN,
@@ -114,6 +116,7 @@ let updateDownloadInFlight = null;
 let updateCheckTimer = null;
 let lastUpdateCheckAt = 0;
 let downloadedUpdateVersion = null;
+let heldUpdateVersion = null;
 let promptedUpdateVersion = null;
 let trustedWindowsUpdate = null;
 let windowsDownloadedUpdateVerified = false;
@@ -132,6 +135,7 @@ const pluginPublicNetwork = createPluginPublicNetworkRuntime();
 let rendererUnresponsiveDialogOpen = false;
 let recoveredAfterAbnormalExit = false;
 let usePrivateAppProtocol = false;
+let rendererOriginMigrationInProgress = false;
 const pendingScheduledTaskRuns = [];
 const sendScheduledTaskRun = (task, scheduledFor) => {
   const payload = { task, scheduledFor: scheduledFor.toISOString() };
@@ -761,6 +765,7 @@ const preparePackagedRendererOrigin = async () => {
   }
 
   const bridgePath = join(process.resourcesPath, "web/desktop-storage-bridge.html");
+  rendererOriginMigrationInProgress = true;
   try {
     const result = await migrateRendererStorageOrigin({
       createWindow: () => new BrowserWindow({
@@ -782,6 +787,8 @@ const preparePackagedRendererOrigin = async () => {
     void writeDiagnostic("renderer.origin-migration-failed", {
       message: String(error?.message || error).slice(0, 2000),
     });
+  } finally {
+    rendererOriginMigrationInProgress = false;
   }
 };
 
@@ -801,9 +808,52 @@ const publishDesktopUpdateStatus = () => {
   mainWindow.webContents.send("desktop:update-status-changed", desktopUpdateStatus());
 };
 
+const readInstanceReleaseVersion = async () => {
+  if (!configuredApiBaseUrl) return null;
+  try {
+    const response = await net.fetch(`${configuredApiBaseUrl}/api/release`);
+    if (!response.ok) return null;
+    return instanceReleaseVersionFromPayload(await response.json());
+  } catch {
+    return null;
+  }
+};
+
+const holdAutoRestartUpdate = async (version) => {
+  heldUpdateVersion = version || "unknown";
+  autoUpdater.autoInstallOnAppQuit = false;
+  updateState = "available";
+  downloadedUpdateVersion = version || downloadedUpdateVersion;
+  refreshTrayMenu();
+  publishDesktopUpdateStatus();
+  await writeDiagnostic("update.held-for-instance", { version: heldUpdateVersion });
+};
+
+const releaseHeldAutoRestartUpdate = async () => {
+  if (!heldUpdateVersion || linuxUpdateTestMode) return false;
+  const instanceVersion = await readInstanceReleaseVersion();
+  if (shouldHoldAutoRestartUpdate(heldUpdateVersion, instanceVersion)) return false;
+  const version = heldUpdateVersion === "unknown" ? downloadedUpdateVersion : heldUpdateVersion;
+  heldUpdateVersion = null;
+  if (process.platform !== "win32" || windowsDownloadedUpdateVerified) {
+    autoUpdater.autoInstallOnAppQuit = true;
+  }
+  updateState = "downloaded";
+  downloadedUpdateVersion = version || downloadedUpdateVersion;
+  refreshTrayMenu();
+  publishDesktopUpdateStatus();
+  await writeDiagnostic("update.released-for-instance", { version: downloadedUpdateVersion });
+  await promptForDownloadedUpdate(downloadedUpdateVersion).catch((error) => {
+    promptedUpdateVersion = null;
+    void writeDiagnostic("update.prompt-failed", { message: error.message });
+  });
+  return true;
+};
+
 const installDownloadedUpdate = () => {
   if (
     updateState !== "downloaded" ||
+    heldUpdateVersion ||
     (process.platform === "win32" && !windowsDownloadedUpdateVerified)
   ) return { started: false };
   // The normal window close handler hides the app. Mark this as a real quit
@@ -876,8 +926,11 @@ const checkForDesktopUpdate = (reason, { force = false, throwOnError = false } =
   if (!force && now - lastUpdateCheckAt < updateCheckFocusThrottleMs) return Promise.resolve(null);
   lastUpdateCheckAt = now;
   void writeDiagnostic("update.check-started", { reason });
-  updateCheckInFlight = autoUpdater.checkForUpdates()
-    .then(async (result) => {
+  updateCheckInFlight = Promise.resolve()
+    .then(() => releaseHeldAutoRestartUpdate())
+    .then(async (released) => {
+      if (released || updateState === "downloaded") return null;
+      const result = await autoUpdater.checkForUpdates();
       if (process.platform === "win32" && result?.isUpdateAvailable) {
         trustedWindowsUpdate = await fetchTrustedWindowsUpdate({
           version: result.updateInfo.version,
@@ -897,12 +950,14 @@ const checkForDesktopUpdate = (reason, { force = false, throwOnError = false } =
       return result;
     })
     .catch(async (error) => {
-      updateState = "idle";
-      downloadedUpdateVersion = null;
-      trustedWindowsUpdate = null;
-      windowsDownloadedUpdateVerified = false;
-      refreshTrayMenu();
-      publishDesktopUpdateStatus();
+      if (!heldUpdateVersion) {
+        updateState = "idle";
+        downloadedUpdateVersion = null;
+        trustedWindowsUpdate = null;
+        windowsDownloadedUpdateVerified = false;
+        refreshTrayMenu();
+        publishDesktopUpdateStatus();
+      }
       await writeDiagnostic("update.check-failed", { reason, message: error.message });
       throw error;
     })
@@ -940,6 +995,7 @@ const configureAutoUpdater = () => {
   autoUpdater.on("update-not-available", () => {
     updateState = "idle";
     downloadedUpdateVersion = null;
+    heldUpdateVersion = null;
     trustedWindowsUpdate = null;
     windowsDownloadedUpdateVerified = false;
     refreshTrayMenu();
@@ -963,8 +1019,16 @@ const configureAutoUpdater = () => {
         windowsDownloadedUpdateVerified = true;
         autoUpdater.autoInstallOnAppQuit = true;
       }
-      updateState = "downloaded";
       downloadedUpdateVersion = info?.version || downloadedUpdateVersion;
+      if (!linuxUpdateTestMode) {
+        const instanceVersion = await readInstanceReleaseVersion();
+        if (shouldHoldAutoRestartUpdate(downloadedUpdateVersion, instanceVersion)) {
+          await holdAutoRestartUpdate(downloadedUpdateVersion);
+          return;
+        }
+      }
+      updateState = "downloaded";
+      heldUpdateVersion = null;
       refreshTrayMenu();
       publishDesktopUpdateStatus();
       await writeDiagnostic("update.downloaded", { version: downloadedUpdateVersion });
@@ -1621,7 +1685,7 @@ app.on("second-instance", (_event, commandLine) => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
+  if (shouldQuitAfterAllWindowsClosed({ rendererOriginMigrationInProgress })) app.quit();
 });
 
 app.on("before-quit", (event) => {

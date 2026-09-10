@@ -127,6 +127,21 @@ describe("Docker release contract", () => {
       'import { createS3CompatibleStorageAdapter } from',
     );
     expect(selfHosted).not.toContain("worker.fetch(");
+    expect(selfHosted).toContain("ensureSelfHostedCredentialSecrets");
+  });
+
+  test("persists credential encryption secrets on the data volume", () => {
+    const secrets = readProjectFile("scripts/self-hosted-secrets.mjs");
+    expect(secrets).toContain("edgeever-secrets.json");
+    expect(secrets).not.toContain("edgeever.sqlite");
+    expect(readProjectFile("docs/deploy-docker.md")).toContain("edgeever-secrets.json");
+    expect(readProjectFile("docs/deploy-docker.zh-CN.md")).toContain("edgeever-secrets.json");
+    expect(readProjectFile("docs/self-hosting-architecture.md")).toContain(
+      "NAS/GUI upgrades that drop container environment variables",
+    );
+    expect(readProjectFile("docs/self-hosting-architecture.zh-CN.md")).toContain(
+      "NAS/GUI 升级丢掉容器环境变量",
+    );
   });
 
   test("gates official image publishing and release auditing", () => {

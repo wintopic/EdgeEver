@@ -4,21 +4,21 @@ import { mkdir, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-const [oldExecutableInput, newExecutableInput] = process.argv.slice(2);
-const oldExecutable = resolve(oldExecutableInput || "");
-const newExecutable = resolve(newExecutableInput || "");
-for (const [label, executable] of [["old", oldExecutable], ["new", newExecutable]]) {
-  if (!executable || !existsSync(executable) || !statSync(executable).isFile()) {
-    throw new Error(`${label} desktop executable is missing: ${executable || "<not provided>"}`);
-  }
-}
+export const LEGACY_RENDERER_URL_PREFIX = "file://";
+export const CURRENT_RENDERER_URL_PREFIX = "edgeever-app://app/";
 
-const testDirectory = mkdtempSync(join(tmpdir(), "edgeever-cross-version-"));
-const userDataDirectory = join(testDirectory, "profile");
-const logPath = join(userDataDirectory, "logs", "desktop.log");
+export const isPreviousReleaseRendererUrl = (url) => {
+  const value = String(url || "");
+  return value.startsWith(LEGACY_RENDERER_URL_PREFIX)
+    || value.startsWith(CURRENT_RENDERER_URL_PREFIX);
+};
+
+export const isCurrentReleaseRendererUrl = (url) =>
+  String(url || "").startsWith(CURRENT_RENDERER_URL_PREFIX);
+
 const wait = (milliseconds) => new Promise((resolveWait) => setTimeout(resolveWait, milliseconds));
 
-const readEntries = () => {
+const readEntries = (logPath) => {
   if (!existsSync(logPath)) return [];
   return readFileSync(logPath, "utf8").split(/\r?\n/).flatMap((line) => {
     try { return [JSON.parse(line)]; } catch { return []; }
@@ -38,7 +38,14 @@ const stopProcess = async (child) => {
   ]);
 };
 
-const launchAndWait = async ({ executable, expectedUrlPrefix, requiredEvents }) => {
+const launchAndWait = async ({
+  executable,
+  userDataDirectory,
+  logPath,
+  acceptUrl,
+  expectedUrlDescription,
+  requiredEvents,
+}) => {
   const output = [];
   let processError = null;
   const child = spawn(executable, [`--user-data-dir=${userDataDirectory}`], {
@@ -54,10 +61,10 @@ const launchAndWait = async ({ executable, expectedUrlPrefix, requiredEvents }) 
   const deadline = Date.now() + timeoutMs;
   try {
     while (Date.now() < deadline) {
-      const entries = readEntries();
+      const entries = readEntries(logPath);
       const events = new Set(entries.map((entry) => entry.event));
       const loaded = entries.find((entry) =>
-        entry.event === "renderer.loaded" && String(entry.url || "").startsWith(expectedUrlPrefix));
+        entry.event === "renderer.loaded" && acceptUrl(entry.url));
       if (loaded && requiredEvents.every((event) => events.has(event))) {
         return { events: [...events], rendererUrl: loaded.url };
       }
@@ -66,7 +73,7 @@ const launchAndWait = async ({ executable, expectedUrlPrefix, requiredEvents }) 
     }
     throw new Error([
       `Desktop transition startup failed for ${executable} (exit=${child.exitCode ?? "running"}).`,
-      `Expected renderer URL prefix: ${expectedUrlPrefix}`,
+      `Expected renderer URL: ${expectedUrlDescription}`,
       processError && `Process error: ${processError.message}`,
       existsSync(logPath) && `Diagnostic log:\n${readFileSync(logPath, "utf8")}`,
       output.length > 0 && `Process output:\n${output.join("")}`,
@@ -76,23 +83,54 @@ const launchAndWait = async ({ executable, expectedUrlPrefix, requiredEvents }) 
   }
 };
 
-try {
-  await mkdir(userDataDirectory, { recursive: true });
-  const oldResult = await launchAndWait({
-    executable: oldExecutable,
-    expectedUrlPrefix: "file://",
-    requiredEvents: ["sidecar.ready", "renderer.bootstrap-ready"],
-  });
-  await rename(logPath, join(userDataDirectory, "logs", "desktop-old-version.log"));
+export const verifyDesktopCrossVersionStartup = async ({
+  oldExecutable,
+  newExecutable,
+}) => {
+  for (const [label, executable] of [["old", oldExecutable], ["new", newExecutable]]) {
+    if (!executable || !existsSync(executable) || !statSync(executable).isFile()) {
+      throw new Error(`${label} desktop executable is missing: ${executable || "<not provided>"}`);
+    }
+  }
 
-  const newResult = await launchAndWait({
-    executable: newExecutable,
-    expectedUrlPrefix: "edgeever-app://app/",
-    requiredEvents: ["renderer.origin-ready", "sidecar.ready", "renderer.bootstrap-ready"],
+  const testDirectory = mkdtempSync(join(tmpdir(), "edgeever-cross-version-"));
+  const userDataDirectory = join(testDirectory, "profile");
+  const logPath = join(userDataDirectory, "logs", "desktop.log");
+  try {
+    await mkdir(userDataDirectory, { recursive: true });
+    const oldResult = await launchAndWait({
+      executable: oldExecutable,
+      userDataDirectory,
+      logPath,
+      acceptUrl: isPreviousReleaseRendererUrl,
+      expectedUrlDescription: `${LEGACY_RENDERER_URL_PREFIX} or ${CURRENT_RENDERER_URL_PREFIX}`,
+      requiredEvents: ["sidecar.ready", "renderer.bootstrap-ready"],
+    });
+    await rename(logPath, join(userDataDirectory, "logs", "desktop-old-version.log"));
+
+    const newResult = await launchAndWait({
+      executable: newExecutable,
+      userDataDirectory,
+      logPath,
+      acceptUrl: isCurrentReleaseRendererUrl,
+      expectedUrlDescription: CURRENT_RENDERER_URL_PREFIX,
+      requiredEvents: ["renderer.origin-ready", "sidecar.ready", "renderer.bootstrap-ready"],
+    });
+    const markerPath = join(userDataDirectory, "renderer-origin-v1-migrated");
+    if (!existsSync(markerPath)) {
+      throw new Error("The upgraded desktop did not persist its renderer origin migration marker");
+    }
+    return { ok: true, oldResult, newResult };
+  } finally {
+    await rm(testDirectory, { recursive: true, force: true });
+  }
+};
+
+if (import.meta.main) {
+  const [oldExecutableInput, newExecutableInput] = process.argv.slice(2);
+  const result = await verifyDesktopCrossVersionStartup({
+    oldExecutable: resolve(oldExecutableInput || ""),
+    newExecutable: resolve(newExecutableInput || ""),
   });
-  const markerPath = join(userDataDirectory, "renderer-origin-v1-migrated");
-  if (!existsSync(markerPath)) throw new Error("The upgraded desktop did not persist its renderer origin migration marker");
-  console.log(JSON.stringify({ ok: true, oldResult, newResult }));
-} finally {
-  await rm(testDirectory, { recursive: true, force: true });
+  console.log(JSON.stringify(result));
 }

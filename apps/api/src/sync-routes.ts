@@ -1,7 +1,7 @@
 import type { MemoDetail } from "@edgeever/shared";
 import type { Hono } from "hono";
 import type { AppEnv } from "./api-context";
-import { mapNotebook, type NotebookRow } from "./notebook-service";
+import { inboxNotebookIdentitySql, mapNotebook, type NotebookRow } from "./notebook-service";
 import { getWorkspaceId, requireScopes } from "./request-auth";
 
 type MobileSyncChangeRow = {
@@ -60,8 +60,13 @@ const syncMemoNotebookIdSql = `CASE
   ELSE COALESCE((
     SELECT inbox.id FROM notebooks inbox
     WHERE inbox.workspace_id = m.workspace_id
-      AND inbox.slug = 'inbox'
       AND inbox.is_deleted = 0
+      AND ${inboxNotebookIdentitySql("inbox")}
+    ORDER BY CASE
+      WHEN inbox.id = inbox.workspace_id || '_inbox' THEN 0
+      WHEN inbox.id = 'nb_inbox' THEN 1
+      ELSE 2
+    END
     LIMIT 1
   ), m.notebook_id)
 END`;
