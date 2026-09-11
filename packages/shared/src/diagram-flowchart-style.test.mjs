@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { flowchartNodePresentation } from "./diagram-node-presentation.ts";
 import {
-  FLOWCHART_READABLE_MIN_SCALE,
+  DIAGRAM_READABLE_MIN_SCALE,
   FLOWCHART_SELECTABLE_THEMES,
   FLOWCHART_SURFACES,
   FLOWCHART_THEME_GROUPS,
@@ -71,6 +71,20 @@ describe("flowchart semantic paint", () => {
     expect(resolveFlowchartSurface("light", "paper").canvas).toBe("#F6F1E8");
     expect(resolveFlowchartSurface("light", "mint").terminator.stroke).toBe("#1A7A70");
   });
+
+  test("keeps flowchart-only schemes instead of collapsing them onto mind-map brand", async () => {
+    const { resolveDiagramTheme } = await import("./diagram.ts");
+    for (const theme of ["ink", "paper", "island", "tea", "sun", "wa", "rose"]) {
+      expect(resolveFlowchartTheme(theme)).toBe(theme);
+    }
+    expect(resolveDiagramTheme("ink")).toBe("brand");
+    expect(resolveDiagramTheme("paper")).toBe("brand");
+    expect(resolveDiagramTheme("island")).toBe("dune");
+    expect(resolveDiagramTheme("tea")).toBe("slate");
+    expect(resolveDiagramTheme("sun")).toBe("sunrise");
+    expect(resolveDiagramTheme("wa")).toBe("marine");
+    expect(resolveDiagramTheme("rose")).toBe("blossom");
+  });
 });
 
 describe("flowchart node presentation", () => {
@@ -114,12 +128,17 @@ describe("flowchart edge geometry", () => {
 describe("flowchart readable viewport", () => {
   const viewport = { width: 960, height: 720 };
 
-  test("keeps compact flows inside the canvas", () => {
+  test("keeps compact flows inside the canvas at full size", () => {
     expect(flowchartFitsReadableViewport({ width: 180, height: 280 }, viewport)).toBe(true);
+    expect(flowchartFitsReadableViewport({ width: 176, height: 240 }, viewport)).toBe(true);
+    expect(flowchartFitsReadableViewport({ width: 460, height: 220 }, viewport)).toBe(true);
+    expect(flowchartFitsReadableViewport({ width: 738, height: 330 }, viewport)).toBe(true);
   });
 
-  test("refuses to shrink a tall flow below reading size", () => {
+  test("refuses to shrink a tall map into a postage stamp", () => {
     expect(flowchartFitsReadableViewport({ width: 220, height: 1680 }, viewport)).toBe(false);
-    expect(FLOWCHART_READABLE_MIN_SCALE).toBe(0.85);
+    expect(DIAGRAM_READABLE_MIN_SCALE).toBe(0.85);
   });
 });
+
+
