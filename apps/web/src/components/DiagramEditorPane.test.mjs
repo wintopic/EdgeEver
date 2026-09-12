@@ -421,6 +421,13 @@ describe("diagram editor canvas surface", () => {
     expect(toolbarSource).toContain("<MemoEditorToolbarRow");
   });
 
+  test("paints diagram chrome from theme tokens instead of literal white", () => {
+    expect(source).toContain('className="flex h-full min-h-0 flex-col bg-card"');
+    expect(source).toContain('className="shrink-0 border-b border-slate-200 bg-card"');
+    expect(source).not.toContain("flex-col bg-white");
+    expect(source).not.toContain("border-slate-200 bg-white");
+  });
+
   test("repaints the graph when the application appearance changes", () => {
     expect(source).toContain("const { resolvedTheme } = useAppearanceTheme();");
     expect(source).toContain("applyGraphPalette(graph, themeRef.current, document.kind, resolvedTheme, structureRef.current);");

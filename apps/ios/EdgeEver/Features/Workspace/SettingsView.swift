@@ -530,8 +530,8 @@ struct SettingsView: View {
             )
         case "self-hosted-bun":
             return env.preferences.t(
-                "当前客户端版本高于云端实例。可等待每天自动更新，或手动执行 update.sh。",
-                en: "This client is newer than the connected cloud instance. You can wait for the daily automatic instance update, or run update.sh on the instance."
+                "当前客户端版本高于云端实例。可等待每天自动更新，或在安装目录执行 ./update.sh（默认 ~/edgeever）。",
+                en: "This client is newer than the connected cloud instance. You can wait for the daily automatic instance update, or run ./update.sh in the install directory (default ~/edgeever)."
             )
         default:
             return env.preferences.t(
