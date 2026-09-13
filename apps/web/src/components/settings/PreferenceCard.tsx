@@ -48,6 +48,7 @@ import {
   useMermaidTheme,
   DEFAULT_CUSTOM_LIGHT_COLORS,
   DEFAULT_CUSTOM_DARK_COLORS,
+  isNamedEditorTheme,
   type CustomEditorTheme,
   type ThemePreference,
 } from "../ThemeProvider";
@@ -150,7 +151,7 @@ export const PreferenceCard = ({
   }, []);
 
   const activeCustom = customEditorThemes.find((t) => t.id === editorTheme);
-  const isPreset = editorTheme === "default" || editorTheme === "minimal-emerald" || editorTheme === "outline-emerald" || editorTheme === "wechat-green" || editorTheme === "modern-mint" || editorTheme === "marxico";
+  const isPreset = isNamedEditorTheme(editorTheme);
 
   const handleEditClick = () => {
     if (activeCustom) {
@@ -309,6 +310,16 @@ export const PreferenceCard = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="default">{t("settings.editorThemes.default")}</SelectItem>
+                <SelectItem value="letter">{t("settings.editorThemes.letter")}</SelectItem>
+                <SelectItem value="guide">{t("settings.editorThemes.guide")}</SelectItem>
+                <SelectItem value="blueprint">{t("settings.editorThemes.blueprint")}</SelectItem>
+                <SelectItem value="journal">{t("settings.editorThemes.journal")}</SelectItem>
+                <SelectItem value="stance">{t("settings.editorThemes.stance")}</SelectItem>
+                <SelectItem value="stub">{t("settings.editorThemes.stub")}</SelectItem>
+                <SelectItem value="brief">{t("settings.editorThemes.brief")}</SelectItem>
+                <SelectItem value="outline">{t("settings.editorThemes.outline")}</SelectItem>
+                <SelectItem value="zen">{t("settings.editorThemes.zen")}</SelectItem>
+                <SelectItem value="grove">{t("settings.editorThemes.grove")}</SelectItem>
                 <SelectItem value="minimal-emerald">{t("settings.editorThemes.minimal-emerald")}</SelectItem>
                 <SelectItem value="outline-emerald">{t("settings.editorThemes.outline-emerald")}</SelectItem>
                 <SelectItem value="wechat-green">{t("settings.editorThemes.wechat-green")}</SelectItem>

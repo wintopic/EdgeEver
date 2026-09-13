@@ -4,6 +4,7 @@ import { marked } from "marked";
 import { MERMAID_THEME_PALETTES } from "@/components/ThemeProvider";
 import { copyHtmlToClipboard } from "@/lib/clipboard";
 import { parseCustomCssToStyles } from "@/lib/css-sandbox";
+import { applyPublishLayout, resolvePaperEditorTheme } from "@/lib/publish-layout";
 
 const BODY_LINE_HEIGHT = MEMO_CONTENT_STYLE.body.lineHeight / MEMO_CONTENT_STYLE.body.fontSize;
 const BODY_FONT_SIZE = `${MEMO_CONTENT_STYLE.body.fontSize}px`;
@@ -31,37 +32,9 @@ const WECHAT_STYLES: Record<string, string> = {
   img: "display: block; max-width: 100%; height: auto; margin: 1em auto;",
 };
 
-const THEME_BLOCK_LABELS: Record<string, string> = {
-  intro: "引言",
-  "key-point": "重点观点",
-  callout: "提示",
-  chapter: "章节",
-};
-
-const THEME_BLOCK_STYLES: Record<string, { block: string; label: string }> = {
-  intro: {
-    block: "margin: 20px 0; padding: 0 0 4px; border-left: 5px solid #059669; background: #f0fdf4; color: #374151;",
-    label: "padding: 10px 14px 0; color: #059669; font-size: 12px; font-weight: 700; letter-spacing: 1px;",
-  },
-  "key-point": {
-    block: "margin: 20px 0; padding: 0 0 4px; border: 1px solid #a7f3d0; border-radius: 8px; background: #f0fdf4; color: #374151;",
-    label: "padding: 10px 14px 0; color: #047857; font-size: 12px; font-weight: 700; letter-spacing: 1px;",
-  },
-  callout: {
-    block: "margin: 20px 0; padding: 0 0 4px; border: 1px dashed #6ee7b7; background: #ecfdf5; color: #374151;",
-    label: "padding: 10px 14px 0; color: #059669; font-size: 12px; font-weight: 700; letter-spacing: 1px;",
-  },
-  chapter: {
-    block: "margin: 28px 0 16px; padding: 0 0 4px; border-top: 3px solid #059669; color: #111827;",
-    label: "padding: 10px 0 0; color: #059669; font-size: 12px; font-weight: 700; letter-spacing: 2px;",
-  },
-};
-
-const applyInlineStyles = (
+const applyLegacyWeChatStyles = (
   root: HTMLElement,
-  editorTheme?: string,
   customColors?: { bg: string; text: string; accent: string; soft: string; codeBackground: string; border: string } | null,
-  customCss?: string
 ) => {
   const textColor = customColors ? customColors.text : "#333";
   const bgColors = customColors ? customColors.bg : "#ffffff";
@@ -69,8 +42,6 @@ const applyInlineStyles = (
   const soft = customColors ? customColors.soft : "#f0fdfa";
   const codeBackground = customColors ? customColors.codeBackground : "#f6f8fa";
   const border = customColors ? customColors.border : "#e5e7eb";
-
-  const customStyles = customCss ? parseCustomCssToStyles(customCss) : null;
 
   root.style.cssText = `font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: ${BODY_FONT_SIZE}; line-height: ${BODY_LINE_HEIGHT}; color: ${textColor}; background-color: ${bgColors}; word-break: break-word;`;
 
@@ -104,59 +75,34 @@ const applyInlineStyles = (
       }
     }
 
-    if (customStyles && customStyles[tagName]) {
-      style = `${style} ${customStyles[tagName]}`;
-    }
-
     if (style) element.style.cssText = `${style}${element.style.cssText}`;
-  });
-
-  root.querySelectorAll<HTMLElement>("p").forEach((paragraph) => {
-    paragraph.style.margin = `0 0 ${PARAGRAPH_SPACING}`;
-    paragraph.style.padding = "0";
-    paragraph.style.lineHeight = String(BODY_LINE_HEIGHT);
-  });
-
-  root.querySelectorAll<HTMLElement>("ul, ol, li, blockquote").forEach((bodyBlock) => {
-    bodyBlock.style.lineHeight = String(BODY_LINE_HEIGHT);
   });
 
   root.querySelectorAll<HTMLElement>("pre code").forEach((element) => {
     element.style.cssText = "padding: 0; background: transparent; color: inherit; font-family: Menlo, Consolas, monospace; font-size: 13px; white-space: pre-wrap;";
   });
+};
 
-  root.querySelectorAll<HTMLElement>("[data-edgeever-theme-block]").forEach((block) => {
-    const kind = block.getAttribute("data-theme-block-kind") || "intro";
-    const themeStyles = THEME_BLOCK_STYLES[kind] || THEME_BLOCK_STYLES.intro;
-    
-    let blockStyle = themeStyles.block;
-    let labelStyle = themeStyles.label;
+const applyInlineStyles = (
+  root: HTMLElement,
+  editorTheme?: string,
+  customColors?: { bg: string; text: string; accent: string; soft: string; codeBackground: string; border: string } | null,
+  customCss?: string,
+) => {
+  const paperTheme = resolvePaperEditorTheme(editorTheme);
+  if (paperTheme) {
+    applyPublishLayout(root, paperTheme.layout, paperTheme.palette, "phone");
+  } else {
+    applyLegacyWeChatStyles(root, customColors);
+  }
 
-    if (customColors) {
-      if (kind === "intro") {
-        blockStyle = `margin: 20px 0; padding: 0 0 4px; border-left: 5px solid ${accent}; background: ${soft}; color: ${textColor};`;
-        labelStyle = `padding: 10px 14px 0; color: ${accent}; font-size: 12px; font-weight: 700; letter-spacing: 1px;`;
-      } else if (kind === "key-point") {
-        blockStyle = `margin: 20px 0; padding: 0 0 4px; border: 1px solid ${border}; border-radius: 8px; background: ${soft}; color: ${textColor};`;
-        labelStyle = `padding: 10px 14px 0; color: ${accent}; font-size: 12px; font-weight: 700; letter-spacing: 1px;`;
-      } else if (kind === "callout") {
-        blockStyle = `margin: 20px 0; padding: 0 0 4px; border: 1px dashed ${border}; background: ${soft}; color: ${textColor};`;
-        labelStyle = `padding: 10px 14px 0; color: ${accent}; font-size: 12px; font-weight: 700; letter-spacing: 1px;`;
-      } else if (kind === "chapter") {
-        blockStyle = `margin: 28px 0 16px; padding: 0 0 4px; border-top: 3px solid ${accent}; color: ${textColor};`;
-        labelStyle = `padding: 10px 0 0; color: ${accent}; font-size: 12px; font-weight: 700; letter-spacing: 2px;`;
-      }
-    } else {
-      blockStyle = `${blockStyle} border-left-color: ${accent};`;
-      labelStyle = `${labelStyle} color: ${accent};`;
-    }
+  const customStyles = customCss ? parseCustomCssToStyles(customCss) : null;
+  if (!customStyles) return;
 
-    block.style.cssText = `${blockStyle}${block.style.cssText}`;
-
-    const label = document.createElement("p");
-    label.textContent = THEME_BLOCK_LABELS[kind] || "主题组件";
-    label.style.cssText = `${labelStyle} margin: 0;`;
-    block.insertBefore(label, block.firstChild);
+  root.querySelectorAll<HTMLElement>("*").forEach((element) => {
+    if (element.getAttribute("data-ee-publish-chrome") === "true") return;
+    const extra = customStyles[element.tagName.toLowerCase()];
+    if (extra) element.style.cssText = `${element.style.cssText}; ${extra}`;
   });
 };
 
@@ -397,13 +343,10 @@ const convertImageGalleriesForWeChat = (root: HTMLElement) => {
   });
 };
 
-export const buildWeChatClipboardHtml = async (editor: Editor) => {
-  const container = document.createElement("div");
-  container.innerHTML = editor.getHTML();
-  
-  const closestContainer = editor.view.dom.closest<HTMLElement>("[data-editor-theme]");
+const readEditorCopyContext = (from?: HTMLElement | null) => {
+  const closestContainer = from?.closest<HTMLElement>("[data-editor-theme]")
+    ?? document.querySelector<HTMLElement>("[data-editor-theme]");
   const editorTheme = closestContainer?.dataset.editorTheme;
-  
   let customColors: { bg: string; text: string; accent: string; soft: string; codeBackground: string; border: string } | null = null;
   if (closestContainer && editorTheme === "custom") {
     const colors = getComputedStyle(closestContainer);
@@ -416,9 +359,18 @@ export const buildWeChatClipboardHtml = async (editor: Editor) => {
       border: colors.getPropertyValue("--editor-theme-border") || "#a7f3d0",
     };
   }
-
   const customStyleTag = closestContainer?.querySelector<HTMLStyleElement>("style[data-theme-custom-css]");
-  const customCss = customStyleTag?.dataset.originalCss || "";
+  return {
+    editorTheme,
+    customColors,
+    customCss: customStyleTag?.dataset.originalCss || "",
+  };
+};
+
+export const buildWeChatClipboardHtml = async (editor: Editor) => {
+  const container = document.createElement("div");
+  container.innerHTML = editor.getHTML();
+  const { editorTheme, customColors, customCss } = readEditorCopyContext(editor.view.dom);
 
   applyInlineStyles(container, editorTheme, customColors, customCss);
   convertImageGalleriesForWeChat(container);
@@ -434,25 +386,7 @@ export const copyEditorToWeChat = async (editor: Editor) =>
 export const copyMarkdownToWeChat = async (markdown: string) => {
   const container = document.createElement("div");
   container.innerHTML = marked.parse(markdown, { async: false, gfm: true, breaks: false });
-  
-  const closestContainer = document.querySelector<HTMLElement>("[data-editor-theme]");
-  const editorTheme = closestContainer?.dataset.editorTheme;
-  
-  let customColors: { bg: string; text: string; accent: string; soft: string; codeBackground: string; border: string } | null = null;
-  if (closestContainer && editorTheme === "custom") {
-    const colors = getComputedStyle(closestContainer);
-    customColors = {
-      bg: colors.getPropertyValue("--editor-theme-bg") || "#ffffff",
-      text: colors.getPropertyValue("--editor-theme-text") || "#1f2937",
-      accent: colors.getPropertyValue("--editor-theme-accent") || "#059669",
-      soft: colors.getPropertyValue("--editor-theme-soft") || "#ecfdf5",
-      codeBackground: colors.getPropertyValue("--editor-theme-code-bg") || "#e0ece9",
-      border: colors.getPropertyValue("--editor-theme-border") || "#a7f3d0",
-    };
-  }
-
-  const customStyleTag = closestContainer?.querySelector<HTMLStyleElement>("style[data-theme-custom-css]");
-  const customCss = customStyleTag?.dataset.originalCss || "";
+  const { editorTheme, customColors, customCss } = readEditorCopyContext();
 
   applyInlineStyles(container, editorTheme, customColors, customCss);
   await embedMermaidForWeChat(container);

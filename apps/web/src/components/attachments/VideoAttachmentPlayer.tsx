@@ -1,7 +1,7 @@
 import { useState, type SyntheticEvent } from "react";
 import { pauseOtherMediaPlayers } from "./pause-other-media";
 
-export const AudioAttachmentPlayer = ({
+export const VideoAttachmentPlayer = ({
   src,
   label,
   unavailableMessage,
@@ -12,24 +12,25 @@ export const AudioAttachmentPlayer = ({
 }) => {
   const [failed, setFailed] = useState(false);
 
-  const handlePlay = (event: SyntheticEvent<HTMLAudioElement>) => {
+  const handlePlay = (event: SyntheticEvent<HTMLVideoElement>) => {
     pauseOtherMediaPlayers(event.currentTarget);
   };
 
   if (failed) {
     return (
-      <span className="flex min-h-10 items-center px-3 text-sm text-slate-500" role="status">
+      <span className="flex min-h-10 items-center px-3 py-2 text-sm text-slate-500" role="status">
         {unavailableMessage}
       </span>
     );
   }
 
   return (
-    <audio
-      className="h-10 w-full"
+    <video
+      className="aspect-video w-full bg-slate-950 object-contain"
       controls
       controlsList="nodownload"
-      data-edgeever-audio-player
+      data-edgeever-video-player
+      playsInline
       preload="metadata"
       src={src}
       aria-label={label}

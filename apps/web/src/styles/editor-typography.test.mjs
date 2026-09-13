@@ -24,6 +24,17 @@ describe("editor typography contract", () => {
     expect(MEMO_CONTENT_STYLE.body.paragraphSpacing).toBe(6);
   });
 
+  test("keeps compact rhythm unless a paper editor theme is selected", () => {
+    const editorPane = readStyle("../components/EditorPane.tsx");
+    const publishLayout = readStyle("./publish-layout.css");
+
+    expect(editorPane).toContain("isPaperEditorTheme(editorTheme)");
+    expect(editorPane).toContain("MEMO_CONTENT_STYLE.body.lineHeight");
+    expect(publishLayout).toContain('[data-editor-theme="letter"]');
+    expect(publishLayout).toContain("[data-paper-theme]");
+    expect(publishLayout).not.toContain("[data-publish-layout]");
+  });
+
   test("styles default-theme external hyperlinks so they are distinct from body text", () => {
     const globals = readStyle("./globals.css");
     const linkRules = declarationsForSelector(globals, ".ProseMirror a");
