@@ -1211,7 +1211,7 @@ const RichEditorPane = ({
     editable: Boolean(memo && !effectiveReadOnly && editorIsHydratedForCurrentMemo),
     editorProps: {
       attributes: {
-        class: "edgeever-note-rich-editor prose prose-slate max-w-none focus:outline-none min-h-[240px] px-4 py-3 sm:px-7 lg:min-h-[180px]",
+        class: "edgeever-note-rich-editor prose prose-slate max-w-none focus:outline-none min-h-[240px] lg:min-h-[180px]",
       },
       handleKeyDown: (view, event) => {
         const { selection } = view.state;
@@ -4249,12 +4249,12 @@ const RichEditorPane = ({
             "flex gap-8 transition-all duration-200",
             useMarkdownSourceEditor
               ? "h-full min-h-0 flex-1 items-stretch px-0 py-0"
-              : "min-h-full items-start px-4 py-2 sm:px-7 lg:px-10",
+              : "min-h-full items-start px-4 py-2",
             desktopFocusMode
               ? "mx-auto w-full max-w-[1400px] justify-center"
               : editorContentAlignment === "center"
                 ? "w-full justify-center"
-                : "w-full justify-start"
+                : "w-full justify-between"
           )}
         >
           <div
@@ -4266,7 +4266,7 @@ const RichEditorPane = ({
                 : "max-w-none"
             )}
             style={
-              !desktopFocusMode && !useMarkdownSourceEditor
+              !desktopFocusMode && !useMarkdownSourceEditor && editorContentAlignment === "center"
                 ? {
                     maxWidth: editorOutlineCollapsed
                       ? EDITOR_CONTENT_MAX_WIDTH_COLLAPSED

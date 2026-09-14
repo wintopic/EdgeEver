@@ -11,6 +11,7 @@ import {
   type SupportedLocale,
 } from "./locales";
 import { enUS } from "./resources/en-US";
+import { ja } from "./resources/ja";
 import { zhCN } from "./resources/zh-CN";
 
 export {
@@ -25,12 +26,16 @@ export {
 export const resources = {
   "zh-CN": { translation: zhCN },
   "en-US": { translation: enUS },
+  ja: { translation: ja },
 } as const;
 
 void i18n.use(initReactI18next).init({
   resources,
   lng: getInitialLocale(),
-  fallbackLng: defaultLocale,
+  fallbackLng: {
+    ja: ["en-US"],
+    default: [defaultLocale],
+  },
   supportedLngs: supportedLocales,
   interpolation: {
     escapeValue: false,

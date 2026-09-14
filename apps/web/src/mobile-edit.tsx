@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRoot } from "react-dom/client";
 import { MobileStandaloneTiptapEditor } from "@/components/MobileStandaloneTiptapEditor";
 import { initializeTheme } from "@/components/ThemeProvider";
+import { defaultLocale, getBrowserLocale } from "@/i18n/locales";
 import "./i18n";
 import "./styles/mobile-markdown-editor.css";
 
@@ -42,7 +43,7 @@ class MobileEditorErrorBoundary extends React.Component<React.PropsWithChildren,
 
   render() {
     if (!this.state.failed) return this.props.children;
-    const english = navigator.language.toLowerCase().startsWith("en");
+    const english = (getBrowserLocale() ?? defaultLocale) === "en-US";
     return (
       <main className="mobile-editor-fatal" role="alert">
         <section className="mobile-editor-fatal-card">

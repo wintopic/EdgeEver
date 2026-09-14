@@ -438,6 +438,20 @@ html[data-edgeever-extension-theme] kbd {
   background: var(--workspace-sidebar);
 }
 
+.edgeever-create-memo-split {
+  container-type: inline-size;
+}
+
+.edgeever-create-memo-split__more-label {
+  display: inline;
+}
+
+@container (max-width: 11.749rem) {
+  .edgeever-create-memo-split__more-label {
+    display: none;
+  }
+}
+
 .edgeever-workspace-memo-list {
   border-color: var(--workspace-divider);
   background: var(--workspace-memo-list);
@@ -753,6 +767,7 @@ textarea {
   overflow: hidden;
   border-radius: 40px;
   background: #fff;
+  container-type: size;
 }
 
 :root.dark .edgeever-phone-device__screen {
@@ -812,26 +827,28 @@ textarea {
 }
 
 .edgeever-phone-preview {
-  height: 100%;
+  box-sizing: border-box;
+  width: 390px;
+  height: calc(100cqh * 390px / 100cqw);
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 48px 16px 26px;
   background: var(--publish-bg, #fff);
+  zoom: calc(100cqw / 390px);
   -webkit-overflow-scrolling: touch;
 }
 
-.edgeever-phone-preview .ProseMirror,
 .edgeever-phone-article {
   min-height: 0;
   padding: 0 0 20px;
 }
 
-.edgeever-phone-preview h1 {
-  font-size: 24px !important;
-  font-weight: 800 !important;
-  line-height: 1.4 !important;
-  letter-spacing: normal !important;
-  margin: 0 0 12px !important;
+.edgeever-phone-shell-title {
+  margin: 0 0 12px;
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.35;
+  color: var(--publish-text-strong, #111);
 }
 
 .edgeever-phone-preview .edgeever-phone-mermaid {
@@ -2028,6 +2045,7 @@ textarea {
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
+  letter-spacing: normal;
   line-height: 1.45;
   transition: background-color 120ms ease;
 }
@@ -2089,8 +2107,12 @@ textarea {
 .ProseMirror th p,
 .ProseMirror td p,
 .markdown-content th p,
-.markdown-content td p {
+.markdown-content td p,
+.edgeever-editor[data-editor-theme]:not([data-editor-theme="default"]) .ProseMirror :is(th, td) p,
+.edgeever-editor[data-paper-theme]:not([data-editor-theme="default"]) .ProseMirror :is(th, td) p {
   margin: 0;
+  letter-spacing: inherit;
+  line-height: inherit;
 }
 
 .ProseMirror .selectedCell::after {

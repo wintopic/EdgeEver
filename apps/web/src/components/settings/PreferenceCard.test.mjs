@@ -25,21 +25,16 @@ describe("appearance preference", () => {
 });
 
 describe("paper editor themes", () => {
-  test("offers the paper editor themes alongside existing presets", () => {
+  test("keeps theme switching in the editor toolbar instead of settings", () => {
     const preferenceCard = readFileSync(new URL("./PreferenceCard.tsx", import.meta.url), "utf8");
+    const editorToolbar = readFileSync(new URL("../EditorToolbar.tsx", import.meta.url), "utf8");
 
     expect(preferenceCard).not.toContain('t("settings.publishLayoutTitle")');
-    expect(preferenceCard).toContain('value="letter"');
-    expect(preferenceCard).toContain('t("settings.editorThemes.letter")');
-    expect(preferenceCard).toContain('t("settings.editorThemes.guide")');
-    expect(preferenceCard).toContain('t("settings.editorThemes.blueprint")');
-    expect(preferenceCard).toContain('t("settings.editorThemes.journal")');
-    expect(preferenceCard).toContain('t("settings.editorThemes.stance")');
-    expect(preferenceCard).toContain('t("settings.editorThemes.stub")');
-    expect(preferenceCard).toContain('t("settings.editorThemes.brief")');
-    expect(preferenceCard).toContain('t("settings.editorThemes.outline")');
-    expect(preferenceCard).toContain('t("settings.editorThemes.zen")');
-    expect(preferenceCard).toContain('t("settings.editorThemes.grove")');
+    expect(preferenceCard).not.toContain('t("settings.editorThemeTitle")');
+    expect(preferenceCard).not.toContain('t("settings.markdownThemeTitle")');
+    expect(preferenceCard).toContain('t("settings.customEditorTheme.settingsTitle")');
+    expect(editorToolbar).toContain('t(`settings.editorThemes.${theme}`)');
+    expect(editorToolbar).toContain("markdownThemePreference");
   });
 });
 

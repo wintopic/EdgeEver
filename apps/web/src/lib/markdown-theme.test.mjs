@@ -87,11 +87,13 @@ describe("markdown theme contracts", () => {
     expect(preview).toContain("edgeever-phone-device__top");
     expect(preview).toContain("edgeever-phone-device__home");
     expect(preview).not.toContain("edgeever-phone-device__status");
-    expect(preview).toContain("buildPhonePreviewHtml");
+    expect(preview).toContain("preparePublishArticle");
     expect(preview).toContain("embedMermaidForPreview");
     expect(preview).toContain("phonePreviewFollow");
     expect(preview).toContain("scrollContainer");
     expect(preview).not.toContain("edgeever-phone-device__wifi");
+    expect(preview).toContain("edgeever-phone-shell-title");
+    expect(preview).not.toContain("ProseMirror");
     expect(editorPane).toContain("scrollContainer={editorScrollContainer}");
   });
 });

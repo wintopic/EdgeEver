@@ -38,6 +38,7 @@ import { wrapIndentedParagraphInList } from "@/lib/editor-shortcuts";
 import {
   EDITOR_THEME_NAMES,
   MARKDOWN_THEME_PREFERENCES,
+  localizeStoredCustomThemeName,
   useEditorTheme,
   useMarkdownTheme,
 } from "@/components/ThemeProvider";
@@ -413,7 +414,10 @@ export const EditorToolbar = ({
               ))}
               {customEditorThemes.map((theme) => (
                 <SelectItem key={theme.id} value={theme.id}>
-                  {theme.name}
+                  {localizeStoredCustomThemeName(theme.name, {
+                    defaultName: t("settings.customEditorTheme.defaultName"),
+                    newName: (index) => t("settings.customEditorTheme.newName", { n: index }),
+                  })}
                 </SelectItem>
               ))}
             </SelectContent>
