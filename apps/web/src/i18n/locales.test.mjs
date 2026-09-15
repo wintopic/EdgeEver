@@ -36,16 +36,23 @@ describe("web locale resolution", () => {
     expect(normalizeLocale("zh-Hans")).toBe("zh-CN");
   });
 
-  test("falls unmatched browser languages back to English instead of Chinese", () => {
+  test("keeps Japanese browser languages on the shipped ja locale", () => {
     setNavigatorLanguages(["ja-JP", "ja"]);
-    expect(getBrowserLocale()).toBe("en-US");
+    expect(getBrowserLocale()).toBe("ja");
+  });
+
+  test("falls unmatched browser languages back to English instead of Chinese", () => {
     setNavigatorLanguages(["fr-FR", "de-DE"]);
+    expect(getBrowserLocale()).toBe("en-US");
+    setNavigatorLanguages(["ko-KR"]);
     expect(getInitialLocale()).toBe("en-US");
     expect(defaultLocale).toBe("zh-CN");
   });
 
   test("uses the first supported language in the browser preference list", () => {
     setNavigatorLanguages(["ja-JP", "zh-CN"]);
+    expect(getBrowserLocale()).toBe("ja");
+    setNavigatorLanguages(["fr-FR", "zh-CN"]);
     expect(getBrowserLocale()).toBe("zh-CN");
   });
 });

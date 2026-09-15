@@ -5,7 +5,7 @@
 [![Product Hunt](https://img.shields.io/badge/Product%20Hunt-ea532a?style=social&logo=product-hunt)](https://www.producthunt.com/products/edgeever?utm_source=other&utm_medium=social)
 [![爱发电赞助](https://img.shields.io/badge/爱发电-赞助支持-946ce6?style=social&logo=github-sponsors)](https://afdian.com/a/tianma-if)
 
-简体中文 | [English](README.md)
+简体中文 | [繁體中文](README.zh-TW.md) | [English](README.md) | [日本語](README.ja.md)
 
 > **EdgeEver：开源、原生支持 AI、可自由部署的自托管知识库与「印象笔记」替代方案。**
 

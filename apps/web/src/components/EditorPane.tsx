@@ -2,10 +2,7 @@ import { useRef, useState, useEffect, useCallback, useMemo, lazy, Suspense, type
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
-import StarterKit from "@tiptap/starter-kit";
-import { TaskItem, TaskList } from "@tiptap/extension-list";
 import Placeholder from "@tiptap/extension-placeholder";
-import { TableKit } from "@tiptap/extension-table";
 import { useTranslation } from "react-i18next";
 import * as m from "motion/react-m";
 import "katex/dist/katex.min.css";
@@ -110,10 +107,10 @@ import { cn, formatDateTime, parseTagsText } from "@/lib/utils";
 import { EDITOR_CONTENT_MAX_WIDTH, EDITOR_CONTENT_MAX_WIDTH_COLLAPSED } from "@/lib/workspace-ui";
 import {
   countMemoCharacters,
+  createEdgeEverDocumentExtensions,
   docToMarkdown,
   MEMO_CONTENT_STYLE,
   markdownToDoc,
-  MergeDivider,
   normalizeImageGalleries,
   PLUGIN_EMBED_NODE_TYPE,
   pluginEmbedToMarkdown,
@@ -181,7 +178,6 @@ import {
   AI_SPACE_SHORTCUT_CHANGED_EVENT,
   readAiSpaceShortcutPreference,
 } from "@/lib/ai-space-shortcut-preference";
-import { isBrowserOffline } from "@/lib/network-status";
 import {
   EDITOR_LINK_OPEN_MODE_CHANGED_EVENT,
   getStoredEditorLinkOpenMode,
@@ -246,6 +242,11 @@ import {
   resolveEditorDraftState,
   shouldReplaceEditorDocument,
 } from "./editor/editor-draft-state";
+import {
+  pendingEditorInsertMatchesMemo,
+  shouldInsertPendingEditorFiles,
+  usablePendingInsertFiles,
+} from "./editor/editor-pending-insert";
 import type { EdgeEverPluginHost, PluginEditorAdapter } from "@/lib/plugins/plugin-host";
 import {
   useEditorResourceActions,
@@ -254,161 +255,26 @@ import {
   type ResourceMenuTarget,
 } from "./editor/useEditorResourceActions";
 import { removeAttachmentAt, renameAttachmentAt } from "./editor/attachment-editor-range";
-
-const SUPPORTED_PASTE_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"]);
-const MOBILE_EDITOR_QUERY = "(max-width: 639px)";
-const MOBILE_DRAFT_PERSIST_DELAY_MS = 800;
-
-const createLocalEditSession = (memo: MemoDetail): MemoEditSession => ({
-  id: `local-edit:${memo.id}`,
-  memoId: memo.id,
-  baseRevision: memo.revision,
-  baseContentHash: memo.contentHash,
-  expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
-});
-
-const requiresLocalEditSession = (memo: MemoDetail) =>
-  isDesktopResourceRuntime() ||
-  isLocalMemoId(memo.id) ||
-  isBrowserOffline();
-
-type AiSelectionContext = {
-  kind: "markdown" | "plain";
-  from: number;
-  to: number;
-  contentMarkdown: string;
-} | {
-  kind: "rich";
-  from: number;
-  to: number;
-  contentMarkdown: string;
-  isInline: boolean;
-};
-
-type AiInsertionTarget = {
-  kind: "markdown" | "plain" | "rich";
-  position: number;
-};
-
-const getNoteLinkFromEventTarget = (target: EventTarget | null) =>
-  target instanceof Element
-    ? target.closest<HTMLAnchorElement>('a.edgeever-note-link, a[href^="#memo="]')
-    : null;
-
-/** Any navigable editor link (external or note). Attachment chips have their own menu. */
-const getEditorNavigableLinkFromEventTarget = (target: EventTarget | null) => {
-  if (!(target instanceof Element)) {
-    return null;
-  }
-
-  const link = target.closest<HTMLAnchorElement>("a[href]");
-  if (!link || getAttachmentLinkFromEventTarget(link)) {
-    return null;
-  }
-
-  return link;
-};
-
-const getNoteLinkHintPosition = (link: HTMLAnchorElement): NoteLinkHintPosition => {
-  const rect = link.getBoundingClientRect();
-  const placement = rect.top < 48 ? "below" : "above";
-
-  return {
-    left: Math.min(Math.max(rect.left + rect.width / 2, 12), window.innerWidth - 12),
-    top: placement === "above" ? rect.top - 8 : rect.bottom + 8,
-    placement,
-  };
-};
-
-type MobilePlainTextElement = HTMLTextAreaElement | HTMLDivElement;
-
-const isEditorReady = (editor: Editor | null | undefined): editor is Editor =>
-  Boolean(editor && !editor.isDestroyed && (editor as { extensionManager?: unknown }).extensionManager);
-
-const getMobilePlainTextElementValue = (element: MobilePlainTextElement | null) => {
-  if (!element) {
-    return "";
-  }
-
-  return "value" in element ? element.value : element.innerText;
-};
-
-const setMobilePlainTextElementValue = (element: MobilePlainTextElement | null, value: string) => {
-  if (!element) {
-    return;
-  }
-
-  if ("value" in element) {
-    element.value = value;
-    return;
-  }
-
-  if (element.innerText !== value) {
-    element.textContent = value;
-  }
-};
-
-const focusMobilePlainTextElement = (element: MobilePlainTextElement | null) => {
-  if (!element) {
-    return;
-  }
-
-  element.focus({ preventScroll: true });
-
-  if ("setSelectionRange" in element) {
-    element.setSelectionRange(element.value.length, element.value.length);
-    return;
-  }
-
-  if (typeof document === "undefined" || typeof window === "undefined") {
-    return;
-  }
-
-  const range = document.createRange();
-  range.selectNodeContents(element);
-  range.collapse(false);
-  const selection = window.getSelection();
-  selection?.removeAllRanges();
-  selection?.addRange(range);
-};
-
-const getResourceFilesFromDataTransfer = (dataTransfer: DataTransfer | null) => {
-  if (!dataTransfer) {
-    return [];
-  }
-
-  const fileItems = Array.from(dataTransfer.items ?? [])
-    .filter((item) => item.kind === "file")
-    .map((item) => item.getAsFile())
-    .filter((file): file is File => Boolean(file));
-  const files = fileItems.length > 0 ? fileItems : Array.from(dataTransfer.files ?? []);
-
-  return files.filter((file) => file.size > 0);
-};
-
-const syncStatusToSaveState = (status: "pending" | "syncing" | "conflict" | "error") => {
-  if (status === "conflict") {
-    return "conflict";
-  }
-  if (status === "syncing") {
-    return "saving";
-  }
-  return "queued";
-};
-
-class MemoSaveRequestError extends Error {
-  originalError: unknown;
-  payload: MemoUpdateSyncPayload;
-  tagsText: string;
-
-  constructor(originalError: unknown, payload: MemoUpdateSyncPayload, tagsText: string) {
-    super(originalError instanceof Error ? originalError.message : "Memo save failed");
-    this.name = "MemoSaveRequestError";
-    this.originalError = originalError;
-    this.payload = payload;
-    this.tagsText = tagsText;
-  }
-}
+import {
+  createLocalEditSession,
+  focusMobilePlainTextElement,
+  getEditorNavigableLinkFromEventTarget,
+  getMobilePlainTextElementValue,
+  getNoteLinkFromEventTarget,
+  getNoteLinkHintPosition,
+  getResourceFilesFromDataTransfer,
+  isEditorReady,
+  MemoSaveRequestError,
+  MOBILE_DRAFT_PERSIST_DELAY_MS,
+  MOBILE_EDITOR_QUERY,
+  requiresLocalEditSession,
+  setMobilePlainTextElementValue,
+  SUPPORTED_PASTE_IMAGE_TYPES,
+  syncStatusToSaveState,
+  type AiInsertionTarget,
+  type AiSelectionContext,
+  type MobilePlainTextElement,
+} from "./editor/editor-pane-helpers";
 
 type EditorPaneProps = {
   memo: MemoDetail | null;
@@ -417,6 +283,8 @@ type EditorPaneProps = {
   onToggleDesktopFocusMode: () => void;
   editorContentAlignment: EditorContentAlignment;
   mobileDefaultEditMemoId: string | null;
+  pendingInsertFiles?: { memoId: string; files: File[] } | null;
+  onPendingInsertFilesConsumed?: () => void;
   preserveUnsavedContentFromMemoId?: string | null;
   saveBlocked?: boolean;
   isTrashView: boolean;
@@ -489,6 +357,8 @@ const RichEditorPane = ({
   onToggleDesktopFocusMode,
   editorContentAlignment,
   mobileDefaultEditMemoId,
+  pendingInsertFiles = null,
+  onPendingInsertFilesConsumed,
   preserveUnsavedContentFromMemoId: _preserveUnsavedContentFromMemoId,
   saveBlocked: _saveBlocked = false,
   isTrashView,
@@ -993,7 +863,7 @@ const RichEditorPane = ({
     const currentEditor = editorRef.current;
 
     if (!currentMemo || currentMemo.isDeleted || !currentEditor || !currentEditor.isEditable || files.length === 0) {
-      return;
+      return false;
     }
 
     const targetMemoId = currentMemo.id;
@@ -1167,36 +1037,32 @@ const RichEditorPane = ({
         removeImageUploadPlaceholder(placeholderEditor, placeholder);
       });
     });
+    return true;
   }, [queryClient, repository, resourceInsertionLimit, t]);
 
   const pluginEmbedExtension = useMemo(() => createPluginEmbedExtension(pluginHost), [pluginHost]);
   const inlineFieldExtension = useMemo(() => createInlineFieldExtension(i18n.language), [i18n.language]);
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({
-        codeBlock: false,
-        link: false,
+      ...createEdgeEverDocumentExtensions({
+        mathematics: createEdgeEverMathematics(),
+        starterKit: { codeBlock: false, link: false },
+        image: false,
+        gallery: EditableImageGallery,
+        pdf: PdfAttachment,
+        file: FileAttachment,
+        pluginEmbed: pluginEmbedExtension,
+        table: { table: { renderWrapper: true } },
       }),
       EdgeEverLink.configure({ openOnClick: false }),
-      TaskList,
-      TaskItem.configure({ nested: true }),
       inlineFieldExtension,
       EdgeEverCodeBlock.configure({ lowlight: codeBlockLowlight, defaultLanguage: "plaintext" }),
-      MergeDivider,
-      pluginEmbedExtension,
-      PdfAttachment,
-      FileAttachment,
-      ...createEdgeEverMathematics(),
       ThemeBlock,
-      EditableImageGallery,
       ResizableImage.configure({
         allowBase64: false,
         inline: false,
       }),
       ImageUploadPlaceholderExtension,
-      TableKit.configure({
-        table: { renderWrapper: true },
-      }),
       Placeholder.configure({
         placeholder: () => aiSpaceShortcutEnabledRef.current
           ? t("editor.placeholder")
@@ -1751,6 +1617,42 @@ const RichEditorPane = ({
       }
     };
   }, [editor]);
+
+  useEffect(() => {
+    if (!pendingInsertFiles || !pendingEditorInsertMatchesMemo(
+      pendingInsertFiles,
+      memo?.id,
+      editorInstanceMemoIdentityRef.current.aliases,
+    )) return;
+    const files = usablePendingInsertFiles(pendingInsertFiles);
+    if (files.length === 0) {
+      onPendingInsertFilesConsumed?.();
+      return;
+    }
+    if (!shouldInsertPendingEditorFiles({
+      pendingInsertFiles,
+      memoId: memo?.id,
+      memoAliases: editorInstanceMemoIdentityRef.current.aliases,
+      editorHydratedForMemo: editorIsHydratedForCurrentMemo,
+      editorReady: isEditorReady(editor),
+      readOnly: effectiveReadOnly,
+    }) || !isEditorReady(editor)) return;
+    // Hydration leaves the editor non-editable until a later effect calls
+    // setEditable. That later effect does not re-render, so waiting on
+    // editor.isEditable here would drop the screenshot forever.
+    if (!editor.isEditable) editor.setEditable(true);
+    if (!insertResourceFiles(files)) return;
+    onPendingInsertFilesConsumed?.();
+  }, [
+    editor,
+    editorIsHydratedForCurrentMemo,
+    effectiveReadOnly,
+    hydratedEditorMemoId,
+    insertResourceFiles,
+    memo?.id,
+    onPendingInsertFilesConsumed,
+    pendingInsertFiles,
+  ]);
 
   useEffect(() => {
     if (!isEditorReady(editor)) {
@@ -4229,7 +4131,7 @@ const RichEditorPane = ({
             : useMarkdownSourceEditor
               // Source mode: fill the pane and scroll inside the textarea (not a 300px card).
               ? "flex flex-col overflow-hidden"
-              : "overflow-y-auto"
+              : "overflow-y-auto lg:[scrollbar-gutter:stable_both-edges]"
         )}
       >
         {!isNamedEditorTheme(editorTheme) && customEditorTheme.customCss && (
@@ -4249,7 +4151,7 @@ const RichEditorPane = ({
             "flex gap-8 transition-all duration-200",
             useMarkdownSourceEditor
               ? "h-full min-h-0 flex-1 items-stretch px-0 py-0"
-              : "min-h-full items-start px-4 py-2",
+              : "min-h-full items-start px-4 py-2 sm:px-7 lg:px-10",
             desktopFocusMode
               ? "mx-auto w-full max-w-[1400px] justify-center"
               : editorContentAlignment === "center"

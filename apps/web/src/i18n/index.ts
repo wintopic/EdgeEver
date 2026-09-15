@@ -11,7 +11,6 @@ import {
   type SupportedLocale,
 } from "./locales";
 import { enUS } from "./resources/en-US";
-import { ja } from "./resources/ja";
 import { zhCN } from "./resources/zh-CN";
 
 export {
@@ -26,17 +25,26 @@ export {
 export const resources = {
   "zh-CN": { translation: zhCN },
   "en-US": { translation: enUS },
-  ja: { translation: ja },
 } as const;
+
+const ensureLocaleCatalog = async (locale: SupportedLocale) => {
+  if (locale !== "ja" || i18n.hasResourceBundle("ja", "translation")) {
+    return;
+  }
+
+  const { ja } = await import("./resources/ja");
+  i18n.addResourceBundle("ja", "translation", ja, true, true);
+};
 
 void i18n.use(initReactI18next).init({
   resources,
-  lng: getInitialLocale(),
+  lng: getInitialLocale() === "ja" ? "en-US" : getInitialLocale(),
   fallbackLng: {
     ja: ["en-US"],
     default: [defaultLocale],
   },
   supportedLngs: supportedLocales,
+  partialBundledLanguages: true,
   interpolation: {
     escapeValue: false,
   },
@@ -53,15 +61,28 @@ i18n.on("languageChanged", (locale) => {
 
 document.documentElement.lang = i18n.resolvedLanguage ?? i18n.language ?? defaultLocale;
 
-export const changeAppLocale = (locale: SupportedLocale) => {
+export const bootstrapI18n = async () => {
+  const locale = getInitialLocale();
+  if (locale !== "ja") {
+    return;
+  }
+
+  await ensureLocaleCatalog(locale);
+  await i18n.changeLanguage(locale);
+};
+
+export const changeAppLocale = async (locale: SupportedLocale) => {
   writeStoredLocale(locale);
+  await ensureLocaleCatalog(locale);
   return i18n.changeLanguage(locale);
 };
 
-export const changeAppLocalePreference = (preference: AppLocalePreference) => {
+export const changeAppLocalePreference = async (preference: AppLocalePreference) => {
   if (preference === "system") {
     clearStoredLocale();
-    return i18n.changeLanguage(getBrowserLocale() ?? defaultLocale);
+    const locale = getBrowserLocale() ?? defaultLocale;
+    await ensureLocaleCatalog(locale);
+    return i18n.changeLanguage(locale);
   }
 
   return changeAppLocale(preference);

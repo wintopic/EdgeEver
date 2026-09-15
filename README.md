@@ -5,7 +5,7 @@
 [![Product Hunt](https://img.shields.io/badge/Product%20Hunt-ea532a?style=social&logo=product-hunt)](https://www.producthunt.com/products/edgeever?utm_source=other&utm_medium=social)
 [![Sponsor on Afdian](https://img.shields.io/badge/Sponsor-Afdian-946ce6?style=social&logo=github-sponsors)](https://afdian.com/a/tianma-if)
 
-[简体中文](README.zh-CN.md) | English
+[简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | English | [日本語](README.ja.md)
 
 > **EdgeEver: An open-source, AI-native knowledge base & portable Evernote alternative.**
 

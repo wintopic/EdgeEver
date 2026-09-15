@@ -104,6 +104,9 @@ test("a remote tombstone uninstalls the local extension without writing the cata
   const upserts = [];
   const removals = [];
   const id = "org.edgeever.catalog-tombstone";
+  // installManifest stamps catalogUpdatedAt with now; the tombstone must be newer
+  // so reconcile uninstalls instead of treating the local install as a later write.
+  const tombstoneAt = new Date(Date.now() + 60_000).toISOString();
   const host = new EdgeEverPluginHost({
     scope: "catalog-tombstone",
     packageStorage: { get: async () => null, put: async () => {}, remove: async () => {} },
@@ -116,8 +119,8 @@ test("a remote tombstone uninstalls the local extension without writing the cata
         version: "1.0.0",
         enabled: false,
         installedAt: "2026-09-13T10:00:00.000Z",
-        updatedAt: "2026-09-14T12:00:00.000Z",
-        deletedAt: "2026-09-14T12:00:00.000Z",
+        updatedAt: tombstoneAt,
+        deletedAt: tombstoneAt,
         manifestUrl: "https://example.test/manifest.json",
         sourceKind: "manifest",
         verified: false,

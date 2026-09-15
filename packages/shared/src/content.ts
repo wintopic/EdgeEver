@@ -1,8 +1,5 @@
-import Image from "@tiptap/extension-image";
-import { TaskItem, TaskList } from "@tiptap/extension-list";
-import { TableKit } from "@tiptap/extension-table";
-import { Markdown, MarkdownManager } from "@tiptap/markdown";
-import StarterKit from "@tiptap/starter-kit";
+import { MarkdownManager } from "@tiptap/markdown";
+import { createEdgeEverDocumentExtensions } from "./document-extensions";
 import { MergeDivider, MERGE_DIVIDER_NODE_TYPE } from "./merge-divider";
 import { PdfAttachment, PDF_ATTACHMENT_NODE_TYPE, upgradeStandalonePdfLinks } from "./pdf-attachment";
 import { FileAttachment, FILE_ATTACHMENT_NODE_TYPE, upgradeStandaloneFileLinks } from "./file-attachment";
@@ -97,22 +94,10 @@ export const emptyDoc = (): TiptapDoc => ({
 });
 
 const markdownManager = new MarkdownManager({
-  extensions: [
-    StarterKit,
-    TaskList,
-    TaskItem.configure({ nested: true }),
-    TableKit,
-    Image,
-    ImageGallery,
-    PdfAttachment,
-    FileAttachment,
-    MergeDivider,
-    PluginEmbed,
-    ...createEdgeEverMarkdownMathematics(),
-    Markdown.configure({
-      markedOptions: { gfm: true },
-    }),
-  ],
+  extensions: createEdgeEverDocumentExtensions({
+    mathematics: createEdgeEverMarkdownMathematics(),
+    markdown: true,
+  }),
 });
 
 export const markdownToDoc = (markdown: string): TiptapDoc => {

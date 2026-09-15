@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import { trayIconPath } from "./tray-icon.mjs";
@@ -31,12 +32,30 @@ describe("trayIconPath", () => {
     })).toBe("/resources/web/pwa-192x192.png");
   });
 
+  test("uses a larger menu-bar cat instead of the padded brand mark", () => {
+    const svg = readFileSync(new URL("../../assets/trayTemplate.svg", import.meta.url), "utf8");
+    expect(svg).not.toContain("M9 2h14a6 6 0 0 1 6 6v16a6 6 0 0 1-6 6H9");
+    expect(svg).not.toContain("scale(0.74234234)");
+    expect(svg).toContain("viewBox=\"0 0 1024 1024\"");
+    expect(svg).toContain("fill=\"#000000\"");
+    expect(svg).toContain("scale(1.22)");
+  });
+
   test.each([
     ["trayTemplate.png", 16, 72],
     ["trayTemplate@2x.png", 32, 144],
-  ])("%s is a correctly sized transparent PNG", async (name, size, density) => {
+  ])("%s is a crisp black template glyph", async (name, size, density) => {
     const path = fileURLToPath(new URL(`../../assets/${name}`, import.meta.url));
-    const metadata = await sharp(path).metadata();
+    const image = sharp(path);
+    const metadata = await image.metadata();
+    const { data } = await image.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    let opaque = 0;
+    let soft = 0;
+    for (let offset = 3; offset < data.length; offset += 4) {
+      if (data[offset] >= 250) opaque += 1;
+      else if (data[offset] > 0) soft += 1;
+    }
+    const coverage = opaque / (size * size);
 
     expect(metadata).toMatchObject({
       width: size,
@@ -45,5 +64,8 @@ describe("trayIconPath", () => {
       format: "png",
       hasAlpha: true,
     });
+    expect(soft).toBe(0);
+    expect(coverage).toBeGreaterThan(0.12);
+    expect(coverage).toBeLessThan(0.4);
   });
 });

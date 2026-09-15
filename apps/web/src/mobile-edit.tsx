@@ -3,8 +3,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRoot } from "react-dom/client";
 import { MobileStandaloneTiptapEditor } from "@/components/MobileStandaloneTiptapEditor";
 import { initializeTheme } from "@/components/ThemeProvider";
+import { bootstrapI18n } from "@/i18n";
 import { defaultLocale, getBrowserLocale } from "@/i18n/locales";
-import "./i18n";
 import "./styles/mobile-markdown-editor.css";
 
 declare global {
@@ -93,12 +93,14 @@ const MobileEditorApp = () => {
   );
 };
 
-createRoot(root, {
-  onUncaughtError(error, errorInfo) {
-    console.error("Uncaught mobile editor error", error, errorInfo.componentStack);
-  },
-}).render(
-  <React.StrictMode>
-    <MobileEditorApp />
-  </React.StrictMode>
-);
+void bootstrapI18n().then(() => {
+  createRoot(root, {
+    onUncaughtError(error, errorInfo) {
+      console.error("Uncaught mobile editor error", error, errorInfo.componentStack);
+    },
+  }).render(
+    <React.StrictMode>
+      <MobileEditorApp />
+    </React.StrictMode>
+  );
+});

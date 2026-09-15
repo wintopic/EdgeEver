@@ -18,6 +18,7 @@ import { assertMacIcnsComplete } from "./desktop-icns.mjs";
 
 const projectRoot = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 const sourcePng = join(projectRoot, "apps/web/public/pwa-512x512.png");
+const brandMarkPath = join(projectRoot, "assets/brand/edgeever-mark.svg");
 const assetsDir = join(projectRoot, "apps/desktop/assets");
 
 /** iconutil expects these exact basenames inside a .iconset directory. */
@@ -59,12 +60,67 @@ const writeResizedPng = async (sourceBuffer, size, destination) => {
     .toFile(destination);
 };
 
+const TRAY_TEMPLATE_ALPHA_THRESHOLD = 80;
+const TRAY_MARK_CENTER = { x: 627, y: 580 };
+const TRAY_MARK_SCALE = 1.22;
+
+export const buildMacTrayTemplateSvg = (markSvg) => {
+  const pathMatch = markSvg.match(/<path\b[^>]*\sd="([^"]+)"/);
+  if (!pathMatch) throw new Error("Brand mark is missing a path");
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="EdgeEver">
+  <g transform="translate(512 512) scale(${TRAY_MARK_SCALE}) translate(-${TRAY_MARK_CENTER.x} -${TRAY_MARK_CENTER.y})">
+    <path fill="#000000" fill-rule="evenodd" d="${pathMatch[1]}" />
+  </g>
+</svg>
+`;
+};
+
+export const prepareTrayIcons = async ({
+  markPath = brandMarkPath,
+  assetsDirectory = assetsDir,
+} = {}) => {
+  await mkdir(assetsDirectory, { recursive: true });
+  const markSvg = await readFile(markPath, "utf8");
+  const templateSvg = buildMacTrayTemplateSvg(markSvg);
+  await writeFile(join(assetsDirectory, "trayTemplate.svg"), templateSvg);
+
+  const sourceBuffer = Buffer.from(templateSvg);
+  const render = async (size, density, fileName) => {
+    const { data, info } = await sharp(sourceBuffer, { density: 384 })
+      .resize(size, size, {
+        fit: "contain",
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+        kernel: sharp.kernel.lanczos3,
+      })
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    for (let offset = 0; offset < data.length; offset += 4) {
+      data[offset] = 0;
+      data[offset + 1] = 0;
+      data[offset + 2] = 0;
+      data[offset + 3] = data[offset + 3] >= TRAY_TEMPLATE_ALPHA_THRESHOLD ? 255 : 0;
+    }
+    await sharp(data, {
+      raw: { width: info.width, height: info.height, channels: 4 },
+    })
+      .withMetadata({ density })
+      .png({ compressionLevel: 9 })
+      .toFile(join(assetsDirectory, fileName));
+  };
+
+  await render(16, 72, "trayTemplate.png");
+  await render(32, 144, "trayTemplate@2x.png");
+  console.log("[prepare-desktop-icons] wrote macOS tray template icons from the brand mark");
+};
+
 export const prepareDesktopIcons = async ({
   sourcePath = sourcePng,
   assetsDirectory = assetsDir,
   requireIconutil = process.platform === "darwin",
 } = {}) => {
   await mkdir(assetsDirectory, { recursive: true });
+  await prepareTrayIcons({ assetsDirectory });
   const sourceBuffer = await readFile(sourcePath);
 
   // Master PNG used by electron-builder on Windows/Linux and as a Dock fallback.
