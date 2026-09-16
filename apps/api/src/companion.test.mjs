@@ -8,7 +8,7 @@ import { createSelfHostedStorageAdapter } from "./self-hosted-storage-adapter.ts
 import { registerCompanionRoutes } from "./companion-routes.ts";
 import { beginCompanionTurn, checkpointCompanionTurn, clearCompanionHistory, companionRevision, forgetCompanionMemory,
   getCompanionTurn, importCompanionMemories, listCompanionMemories, listCompanionTurns, saveCompanionMemory } from "./companion-service.ts";
-import { COMPANION_INSTRUCTIONS, companionMessages, selectCompanionMemories, streamCompanion } from "./companion-runtime.ts";
+import { COMPANION_INSTRUCTIONS, companionMessages, companionTurnInstructions, companionUserContent, selectCompanionMemories, streamCompanion } from "./companion-runtime.ts";
 import { applyCompanionAction, proposeCompanionAction, listCompanionActions, dismissCompanionAction } from "./companion-actions.ts";
 import { createMemoRecord, getMemoDetail, updateMemoRecord } from "./memo-service.ts";
 import { COMPANION_MCP_TOOLS } from "./companion-tool-catalog.ts";
@@ -59,6 +59,41 @@ async function organizationFixture() {
   const complete = () => checkpointCompanionTurn(setup.db, scope, row, "Review suggestions", notes.map(({ id, title, revision }) => ({ id, title, revision })), "completed");
   return { ...setup, notes, row, inspected, complete };
 }
+
+describe("companion turn context", () => {
+  test("focus is model-only data and read-only turns cannot propose writes", () => {
+    expect(companionUserContent(input({
+      message: "What did I write?",
+      focus: { memoId: "memo_1", notebookId: "nb_1", notebookTitle: "功能演示", title: "Pricing", selectionMarkdown: "Q3 cap" },
+    }))).toContain("[note:memo_1]");
+    expect(companionUserContent(input({
+      message: "学习资料里面有哪些笔记?",
+      focus: { memoId: "memo_1", notebookId: "nb_demo_features", notebookTitle: "功能演示" },
+    }))).toContain("功能演示");
+    expect(companionUserContent(input({
+      message: "学习资料里面有哪些笔记?",
+      focus: { memoId: "memo_1", notebookId: "nb_demo_features", notebookTitle: "功能演示" },
+    }))).toContain("not a search filter");
+    expect(companionUserContent(input({
+      message: "帮我新建一个RAG原理的思维导图。",
+      focus: { memoId: "memo_1", notebookId: "nb_demo_features", notebookTitle: "功能演示" },
+    }))).toContain("use this open notebook");
+    expect(companionUserContent(input({
+      message: "根据这篇做思维导图",
+      focus: {
+        memoId: "memo_1", notebookId: "nb_demo_features", notebookTitle: "功能演示", title: "RAG 原理",
+        contentMarkdown: "检索、增强、生成是 RAG 的三步。",
+      },
+    }))).toContain("检索、增强、生成是 RAG 的三步。");
+    expect(companionUserContent(input({
+      message: "给这张图加一个评估节点",
+      focus: { memoId: "memo_1", notebookId: "nb_demo_features", title: "RAG 原理", diagramKind: "mind-map" },
+    }))).toContain("editable mind-map");
+    expect(companionUserContent(input({ message: "What did I write?" }))).toBe("What did I write?");
+    expect(companionTurnInstructions(input({ allowNotes: true, allowWrites: false }))).toContain("read-only");
+    expect(companionTurnInstructions(input({ allowNotes: true }))).toBe("");
+  });
+});
 
 describe("companion organization proposals", () => {
   test("proposing does not mutate notes and cannot execute before completion or as another owner", async () => {
@@ -327,32 +362,49 @@ describe("companion HTTP contracts", () => {
 
 describe("actual AI SDK companion runtime", () => {
   test("proposal reasons contain evidence instead of card boilerplate", () => {
-    expect(COMPANION_INSTRUCTIONS).toContain("concrete evidence or content relationship");
-    expect(COMPANION_INSTRUCTIONS).toContain("Never use _reason to paraphrase the operation");
-    expect(COMPANION_INSTRUCTIONS).toContain("If there is no useful non-redundant reason, do not propose");
+    expect(COMPANION_INSTRUCTIONS).toContain("All available write tools execute immediately");
+    expect(COMPANION_INSTRUCTIONS).not.toContain("user must confirm the suggestion card");
+    expect(COMPANION_INSTRUCTIONS).toContain("[Note title](#memo=memo_abc123)");
+    expect(COMPANION_INSTRUCTIONS).toContain("Do not drop memo_");
+    expect(COMPANION_INSTRUCTIONS).toContain("not as a heading");
+    expect(COMPANION_INSTRUCTIONS).toContain("Do not paste note bodies");
+    expect(COMPANION_INSTRUCTIONS).toContain("find_notebooks");
+    expect(COMPANION_INSTRUCTIONS).toContain("Do not ask permission to search");
+    expect(COMPANION_INSTRUCTIONS).toContain("createdAfter");
+    expect(COMPANION_INSTRUCTIONS).toContain("Do not ask which notebook or tag first");
+    expect(COMPANION_INSTRUCTIONS).toContain("after you have already searched");
+    expect(COMPANION_INSTRUCTIONS).toContain("create_diagram_memo");
+    expect(COMPANION_INSTRUCTIONS).toContain("思维导图");
+    expect(COMPANION_INSTRUCTIONS).toContain("update_diagram");
+    expect(COMPANION_INSTRUCTIONS).toContain("这篇");
+    expect(COMPANION_INSTRUCTIONS).not.toContain("You cannot create or edit diagrams");
+    expect(COMPANION_INSTRUCTIONS).not.toContain("You cannot edit existing diagrams");
+    expect(COMPANION_INSTRUCTIONS).toContain("use_note_template");
+    expect(COMPANION_INSTRUCTIONS).toContain("AI instructions");
+    expect(COMPANION_INSTRUCTIONS).toContain("cannot empty the trash");
+    expect(COMPANION_INSTRUCTIONS).toContain("delete note templates");
   });
 
-  test("the real tool loop persists a proposal but exposes no execute-write tool", async () => {
+  test("the real tool loop applies tag writes immediately without a confirmation card", async () => {
     const { db, notes, row, complete, context } = await organizationFixture();
     const calls = [
       { toolName: "search_memos", input: JSON.stringify({ query: "Idea" }) },
       { toolName: "get_memo", input: JSON.stringify({ memoId: notes[0].id }) },
-      { toolName: "add_tags_to_memos", input: JSON.stringify({ memoIds: [notes[0].id], tags: ["idea"], _reason: "An actionable idea" }) },
+      { toolName: "add_tags_to_memos", input: JSON.stringify({ memoIds: [notes[0].id], tags: ["idea"] }) },
     ];
     const model = new MockLanguageModelV4({ doStream: async () => {
       const call = calls.shift();
       return { stream: simulateReadableStream({ chunks: call ? [
         { type: "tool-call", toolCallId: crypto.randomUUID(), ...call }, { ...finish, finishReason: { unified: "tool-calls" } },
-      ] : [{ type: "text-start", id: "1" }, { type: "text-delta", id: "1", delta: "Please review the card." }, { type: "text-end", id: "1" }, finish] }) };
+      ] : [{ type: "text-start", id: "1" }, { type: "text-delta", id: "1", delta: "Tagged." }, { type: "text-end", id: "1" }, finish] }) };
     } });
     const result = await streamCompanion({ db, context, scope, input: input({ id: row.id, threadId: row.thread_id, allowNotes: true }), model,
       memories: [], history: [], revision: 0, signal: new AbortController().signal, sources: [], assertActive: async () => {} });
-    expect(await result.text).toBe("Please review the card.");
-    expect(JSON.stringify(model.doStreamCalls.at(-1).prompt)).toContain("awaiting_user_confirmation");
+    expect(await result.text).toBe("Tagged.");
     expect(model.doStreamCalls[0].tools.map(t => t.name).sort()).toEqual(COMPANION_MCP_TOOLS.map(t => t.name).sort());
-    expect((await getMemoDetail(db, scope.workspaceId, notes[0].id)).tags).toEqual(["existing"]);
+    expect((await getMemoDetail(db, scope.workspaceId, notes[0].id)).tags).toEqual(["existing", "idea"]);
     await complete();
-    expect((await listCompanionActions(db, scope))[0]).toMatchObject({ status: "pending", plan: { kind: "tool", toolName: "add_tags_to_memos", arguments: { tags: ["idea"] } } });
+    expect(await listCompanionActions(db, scope)).toEqual([]);
   });
 
   test("truncated notes cannot be used for a write proposal", async () => {
@@ -476,6 +528,16 @@ describe("actual AI SDK companion runtime", () => {
     expect(JSON.stringify(messages)).not.toContain("secret");
     expect(companionMessages({ ...next, useMemory: true }, [safe], 3)).toHaveLength(3);
     expect(companionMessages(next, [safe], 4)).toHaveLength(1);
+  });
+  test("note-enabled follow-ups keep prior sourced replies", () => {
+    const next = input({ allowNotes: true, useMemory: false, message: "把第二篇打开" });
+    const prior = { id: "listed", thread_id: next.threadId, status: "completed", memory_revision: 3, use_memory: 0,
+      allow_notes: 1, sources_json: '[{"id":"memo_1","title":"随手记下"}]', message: "学习资料里面有哪些笔记?",
+      response: "[随手记下](#memo=memo_1)" };
+    const messages = companionMessages(next, [prior], 3);
+    expect(messages).toHaveLength(3);
+    expect(messages[1].content).toContain("随手记下");
+    expect(companionMessages(input({ allowNotes: false, useMemory: false, threadId: next.threadId }), [prior], 3)).toHaveLength(1);
   });
   test("large histories have a total budget and never split message pairs", () => {
     const next = input({ message: "current" });

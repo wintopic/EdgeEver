@@ -3,7 +3,7 @@ import { getSchema } from "@tiptap/core";
 import Image from "@tiptap/extension-image";
 import StarterKit from "@tiptap/starter-kit";
 import {
-  createEdgeEverDocumentExtensions,
+  createEdgeEverMarkdownManager,
   docToMarkdown,
   IMAGE_GALLERY_NODE_TYPE,
   markdownToDoc,
@@ -12,7 +12,6 @@ import {
   MergeDivider as SharedMergeDivider,
 } from "@edgeever/shared";
 import { createEdgeEverMathematics } from "@edgeever/shared/mathematics";
-import { MarkdownManager } from "@tiptap/markdown";
 import { createIosImageGallery, ImageGallery, MergeDivider } from "./document-nodes.ts";
 
 const galleryDoc = {
@@ -27,16 +26,13 @@ const galleryDoc = {
   }],
 };
 
-const iosMarkdownManager = new MarkdownManager({
-  extensions: createEdgeEverDocumentExtensions({
-    mathematics: createEdgeEverMathematics(),
-    starterKit: { codeBlock: false, link: false },
-    gallery: createIosImageGallery(() => "en-US"),
-    pdf: false,
-    file: false,
-    pluginEmbed: false,
-    markdown: true,
-  }),
+const iosMarkdownManager = createEdgeEverMarkdownManager({
+  mathematics: createEdgeEverMathematics(),
+  starterKit: { codeBlock: false, link: false },
+  gallery: createIosImageGallery(() => "en-US"),
+  pdf: false,
+  file: false,
+  pluginEmbed: false,
 });
 
 describe("iOS document nodes share the web schema", () => {

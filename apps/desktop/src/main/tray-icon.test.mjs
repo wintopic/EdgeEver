@@ -32,18 +32,20 @@ describe("trayIconPath", () => {
     })).toBe("/resources/web/pwa-192x192.png");
   });
 
-  test("uses a larger menu-bar cat instead of the padded brand mark", () => {
+  test("uses a heavier 22pt menu-bar cat instead of the padded brand mark", () => {
     const svg = readFileSync(new URL("../../assets/trayTemplate.svg", import.meta.url), "utf8");
     expect(svg).not.toContain("M9 2h14a6 6 0 0 1 6 6v16a6 6 0 0 1-6 6H9");
     expect(svg).not.toContain("scale(0.74234234)");
     expect(svg).toContain("viewBox=\"0 0 1024 1024\"");
     expect(svg).toContain("fill=\"#000000\"");
-    expect(svg).toContain("scale(1.22)");
+    expect(svg).toContain("stroke=\"#000000\"");
+    expect(svg).toContain("stroke-width=\"36\"");
+    expect(svg).toContain("scale(1.1)");
   });
 
   test.each([
-    ["trayTemplate.png", 16, 72],
-    ["trayTemplate@2x.png", 32, 144],
+    ["trayTemplate.png", 22, 72],
+    ["trayTemplate@2x.png", 44, 144],
   ])("%s is a crisp black template glyph", async (name, size, density) => {
     const path = fileURLToPath(new URL(`../../assets/${name}`, import.meta.url));
     const image = sharp(path);
@@ -65,7 +67,7 @@ describe("trayIconPath", () => {
       hasAlpha: true,
     });
     expect(soft).toBe(0);
-    expect(coverage).toBeGreaterThan(0.12);
+    expect(coverage).toBeGreaterThan(0.22);
     expect(coverage).toBeLessThan(0.4);
   });
 });

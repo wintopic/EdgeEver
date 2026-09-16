@@ -1,5 +1,8 @@
 import { MarkdownManager } from "@tiptap/markdown";
-import { createEdgeEverDocumentExtensions } from "./document-extensions";
+import {
+  createEdgeEverDocumentExtensions,
+  type CreateEdgeEverDocumentExtensionsOptions,
+} from "./document-extensions";
 import { MergeDivider, MERGE_DIVIDER_NODE_TYPE } from "./merge-divider";
 import { PdfAttachment, PDF_ATTACHMENT_NODE_TYPE, upgradeStandalonePdfLinks } from "./pdf-attachment";
 import { FileAttachment, FILE_ATTACHMENT_NODE_TYPE, upgradeStandaloneFileLinks } from "./file-attachment";
@@ -93,11 +96,17 @@ export const emptyDoc = (): TiptapDoc => ({
   content: [{ type: "paragraph" }],
 });
 
-const markdownManager = new MarkdownManager({
+export const createEdgeEverMarkdownManager = (
+  options: CreateEdgeEverDocumentExtensionsOptions,
+) => new MarkdownManager({
   extensions: createEdgeEverDocumentExtensions({
-    mathematics: createEdgeEverMarkdownMathematics(),
+    ...options,
     markdown: true,
   }),
+});
+
+const markdownManager = createEdgeEverMarkdownManager({
+  mathematics: createEdgeEverMarkdownMathematics(),
 });
 
 export const markdownToDoc = (markdown: string): TiptapDoc => {

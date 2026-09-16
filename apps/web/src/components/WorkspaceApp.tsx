@@ -124,7 +124,7 @@ import { clearRendererRecoveryRequired, isRendererRecoveryRequired } from "@/lib
 import { EditorPaneErrorBoundary, EditorRecoveryPane } from "./EditorPaneErrorBoundary";
 import { isMarkdownFile, readMarkdownFile } from "@/lib/markdown-file-import";
 import { compressImageForUpload } from "@/lib/image-compression";
-import { createScreenshotMemo, screenshotFileFromImportPayload } from "@/lib/screenshot-import";
+import { createScreenshotMemo, screenshotFileFromImportPayload, screenshotImportDedupeKey, screenshotImportGate } from "@/lib/screenshot-import";
 import { isDesktopResourceRuntime, stageDesktopResource, toDesktopResourceUrl } from "@/lib/desktop-resources";
 
 const EditorPane = lazy(() => import("./EditorPane").then((module) => ({ default: module.EditorPane })));
@@ -139,8 +139,6 @@ const EvernoteImportGuidePane = lazy(() =>
 const TagsPane = lazy(() => import("./TagsPane").then((module) => ({ default: module.TagsPane })));
 const TemplatesPane = lazy(() => import("./TemplatesPane").then((module) => ({ default: module.TemplatesPane })));
 const AiPromptsPane = lazy(() => import("./AiPromptsPane").then((module) => ({ default: module.AiPromptsPane })));
-const CompanionPane = lazy(() => import("./CompanionPane"));
-const CompanionDiscoveryHub = lazy(() => import("./CompanionDiscoveryHub"));
 const ExecutionCenterPane = lazy(() =>
   import("./execution/ExecutionCenterPane").then((module) => ({ default: module.ExecutionCenterPane }))
 );
@@ -189,7 +187,6 @@ export const WorkspaceApp = ({
     navigatePlugins: navigateWorkspacePlugins,
     navigateTemplates: navigateWorkspaceTemplates,
     navigateAiPrompts: navigateWorkspaceAiPrompts,
-    navigateCompanion: navigateWorkspaceCompanion,
     navigateExecutionCenter: navigateWorkspaceExecutionCenter,
   } = useWorkspaceRoute();
   const localDataScope = useMemo(
@@ -201,15 +198,13 @@ export const WorkspaceApp = ({
   const isInitialPluginsRoute = route.isPlugins;
   const isInitialTemplatesRoute = route.isTemplates;
   const isInitialAiPromptsRoute = route.isAiPrompts;
-  const isInitialCompanionRoute = route.isCompanion;
-  const previousRouteWasCompanion = useRef(route.isCompanion);
   const isInitialExecutionCenterRoute = route.isExecutionCenter;
   const isInitialMobileEditorReturn = Boolean(route.mobileEditorReturnMemoId);
   const isTrashRoute = route.isTrash;
   const [rendererRecoveryMode, setRendererRecoveryMode] = useState(() =>
     Boolean(window.edgeeverDesktop?.recoveredAfterAbnormalExit) || isRendererRecoveryRequired()
   );
-  const [activePane, setActivePane] = useState<Pane>(() => ((isInitialSettingsRoute || isInitialPluginsRoute || isInitialTemplatesRoute || isInitialAiPromptsRoute || isInitialCompanionRoute || isInitialExecutionCenterRoute) && !isInitialMobileEditorReturn ? "editor" : "memos"));
+  const [activePane, setActivePane] = useState<Pane>(() => ((isInitialSettingsRoute || isInitialPluginsRoute || isInitialTemplatesRoute || isInitialAiPromptsRoute || isInitialExecutionCenterRoute) && !isInitialMobileEditorReturn ? "editor" : "memos"));
   const [memoView, setMemoView] = useState<MemoView>(() => (isTrashRoute ? "trash" : "notebook"));
   const {
     beginMemoSelection,
@@ -231,7 +226,7 @@ export const WorkspaceApp = ({
   const autoSelectedDemoNotebookRef = useRef(false);
   const [createdMemoEditId, setCreatedMemoEditId] = useState<string | null>(null);
   const pendingCreatedMemoIdRef = useRef<string | null>(null);
-  const pendingQuickSwitcherMemoIdRef = useRef<string | null>(null);
+  const pendingQuickSwitcherMemoIdRef = useRef<string | null>(null); // also companion/plugin opens not yet in the list
   const creatingMemoSelectionRef = useRef(false);
   const memoDocumentActionIdRef = useRef(0);
   const [memoDocumentActionRequest, setMemoDocumentActionRequest] = useState<MemoDocumentActionRequest | null>(null);
@@ -488,7 +483,7 @@ export const WorkspaceApp = ({
     setShortcutSettings,
     shortcutSettings,
   } = useWorkspacePreferences();
-  const [rightView, setRightView] = useState<"editor" | "settings" | "plugins" | "assets" | "tags" | "templates" | "ai-prompts" | "companion" | "execution-center" | "evernote-migration">(() =>
+  const [rightView, setRightView] = useState<"editor" | "settings" | "plugins" | "assets" | "tags" | "templates" | "ai-prompts" | "execution-center" | "evernote-migration">(() =>
     isInitialSettingsRoute
       ? "settings"
       : isInitialPluginsRoute
@@ -497,8 +492,6 @@ export const WorkspaceApp = ({
         ? "templates"
         : isInitialAiPromptsRoute
           ? "ai-prompts"
-          : isInitialCompanionRoute
-            ? "companion"
           : isInitialExecutionCenterRoute
             ? "execution-center"
           : "editor"
@@ -510,8 +503,6 @@ export const WorkspaceApp = ({
       ? "settings"
       : isInitialTemplatesRoute || isInitialAiPromptsRoute
         ? "templates"
-        : isInitialCompanionRoute && !isInitialMobileEditorReturn
-          ? "companion"
         : "home"
   );
   const [mobileSearchFocusToken, setMobileSearchFocusToken] = useState(0);
@@ -684,9 +675,7 @@ export const WorkspaceApp = ({
       templatesOpen ||
       memoSelectionModeActive ||
       // A routed workspace uses browser history, not a synthetic modal back layer.
-      (!route.isCompanion && rightView !== "companion" && (
-        rightView !== "editor" || visibleActivePane === "editor" || visibleActivePane === "notebooks"
-      ))
+      (rightView !== "editor" || visibleActivePane === "editor" || visibleActivePane === "notebooks")
   );
   const mobilePullToRefreshActive = Boolean(
     !isDesktop &&
@@ -834,8 +823,6 @@ export const WorkspaceApp = ({
   }, []);
 
   useEffect(() => {
-    const returningFromCompanion = previousRouteWasCompanion.current;
-    previousRouteWasCompanion.current = route.isCompanion;
     if (route.isSettings) {
       skipNextHomeRouteSyncRef.current = false;
       setRightView("settings");
@@ -868,14 +855,6 @@ export const WorkspaceApp = ({
       return;
     }
 
-    if (route.isCompanion) {
-      skipNextHomeRouteSyncRef.current = false;
-      setRightView("companion");
-      setMobileBottomNavActive("companion");
-      setActivePane("editor");
-      return;
-    }
-
     if (route.isExecutionCenter) {
       skipNextHomeRouteSyncRef.current = false;
       setRightView("execution-center");
@@ -892,8 +871,7 @@ export const WorkspaceApp = ({
     setMemoView(isTrashRoute ? "trash" : "notebook");
     setRightView("editor");
     setMobileBottomNavActive("home");
-    if (returningFromCompanion) setActivePane("memos");
-  }, [isTrashRoute, route.isSettings, route.isPlugins, route.isTemplates, route.isAiPrompts, route.isCompanion, route.isExecutionCenter]);
+  }, [isTrashRoute, route.isSettings, route.isPlugins, route.isTemplates, route.isAiPrompts, route.isExecutionCenter]);
 
   useEffect(() => {
     if (window.edgeeverDesktop?.isAvailable) {
@@ -1663,14 +1641,21 @@ export const WorkspaceApp = ({
     setNotebookDeleteConfirmation(notebook);
   };
 
-  const handleImportScreenshot = useCallback(async (payload: { name: string; type: string; title?: string; bytes: Uint8Array }) => {
+  const handleImportScreenshot = useCallback(async (payload: { captureId?: string; name: string; type: string; title?: string; bytes: Uint8Array }) => {
+    const importKey = screenshotImportDedupeKey(payload);
+    if (!screenshotImportGate.tryBegin(importKey)) return;
+
     const notebookId = selectedNotebookId && notebooks.some((notebook) => notebook.id === selectedNotebookId) && memoView !== "trash"
       ? selectedNotebookId
       : defaultMemoNotebookId;
-    if (!notebookId) return;
+    if (!notebookId) {
+      screenshotImportGate.fail();
+      return;
+    }
 
     const file = screenshotFileFromImportPayload(payload);
     if (file.size === 0) {
+      screenshotImportGate.fail();
       setAppNoticeDialog({
         title: t("memoList.importScreenshotFailedTitle"),
         description: t("memoList.importScreenshotEmpty"),
@@ -1711,7 +1696,9 @@ export const WorkspaceApp = ({
       });
       await putLocalMemo(localDataScope, memo);
       revealCreatedMemo(memo);
+      screenshotImportGate.finish(importKey);
     } catch {
+      screenshotImportGate.fail();
       creatingMemoSelectionRef.current = false;
       setAppNoticeDialog({
         title: t("memoList.importScreenshotFailedTitle"),
@@ -1719,6 +1706,9 @@ export const WorkspaceApp = ({
       });
     }
   }, [defaultMemoNotebookId, imageCompressionEnabled, localDataScope, memoView, notebooks, repository, selectedNotebookId, t]);
+
+  const handleImportScreenshotRef = useRef(handleImportScreenshot);
+  handleImportScreenshotRef.current = handleImportScreenshot;
 
   const handleCreateMemo = (kind?: DiagramKind) => {
     const targetNotebookId = createMemoNotebookId;
@@ -2198,7 +2188,7 @@ export const WorkspaceApp = ({
     navigateWorkspaceHome();
     setMemoView("notebook");
     setSelectedTag(null);
-    setSelectedNotebookId(notebookId);
+    if (notebookId) setSelectedNotebookId(notebookId);
     setSearch("");
     setMemoFilterMode("all");
     setRightView("editor");
@@ -2206,6 +2196,7 @@ export const WorkspaceApp = ({
     clearMemoSelection();
     clearPendingCreatedMemo();
     setCreatedMemoEditId(null);
+    pendingQuickSwitcherMemoIdRef.current = memoId;
     setSelectedMemoId(memoId);
     setActivePane("editor");
     if (options?.search) {
@@ -2260,14 +2251,6 @@ export const WorkspaceApp = ({
     navigateWorkspaceAiPrompts();
     setRightView("ai-prompts");
     setMobileBottomNavActive("templates");
-    setActivePane("editor");
-  };
-
-  const handleOpenCompanion = () => {
-    clearHiddenMobileSearch();
-    navigateWorkspaceCompanion();
-    setRightView("companion");
-    setMobileBottomNavActive("companion");
     setActivePane("editor");
   };
 
@@ -2384,14 +2367,14 @@ export const WorkspaceApp = ({
       createMemoMutation.mutate({ notebookId, title, contentMarkdown: payload.content, tags: [] });
     });
     const removeScreenshotListener = bridge.onImportScreenshot?.((payload) => {
-      void handleImportScreenshot(payload);
+      void handleImportScreenshotRef.current(payload);
     }) ?? (() => {});
     return () => {
       removeCommandListener();
       removeMarkdownListener();
       removeScreenshotListener();
     };
-  }, [createMemoMutation, defaultMemoNotebookId, handleCreateMemo, handleCreateNotebook, handleGlobalSearch, handleImportScreenshot, notebooks, selectedNotebookId, toggleDesktopFocusMode]);
+  }, [createMemoMutation, defaultMemoNotebookId, handleCreateMemo, handleCreateNotebook, handleGlobalSearch, notebooks, selectedNotebookId, toggleDesktopFocusMode]);
 
   const handleWorkspaceBackRequest = useCallback(() => {
     if (appNoticeDialog) {
@@ -2464,11 +2447,6 @@ export const WorkspaceApp = ({
 
     if (desktopFocusModeActive) {
       updateDesktopFocusMode(false);
-      return true;
-    }
-
-    if (rightView === "companion") {
-      handleSelectAllMemos();
       return true;
     }
 
@@ -2800,8 +2778,6 @@ export const WorkspaceApp = ({
           ? t("templates.title")
         : rightView === "ai-prompts"
           ? t("aiPrompts.title")
-        : rightView === "companion"
-          ? t("companion.title")
         : rightView === "execution-center"
           ? t("executionHistory.centerTitle")
         : rightView === "evernote-migration"
@@ -2820,16 +2796,6 @@ export const WorkspaceApp = ({
       : isStandaloneRuntime
         ? t("workspace.pullToRefresh.pullNotes")
         : t("workspace.pullToRefresh.pullPage");
-  const editorCompanionDiscoveryHub = authRequired && Boolean(user) && !demoMode ? (
-    <Suspense fallback={null}>
-      <CompanionDiscoveryHub key={localDataScope} scope={localDataScope} onOpenNote={handleOpenPluginNote} onOpenSettings={handleOpenSettings}
-        onNotesChanged={async () => {
-          const result = await refreshWorkspaceFromServer("manual");
-          if ("skipped" in result && result.skipped) throw new Error("Workspace refresh was skipped.");
-        }} />
-    </Suspense>
-  ) : null;
-
   return (
     <WorkspaceMotionProvider>
       <div className="edgeever-workspace-shell flex h-[100dvh] overflow-hidden text-slate-950">
@@ -2907,7 +2873,6 @@ export const WorkspaceApp = ({
                   onOpenAssets={handleOpenAssets}
                   onOpenTags={handleOpenTags}
                   onOpenTemplates={handleOpenTemplates}
-                  companionActive={rightView === "companion"}
                   pluginHost={pluginHost}
                   onOpenPluginManager={handleOpenPluginManager}
                   onOpenSettings={handleOpenSettings}
@@ -3087,8 +3052,6 @@ export const WorkspaceApp = ({
                 <m.div key={rightView} className="h-full min-h-0 min-w-0" {...paneEnterMotion}>
                   {rightView === "settings" ? (
                     <SettingsPane
-                    companionScope={localDataScope}
-                    onOpenCompanion={handleOpenCompanion}
                     onOpenExecutionCenter={handleOpenExecutionCenter}
                     onClose={handleCloseSettings}
                     onOpenTemplates={handleOpenTemplates}
@@ -3133,18 +3096,6 @@ export const WorkspaceApp = ({
                   />
                   ) : rightView === "ai-prompts" ? (
                     <AiPromptsPane key={localDataScope} onClose={handleCloseAiPrompts} onOpenExecutionCenter={handleOpenExecutionCenter} />
-                  ) : rightView === "companion" ? (
-                    <CompanionPane key={localDataScope} available={authRequired && Boolean(user) && !demoMode} onBack={handleSelectAllMemos} onOpenSettings={handleOpenSettings}
-                      beforeApply={async () => {
-                        const { assertCompanionChangesSynced } = await import("@/lib/companion-actions");
-                        await assertCompanionChangesSynced(localDataScope);
-                      }}
-                      onNotesChanged={async () => {
-                        const result = await refreshWorkspaceFromServer("manual");
-                        if ("skipped" in result && result.skipped) throw new Error("Workspace refresh was skipped.");
-                      }}
-                      onOpenNote={handleOpenPluginNote}
-                    />
                   ) : rightView === "execution-center" ? (
                     <ExecutionCenterPane currentDeviceId={scheduledTaskDeviceId} onClose={handleCloseExecutionCenter} />
                   ) : rightView === "evernote-migration" ? (
@@ -3196,17 +3147,26 @@ export const WorkspaceApp = ({
                           onSaveAsTemplate={handleSaveAsTemplate}
                           onToggleDesktopFocusMode={toggleDesktopFocusMode}
                           onOpenExecutionCenter={handleOpenExecutionCenter}
-                          companionDiscoveryHub={editorCompanionDiscoveryHub}
+                          
                         />
                       ) : (
                       <EditorPane
                       onOpenExecutionCenter={handleOpenExecutionCenter}
-                      companionDiscoveryHub={editorCompanionDiscoveryHub}
                       memo={selectedMemo}
                       repository={repository}
                       pluginHost={pluginHost}
                       pluginNavigationRequest={pluginNavigationRequest}
                     onOpenAiPrompts={handleOpenAiPrompts}
+                    companionAvailable={authRequired && Boolean(user) && !demoMode}
+                    beforeCompanionApply={async () => {
+                      const { assertCompanionChangesSynced } = await import("@/lib/companion-actions");
+                      await assertCompanionChangesSynced(localDataScope);
+                    }}
+                    onCompanionNotesChanged={async () => {
+                      const result = await refreshWorkspaceFromServer("manual");
+                      if ("skipped" in result && result.skipped) throw new Error("Workspace refresh was skipped.");
+                    }}
+                    onOpenCompanionNote={handleOpenPluginNote}
                     desktopFocusMode={desktopFocusModeActive}
                     onToggleDesktopFocusMode={toggleDesktopFocusMode}
                     editorContentAlignment={editorContentAlignment}

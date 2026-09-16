@@ -31,7 +31,7 @@ const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: "search_memos",
-    description: "Search active EdgeEver memos by text, tag, notebook, time range, pin state, or resource presence.",
+    description: "Search active EdgeEver memos by text, tag, notebook, time range, pin state, or resource presence. query is optional. For recently created or added notes, pass createdAfter and omit query; do not put this week/最近/新增 in query. Time bounds accept YYYY-MM-DD or ISO date-time.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -39,10 +39,10 @@ const MCP_TOOL_DEFINITIONS = [
         query: { type: "string" },
         notebookId: { type: "string" },
         tags: { type: "array", items: { type: "string" } },
-        createdAfter: { type: "string", format: "date-time" },
-        createdBefore: { type: "string", format: "date-time" },
-        updatedAfter: { type: "string", format: "date-time" },
-        updatedBefore: { type: "string", format: "date-time" },
+        createdAfter: { type: "string", description: "ISO 8601 date (YYYY-MM-DD) or date-time. Date-only means 00:00:00.000Z." },
+        createdBefore: { type: "string", description: "ISO 8601 date (YYYY-MM-DD) or date-time. Date-only means 23:59:59.999Z." },
+        updatedAfter: { type: "string", description: "ISO 8601 date (YYYY-MM-DD) or date-time. Date-only means 00:00:00.000Z." },
+        updatedBefore: { type: "string", description: "ISO 8601 date (YYYY-MM-DD) or date-time. Date-only means 23:59:59.999Z." },
         isPinned: { type: "boolean" },
         hasResources: { type: "boolean" },
         limit: { type: "integer", minimum: 1, maximum: 50 },

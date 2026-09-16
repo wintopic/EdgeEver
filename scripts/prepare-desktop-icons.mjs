@@ -62,14 +62,19 @@ const writeResizedPng = async (sourceBuffer, size, destination) => {
 
 const TRAY_TEMPLATE_ALPHA_THRESHOLD = 80;
 const TRAY_MARK_CENTER = { x: 627, y: 580 };
-const TRAY_MARK_SCALE = 1.22;
+// 22pt matches other macOS menu-bar extras. A round stroke adds ink so the
+// open cat face keeps up with filled marks like Notion and WeChat.
+export const TRAY_MARK_SCALE = 1.1;
+export const TRAY_MARK_STROKE_WIDTH = 36;
+export const TRAY_TEMPLATE_SIZE = 22;
+export const TRAY_TEMPLATE_SIZE_2X = 44;
 
 export const buildMacTrayTemplateSvg = (markSvg) => {
   const pathMatch = markSvg.match(/<path\b[^>]*\sd="([^"]+)"/);
   if (!pathMatch) throw new Error("Brand mark is missing a path");
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="EdgeEver">
   <g transform="translate(512 512) scale(${TRAY_MARK_SCALE}) translate(-${TRAY_MARK_CENTER.x} -${TRAY_MARK_CENTER.y})">
-    <path fill="#000000" fill-rule="evenodd" d="${pathMatch[1]}" />
+    <path fill="#000000" stroke="#000000" stroke-width="${TRAY_MARK_STROKE_WIDTH}" stroke-linejoin="round" paint-order="stroke fill" fill-rule="evenodd" d="${pathMatch[1]}" />
   </g>
 </svg>
 `;
@@ -109,8 +114,8 @@ export const prepareTrayIcons = async ({
       .toFile(join(assetsDirectory, fileName));
   };
 
-  await render(16, 72, "trayTemplate.png");
-  await render(32, 144, "trayTemplate@2x.png");
+  await render(TRAY_TEMPLATE_SIZE, 72, "trayTemplate.png");
+  await render(TRAY_TEMPLATE_SIZE_2X, 144, "trayTemplate@2x.png");
   console.log("[prepare-desktop-icons] wrote macOS tray template icons from the brand mark");
 };
 
