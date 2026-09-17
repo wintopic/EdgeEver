@@ -16,7 +16,29 @@ const allowed = new Set([
   "use_note_template", "list_ai_instructions", "get_ai_instruction", "create_ai_instruction", "update_ai_instruction",
   "delete_ai_instruction", "restore_default_ai_instructions",
 ]);
+
+const OPENAI_INCOMPATIBLE_SCHEMA_KEYS = ["oneOf", "anyOf", "allOf", "const"] as const;
+
+export function assertOpenAiCompatibleToolSchema(schema: unknown, toolName: string) {
+  const visit = (value: unknown, path: string) => {
+    if (!value || typeof value !== "object") return;
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => visit(item, `${path}[${index}]`));
+      return;
+    }
+    const record = value as Record<string, unknown>;
+    for (const keyword of OPENAI_INCOMPATIBLE_SCHEMA_KEYS) {
+      if (keyword in record) {
+        throw new Error(`${toolName} ${path} uses ${keyword}, which OpenAI-compatible tool calling rejects.`);
+      }
+    }
+    for (const [key, child] of Object.entries(record)) visit(child, `${path}.${key}`);
+  };
+  visit(schema, "inputSchema");
+}
+
 export const COMPANION_MCP_TOOLS = MCP_TOOLS.filter(tool => allowed.has(tool.name));
+for (const tool of COMPANION_MCP_TOOLS) assertOpenAiCompatibleToolSchema(tool.inputSchema, tool.name);
 const validators = new Map<string, z.ZodType>();
 export function validateCompanionTool(name: string, args: Record<string, unknown>) {
   const definition = COMPANION_MCP_TOOLS.find(tool => tool.name === name);

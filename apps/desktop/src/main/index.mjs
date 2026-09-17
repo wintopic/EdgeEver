@@ -219,6 +219,7 @@ const desktopRuntimeSystemInfo = () => ({
   osRelease: operatingSystemRelease(),
   electron: process.versions.electron || "unknown",
   chrome: process.versions.chrome || "unknown",
+  dataDir: sidecarDataDirectory(activeAccountId),
 });
 
 const desktopDiagnosticSystemInfo = async () => {

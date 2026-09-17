@@ -225,7 +225,7 @@ const beforeRequest = ({ path }: EdgeEverClientRequestContext) => {
 };
 
 const handleUnauthorized = ({ path, token }: EdgeEverClientRequestContext) => {
-  if (path === "/api/v1/auth/login" || typeof window === "undefined") return;
+  if (path === "/api/v1/auth/login" || path.startsWith("/api/public/") || typeof window === "undefined") return;
   const isDesktop = Boolean(window.edgeeverDesktop?.isAvailable);
   void notifyUnauthorized(isDesktop, token);
 };

@@ -56,6 +56,7 @@ interface EdgeEverDesktopBridge {
     osRelease: string;
     electron: string;
     chrome: string;
+    dataDir: string;
   }>;
   setAccountScope(accountId: string | null): Promise<{ ready: true; scope: string }>;
   updateStatus(): Promise<DesktopUpdateStatus>;

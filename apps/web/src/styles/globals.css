@@ -1824,13 +1824,18 @@ textarea {
 }
 
 .ProseMirror.edgeever-note-rich-editor p.is-empty::before {
-  color: #94a3b8;
+  color: #a8b5c4;
   content: attr(data-placeholder);
   float: left;
   font-size: inherit;
+  font-weight: inherit;
   height: 0;
   line-height: inherit;
   pointer-events: none;
+}
+
+:root.dark .ProseMirror.edgeever-note-rich-editor p.is-empty::before {
+  color: #64748b;
 }
 
 /* Custom premium scrollbar style */

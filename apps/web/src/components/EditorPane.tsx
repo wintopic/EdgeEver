@@ -24,7 +24,7 @@ import {
   FileDown,
   FileCode2,
   Printer,
-  Link2,
+  Image as ImageIcon,
   Share2,
   Copy,
   Lock,
@@ -253,8 +253,10 @@ import {
   getNoteLinkFromEventTarget,
   getNoteLinkHintPosition,
   getResourceFilesFromDataTransfer,
+  isCreatedMemoEditorFocused,
   isEditorReady,
   MemoSaveRequestError,
+  shouldRetryCreatedMemoFocus,
   MOBILE_DRAFT_PERSIST_DELAY_MS,
   MOBILE_EDITOR_QUERY,
   requiresLocalEditSession,
@@ -782,27 +784,51 @@ const RichEditorPane = ({
           }
 
           const currentEditor = editorRef.current;
-            if (!isMobileViewport) {
-              if (isEditorReady(currentEditor) && hydratedMemoIdRef.current === memo.id) {
-                currentEditor.commands.focus("end");
-                // Consuming the create request updates the parent and can
-                // briefly blur the editor during that rerender. Mobile
-                // standalone editing consumes the request above; desktop
-                // keeps it alive until the list has observed the new memo so
-                // a background refresh cannot select the previous memo.
-                window.setTimeout(() => {
-                  if (cancelled || memoRef.current?.id !== memo.id) {
-                    return;
-                  }
+          if (!isMobileViewport) {
+            const hydratedForMemo = isEditorInstanceHydratedForMemo(
+              editorInstanceMemoIdentityRef.current,
+              hydratedMemoIdRef.current,
+              memo.id,
+            );
+            if (isEditorReady(currentEditor) && hydratedForMemo && currentEditor.isEditable) {
+              currentEditor.commands.focus("end");
+            }
 
-                  const activeEditor = editorRef.current;
-                  if (isEditorReady(activeEditor)) {
-                    activeEditor.commands.focus("end");
-                  }
-                }, 0);
+            if (shouldRetryCreatedMemoFocus({
+              attempt,
+              editorEditable: Boolean(currentEditor?.isEditable),
+              editorFocused: isCreatedMemoEditorFocused(currentEditor),
+              editorReady: isEditorReady(currentEditor),
+              hydratedForMemo,
+            })) {
+              focusWhenReady(attempt + 1);
+              return;
+            }
+
+            // Consuming the create request updates the parent and can
+            // briefly blur the editor during that rerender. Desktop sync
+            // remapping can also change the memo id before this timeout.
+            window.setTimeout(() => {
+              if (cancelled) {
                 return;
               }
-            }
+
+              const activeMemoId = memoRef.current?.id;
+              if (
+                !activeMemoId
+                || !editorInstanceMemoIdentityRef.current.aliases.has(activeMemoId)
+                || !editorInstanceMemoIdentityRef.current.aliases.has(memo.id)
+              ) {
+                return;
+              }
+
+              const activeEditor = editorRef.current;
+              if (isEditorReady(activeEditor) && activeEditor.isEditable) {
+                activeEditor.commands.focus("end");
+              }
+            }, 0);
+            return;
+          }
 
           // The editor is mounted before its memo hydration/edit session
           // finishes. Keep retrying across that async boundary so a newly
@@ -1667,6 +1693,7 @@ const RichEditorPane = ({
     contentSearchQuery,
     dirtyVersion,
     editor,
+    editorInstanceKey: editorInstanceMemoKey,
     editorScrollContainerRef,
     memoId: memo?.id ?? null,
     readOnly: effectiveReadOnly,
@@ -2206,10 +2233,10 @@ const RichEditorPane = ({
       setTitle(nextTitle);
       setTagsText(nextTagsText);
       setMobilePlainText(nextMarkdown);
-      hydrateMarkdownSource(memo.id, nextContent, nextMarkdown);
+      const keptLiveMarkdown = hydrateMarkdownSource(memo.id, nextContent, nextMarkdown);
       setMobilePlainTextElementValue(mobileTextAreaRef.current, nextMarkdown);
 
-      if (isEditorReady(currentEditor) && shouldReplaceDocument) {
+      if (isEditorReady(currentEditor) && shouldReplaceDocument && !keptLiveMarkdown) {
         try {
           currentEditor.commands.setContent(nextContent);
         } catch (err) {
@@ -3010,7 +3037,7 @@ const RichEditorPane = ({
     setTitle(nextTitle);
     setTagsText(nextTagsText);
     setMobilePlainText(nextMarkdown);
-    hydrateMarkdownSource(remoteMemo.id, nextContent, nextMarkdown);
+    hydrateMarkdownSource(remoteMemo.id, nextContent, nextMarkdown, { force: true });
     setMobilePlainTextElementValue(mobileTextAreaRef.current, nextMarkdown);
 
     const currentEditor = editorRef.current;
@@ -3316,7 +3343,7 @@ const RichEditorPane = ({
                 disabled={effectiveReadOnly}
                 onClick={() => setShareOpen(true)}
               >
-                <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
+                <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
                 <span className="hidden sm:inline">{t("sharing.active")}</span>
               </button>
             )}
@@ -3539,7 +3566,7 @@ const RichEditorPane = ({
                     disabled={isLocalMemoId(memo.id)}
                     onClick={() => setShareOpen(true)}
                   >
-                    <Link2 className={cn("h-4 w-4", isMemoShared ? "text-emerald-600" : "text-slate-500")} />
+                    <Share2 className={cn("h-4 w-4", isMemoShared ? "text-emerald-600" : "text-slate-500")} />
                     {t(isLocalMemoId(memo.id) ? "sharing.afterSync" : isMemoShared ? "sharing.manage" : "sharing.action")}
                   </DropdownMenuItem>
                 )}
@@ -3568,7 +3595,7 @@ const RichEditorPane = ({
                   className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer outline-none"
                   onClick={handleOpenImageShare}
                 >
-                  <Share2 className="h-4 w-4 text-slate-500" />
+                  <ImageIcon className="h-4 w-4 text-slate-500" />
                   {t("editor.imageShare.action")}
                 </DropdownMenuItem>
                 {readOnly ? (
