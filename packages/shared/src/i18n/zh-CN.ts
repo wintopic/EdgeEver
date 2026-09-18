@@ -262,7 +262,7 @@ export const zhCN = {
     desktopInstanceUrl: "实例地址",
     desktopInstanceContinue: "继续",
     desktopChangeInstance: "更换实例地址",
-    desktopInstanceUrlInvalid: "请输入以 http:// 或 https:// 开头的有效实例地址。",
+    desktopInstanceUrlInvalid: "请输入有效的实例地址。",
     instanceUrlPlaceholder: "https://demo.edgeever.org",
   },
   nav: {
@@ -1012,7 +1012,7 @@ export const zhCN = {
   aiAssistant: {
     title: "AI 笔记助手",
     modes: {
-      instruction: "指令模式",
+      instruction: "问答模式",
       ask: "Agent 模式",
       askHint: "可以检索和整理笔记。删除进回收站，改过的可从历史还原。",
       askPlaceholder: "问问你的笔记，或让 Agent 整理…",

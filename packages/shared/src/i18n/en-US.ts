@@ -262,7 +262,7 @@ export const enUS = {
     desktopInstanceUrl: "Instance URL",
     desktopInstanceContinue: "Continue",
     desktopChangeInstance: "Change instance URL",
-    desktopInstanceUrlInvalid: "Enter a valid instance URL beginning with http:// or https://.",
+    desktopInstanceUrlInvalid: "Enter a valid instance URL.",
     instanceUrlPlaceholder: "https://demo.edgeever.org",
   },
   nav: {
@@ -1012,7 +1012,7 @@ export const enUS = {
   aiAssistant: {
     title: "AI note assistant",
     modes: {
-      instruction: "Instruction",
+      instruction: "Q&A",
       ask: "Agent",
       askHint: "Search and organize notes. Deleted notes go to Trash; edits can be restored from history.",
       askPlaceholder: "Ask your notes, or have the agent organize them…",
