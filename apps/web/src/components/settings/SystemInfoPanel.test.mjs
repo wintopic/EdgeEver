@@ -17,9 +17,9 @@ describe("system information client/instance version hint", () => {
 });
 
 describe("system information diagnostic fields", () => {
-  test("shows desktop instance URL and data directory only as local-only fields", () => {
+  test("shows desktop instance URL as local-only field and omits data directory", () => {
     expect(source).toContain('t("systemInfo.instanceUrl")');
-    expect(source).toContain('t("systemInfo.dataDirectory")');
+    expect(source).not.toContain('t("systemInfo.dataDirectory")');
     expect(source).toContain("localOnly: true");
     expect(source).toContain('clientKind === "desktopApp"');
     expect(source).toContain("getShareableWebSystemInfoItems");

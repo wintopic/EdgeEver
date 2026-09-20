@@ -1191,7 +1191,6 @@ export const enUS = {
     runtimeEngine: "Runtime engine",
     language: "Language",
     timeZone: "Time zone",
-    dataDirectory: "Data directory",
     instanceConnection: "Instance connection",
     requestLatency: "Health check time",
     lastSuccessfulSync: "Last successful sync",

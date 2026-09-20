@@ -25,7 +25,7 @@ Many long-time **Evernote** users simply want a **reliable, open, and fast** per
 * **Obsidian**: Open files, closed-source core. Official Sync is paid and third-party sync is tedious; storing images and attachments alongside notes quickly bloats vaults, making mobile sync sluggish and leaving orphaned files behind; and it is overly heavy for lightweight, capture-anywhere use.
 * **Memos & Stream Notes**: Clean and simple, but their social-timeline layouts differ fundamentally from the structured productivity of a classic three-pane workflow.
 
-**EdgeEver fills this gap**: The entire stack is open source, including sync and self-hosting. It keeps the three-pane layout you know, with native AI agents and zero-cost deployment.
+**EdgeEver fills this gap**: The entire stack is open source, including sync and self-hosting. It keeps the three-pane layout you know, stays silky-smooth and lightweight even with 10,000+ notes, and ships native AI agents with zero-cost deployment.
 
 > 💡 **Recommended Workflow:**
 > Capture inspiration seamlessly across all devices and organize deeply in the classic three-pane view. Powered by native MCP, it not only lets AI agents retrieve and synthesize your knowledge, but also connects with your favorite productivity tools like Notion and Feishu. Publish anywhere with one-click formatting—100% self-hosted at zero cost, building an open and truly owned second brain.
@@ -58,6 +58,7 @@ The public demo resets every day at 3:00 AM (China Standard Time) and restores s
 - **Rich Plugin API**: Extend EdgeEver with the [Plugin API](docs/plugin-development.md).
 - **Unlimited Multi-Device Sync**: No commercial device caps or paywalls. Enjoy seamless synchronization across PC, tablet, and mobile via web, PWA, or browser.
 - **Classic Three-Pane Layout & Focus Mode**: Clean navigation featuring notebook trees, note lists, and an expansive editor, with a desktop focus mode to eliminate distractions.
+- **Light, Lasting Desktop Performance**: Switching notes does not keep old images and documents in memory, and the desktop app stays responsive after sitting in the background.
 - **Unlimited Nested Notebooks**: Organize your knowledge with arbitrary folder depth.
 - **One-Click Rich Copy for Newsletters & Blogs**: Designed for creators to convert notes into beautifully formatted rich text with inline CSS, ready to paste directly into Substack, Medium, WordPress, or newsletter editors without extra tools.
 - **Seamless Dual-View Editor**: Switch effortlessly between intuitive rich text editing and Markdown source code on desktop.

@@ -49,7 +49,7 @@ describe("desktop update flow", () => {
     expect(systemInfoSource).toContain("getClientRuntimeDiagnostics");
     expect(systemInfoSource).toContain('t("systemInfo.runtimeEngine")');
     expect(systemInfoSource).toContain('t("systemInfo.connectionSection")');
-    expect(systemInfoSource).toContain('t("systemInfo.dataDirectory")');
+    expect(systemInfoSource).not.toContain('t("systemInfo.dataDirectory")');
     expect(mainSource).toContain("dataDir: sidecarDataDirectory(activeAccountId)");
   });
 

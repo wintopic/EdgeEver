@@ -223,15 +223,6 @@ const getWebSystemInfoGroups = (
         },
         { label: t("systemInfo.language"), value: navigator.language || language, mono: true },
         { label: t("systemInfo.timeZone"), value: timeZone, mono: true, colSpan: "double-sm" },
-        ...(clientKind === "desktopApp"
-          ? [{
-              label: t("systemInfo.dataDirectory"),
-              value: diagnostics.clientRuntime?.dataDirectory ?? t("systemInfo.unknown"),
-              mono: true,
-              colSpan: "full" as const,
-              localOnly: true,
-            }]
-          : []),
       ],
     },
   ];
