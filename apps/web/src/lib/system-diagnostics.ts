@@ -1,4 +1,4 @@
-import { summarizeSyncQueue } from "@edgeever/shared";
+import { summarizeSyncQueue, toDevicePixelScreenSize, type ClientDisplaySizeInput } from "@edgeever/shared";
 import { api, getConfiguredDesktopApiBaseUrl } from "./api";
 import { localDb } from "./local-db";
 import { createLocalDataScope } from "./local-mirror";
@@ -7,6 +7,7 @@ export type ClientRuntimeDiagnostics = {
   appVersion: string | null;
   architecture: string | null;
   autoUpdateSupported: boolean | null;
+  deviceModel: string | null;
   engine: string | null;
   operatingSystem: string | null;
 };
@@ -21,10 +22,12 @@ export type ClientSyncDiagnostics = {
 
 type UserAgentData = {
   architecture?: string;
+  model?: string;
   platform?: string;
   platformVersion?: string;
   getHighEntropyValues?: (hints: string[]) => Promise<{
     architecture?: string;
+    model?: string;
     platformVersion?: string;
   }>;
 };
@@ -61,6 +64,15 @@ const browserOperatingSystem = (userAgent: string, platform: string, platformVer
   return null;
 };
 
+export const readBrowserClientDisplaySize = (): ClientDisplaySizeInput | null => {
+  if (typeof window === "undefined" || typeof screen === "undefined") return null;
+  return toDevicePixelScreenSize({
+    devicePixelRatio: Number(window.devicePixelRatio) || 1,
+    screenHeight: Number(screen.height),
+    screenWidth: Number(screen.width),
+  });
+};
+
 const desktopOperatingSystem = (platform: string, version: string) => {
   const name = platform === "darwin"
     ? "macOS"
@@ -80,6 +92,7 @@ export const getClientRuntimeDiagnostics = async (): Promise<ClientRuntimeDiagno
       appVersion: info.appVersion,
       architecture: info.architecture === "unknown" ? null : info.architecture,
       autoUpdateSupported: info.autoUpdateSupported,
+      deviceModel: info.deviceModel === "unknown" ? null : info.deviceModel,
       engine: [
         info.electron === "unknown" ? null : `Electron ${info.electron}`,
         info.chrome === "unknown" ? null : `Chromium ${info.chrome}`,
@@ -91,11 +104,13 @@ export const getClientRuntimeDiagnostics = async (): Promise<ClientRuntimeDiagno
   const navigatorWithData = navigator as NavigatorWithUserAgentData;
   const userAgentData = navigatorWithData.userAgentData;
   let architecture = userAgentData?.architecture;
+  let deviceModel = userAgentData?.model;
   let platformVersion: string | undefined;
   if (userAgentData?.getHighEntropyValues) {
     try {
-      const highEntropy = await userAgentData.getHighEntropyValues(["architecture", "platformVersion"]);
+      const highEntropy = await userAgentData.getHighEntropyValues(["architecture", "model", "platformVersion"]);
       architecture = highEntropy.architecture || architecture;
+      deviceModel = highEntropy.model || deviceModel;
       platformVersion = highEntropy.platformVersion;
     } catch {
       // Browsers may decline high-entropy hints; the safe fallback remains useful.
@@ -106,6 +121,7 @@ export const getClientRuntimeDiagnostics = async (): Promise<ClientRuntimeDiagno
     appVersion: null,
     architecture: architecture || null,
     autoUpdateSupported: null,
+    deviceModel: deviceModel?.trim() || null,
     engine: browserEngine(navigator.userAgent),
     operatingSystem: browserOperatingSystem(
       navigator.userAgent,

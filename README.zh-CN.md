@@ -1,16 +1,28 @@
-<h1><img src="assets/brand/edgeever-icon.svg" alt="EdgeEver Logo" width="40" align="absmiddle" /> EdgeEver</h1>
+<div align="center">
+  <h1>
+    <img src="assets/brand/edgeever-icon.svg" alt="EdgeEver Logo" width="40" align="absmiddle" /> EdgeEver
+  </h1>
+  <p>
+    <b>开源、原生支持 AI、可自由部署的自托管知识库与「印象笔记」替代方案</b>
+  </p>
+  <p>
+    <a href="https://github.com/tianma-if/edgeever/stargazers"><img src="https://img.shields.io/github/stars/tianma-if/edgeever?style=social" alt="GitHub Stars" /></a>
+    <a href="https://github.com/tianma-if/edgeever/network/members"><img src="https://img.shields.io/github/forks/tianma-if/edgeever?style=social" alt="GitHub Forks" /></a>
+    <a href="https://github.com/tianma-if/edgeever/pkgs/container/edgeever"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fghcr-badge.elias.eu.org%2Fapi%2Ftianma-if%2Fedgeever%2Fedgeever&query=downloadCount&style=social&logo=docker&label=Docker%20Pulls" alt="Docker Pulls" /></a>
+    <a href="https://www.producthunt.com/products/edgeever?utm_source=other&utm_medium=social"><img src="https://img.shields.io/badge/Product%20Hunt-ea532a?style=social&logo=product-hunt" alt="Product Hunt" /></a>
+    <a href="https://afdian.com/a/tianma-if"><img src="https://img.shields.io/badge/爱发电-946ce6?style=social&logo=github-sponsors" alt="爱发电赞助" /></a>
+  </p>
+  <p>
+    <b>简体中文</b> | <a href="README.zh-TW.md">繁體中文</a> | <a href="README.md">English</a> | <a href="README.ja.md">日本語</a>
+  </p>
+  <p>
+    <a href="#wechat-group">💬 微信交流群</a> &nbsp;|&nbsp;
+    <a href="https://demo.edgeever.org">🌐 在线演示</a> &nbsp;|&nbsp;
+    <a href="#客户端下载">📱 客户端下载</a>
+  </p>
+</div>
 
-[![GitHub Stars](https://img.shields.io/github/stars/tianma-if/edgeever?style=social)](https://github.com/tianma-if/edgeever/stargazers)
-[![GitHub Forks](https://img.shields.io/github/forks/tianma-if/edgeever?style=social)](https://github.com/tianma-if/edgeever/network/members)
-[![Docker Pulls](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fghcr-badge.elias.eu.org%2Fapi%2Ftianma-if%2Fedgeever%2Fedgeever&query=downloadCount&style=social&logo=docker&label=Docker%20Pulls)](https://github.com/tianma-if/edgeever/pkgs/container/edgeever)
-[![Product Hunt](https://img.shields.io/badge/Product%20Hunt-ea532a?style=social&logo=product-hunt)](https://www.producthunt.com/products/edgeever?utm_source=other&utm_medium=social)
-[![爱发电赞助](https://img.shields.io/badge/爱发电-946ce6?style=social&logo=github-sponsors)](https://afdian.com/a/tianma-if)
 
-简体中文 | [繁體中文](README.zh-TW.md) | [English](README.md) | [日本語](README.ja.md)
-
-[微信群](#wechat-group)
-
-> **EdgeEver：开源、原生支持 AI、可自由部署的自托管知识库与「印象笔记」替代方案。**
 
 EdgeEver 是一款现代化的开源笔记与个人知识库工作区。它为你找回经典印象笔记的三栏高效体验，同时具备完全开放的数据架构与原生 AI Agent 联动能力，让个人知识沉淀更轻量、更自由。
 
@@ -24,8 +36,8 @@ EdgeEver 是一款现代化的开源笔记与个人知识库工作区。它为�
 很多长期使用**印象笔记**的用户，核心需求只是一个**可靠、开放、响应迅速**的个人知识库。然而，当下的主流方案都各有痛点：
 
 * **印象笔记**：功能日益臃肿，商业广告与繁杂附加功能充斥，性能与内存占用居高不下；且数据相对封闭难以导出，免费版限制重重，支持 AI/MCP 的套餐订阅成本高昂。
-* **Obsidian**：Markdown 开放，核心闭源；官方同步收费，第三方同步繁琐；图片与附件与文本混存，仓库体积极易膨胀导致移动端同步缓慢，且删笔记后残留附件难清理；对于“随时随地随手记”的轻量场景来说偏重。
-* **Memos 等轻量笔记**：虽然简单好用，但流式卡片布局与习惯了经典“三栏工作流”的用户有着天然的交互习惯差异。
+* **Obsidian**：Markdown 开放，核心闭源；官方同步收费，第三方同步繁琐；纯本地文件依赖遍历扫描，当笔记积累到数千上万条或加载复杂插件后，冷启动与全库检索明显卡顿迟缓；图片与附件与文本混存，仓库体积极易膨胀导致移动端同步缓慢，且删笔记后残留附件难清理；对于“随时随地随手记”的轻量场景来说偏重。
+* **Memos / Flomo 等轻量笔记**：虽然简单好用，但流式卡片布局与习惯了经典“三栏工作流”的用户有着天然的交互习惯差异。
 
 **EdgeEver 恰好填补了这一空白**：整栈开源，云同步与自托管都可自行部署；同时保留经典三栏布局与流畅排版，万条笔记常驻依然轻盈丝滑，原生支持接入 AI Agent，部署维护零门槛、零费用。
 
@@ -66,7 +78,7 @@ EdgeEver 是一款现代化的开源笔记与个人知识库工作区。它为�
 - **优雅的双视图编辑**：桌面端支持在富文本与 Markdown 源码视图之间自由切换。
 - **单篇笔记便捷导出**：可将当前笔记直接导出为 Markdown、HTML 或 PDF，方便独立保存、分享与发布。
 - **Mermaid 架构图与流程图渲染**：原生支持 Mermaid 代码块渲染，视图切换时完整保留可编辑源码，让绘制逻辑图表更直观。
-- **可视化图表笔记**：Web 与桌面端支持创建、编辑思维导图、流程图和架构图，提供语义组件、系统边界、连线说明、自动布局、历史版本及 PNG/SVG 导出；Android 与 iOS App 保留同一份图表数据，并提供语义化只读视图。详见[可视化图表笔记设计说明](docs/visual-diagram-notes.zh-CN.md)。
+- **可视化图表笔记**：告别外部绘图软件，在笔记内即可直观绘制思维导图、流程图与架构图；基于结构化 IR，内置助手与外部 AI Agent 可一句话智能生成与修改图表，支持自动布局、全端同步及矢量导出。详见[可视化图表笔记设计说明](docs/visual-diagram-notes.zh-CN.md)。
 - **笔记历史版本回溯**：自动记录修改历史，随时查阅与还原过往版本。
 - **公开笔记分享**：支持公开分享笔记，并可随时取消分享；需要时可为分享链接开启自动生成的访问密码。
 - **移动 App 微信公众号文章剪藏**：在手机上将微信公众号文章分享至 EdgeEver，即可提取正文并保存为可继续编辑的笔记。
