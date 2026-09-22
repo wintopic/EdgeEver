@@ -99,6 +99,19 @@ describe("NotebookPane sidebar collapse", () => {
   });
 });
 
+describe("NotebookPane tree expansion persistence", () => {
+  test("stores collapsed branches outside individual tree items", () => {
+    const treeItemSource = readFileSync(new URL("./NotebookTreeItem.tsx", import.meta.url), "utf8");
+
+    expect(source).toContain("readNotebookTreeCollapsedIdsPreference");
+    expect(source).toContain("writeNotebookTreeCollapsedIdsPreference(collapsedNotebookIds)");
+    expect(source).toContain("collapsedNotebookIds={collapsedNotebookIds}");
+    expect(treeItemSource).toContain("const open = !collapsedNotebookIds.has(node.id)");
+    expect(treeItemSource).not.toContain("const [open, setOpen] = useState(true)");
+    expect(treeItemSource).not.toContain("if (hasSelectedDescendant) {");
+  });
+});
+
 describe("NotebookPane client downloads", () => {
   test("keeps macOS, Windows, and Linux downloads visible in the desktop runtime", () => {
     expect(source).toContain('t("pwa.sidebarMac") || "macOS"');

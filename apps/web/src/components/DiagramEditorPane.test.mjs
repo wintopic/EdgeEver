@@ -54,6 +54,9 @@ describe("diagram editor keyboard workflow", () => {
       source.indexOf("const suspendScrollerAutoResize"),
       source.indexOf("const nodeEditorState"),
     );
+    expect(settleHelper.indexOf("ensureDiagramPaperContainsNodes(graph)")).toBeGreaterThan(
+      settleHelper.indexOf("scroller.updateScroller()"),
+    );
     expect(settleHelper).not.toContain("graph.centerPoint");
     expect(settleHelper).toContain("anchorAfter.left - anchorBefore.left");
     expect(settleHelper).toContain("anchorAfter.top - anchorBefore.top");
@@ -158,11 +161,10 @@ describe("diagram editor canvas surface", () => {
     expect(source).not.toContain('t("diagram.saved")');
   });
 
-  test("uses a clean grid-free canvas for both diagram types", () => {
-    expect(source).toContain("grid: false");
+  test("uses an engineering dot grid for structured diagrams and a clean grid-free canvas for mind-maps", () => {
+    expect(source).toContain('kind === "architecture" || kind === "flowchart"');
     expect(source).toContain("graph.clearGrid();");
-    expect(source).not.toContain("diagramGrid");
-    expect(source).not.toContain("graph.drawGrid");
+    expect(source).toContain("graph.drawGrid");
   });
 
   test("uses restrained rounded edges and fits the complete diagram without clipping", () => {
@@ -185,7 +187,13 @@ describe("diagram editor canvas surface", () => {
     expect(source).toContain('{ fill: "none" }');
     expect(source).toContain('if (kind !== "mind-map") edge.attr("line/fill", "none")');
     expect(source).toContain("FLOWCHART_EDGE_ROUTER");
-    expect(source).toContain("applyFlowchartEdgePorts(graph)");
+    expect(source).toContain("fontSize: ARCHITECTURE_EDGE_LABEL_FONT_SIZE");
+    expect(source).toContain("lineHeight: ARCHITECTURE_EDGE_LABEL_LINE_HEIGHT");
+    expect(source).toContain("fontSize: FLOWCHART_EDGE_LABEL_FONT_SIZE");
+    expect(source).toContain("lineHeight: FLOWCHART_EDGE_LABEL_LINE_HEIGHT");
+    expect(source).toContain("fontSize: MIND_MAP_EDGE_LABEL_FONT_SIZE");
+    expect(source).toContain("lineHeight: MIND_MAP_EDGE_LABEL_LINE_HEIGHT");
+    expect(source).toContain("applyOrthogonalEdgePorts(graph, document.kind)");
     expect(source).toContain("flowchartEdgeIsStraight");
     expect(source).toContain('showTheme={document.kind !== "architecture"}');
     expect(source).toContain('themeCatalog={document.kind === "flowchart" ? "flowchart" : "mind-map"}');
@@ -313,6 +321,7 @@ describe("diagram editor canvas surface", () => {
     expect(source).toContain('t("diagram.componentSearch")');
     expect(source).toContain('labelKey: "diagram.componentCategoryExperience"');
     expect(source).toContain('labelKey: "diagram.componentCategoryServices"');
+    expect(source).toContain('labelKey: "diagram.componentCategoryAi"');
     expect(source).toContain('labelKey: "diagram.componentCategoryDatabases"');
     expect(source).toContain('labelKey: "diagram.componentCategoryStorage"');
     expect(source).toContain('labelKey: "diagram.componentCategoryMiddleware"');
@@ -320,6 +329,10 @@ describe("diagram editor canvas surface", () => {
     expect(source).toContain('labelKey: "diagram.componentCategorySecurity"');
     expect(source).toContain('labelKey: "diagram.componentCategoryObservability"');
     expect(source).toContain('labelKey: "diagram.componentCategoryExternal"');
+    expect(source).toContain('labelKey: "diagram.architectureResources.largeLanguageModel"');
+    expect(source).toContain('labelKey: "diagram.architectureResources.vectorDatabase"');
+    expect(source).toContain('labelKey: "diagram.architectureResources.aiAgent"');
+    expect(source).toContain('labelKey: "diagram.architectureResources.mcpServer"');
     expect(source).toContain("<Collapsible key={category.id} defaultOpen>");
     expect(source).toContain("category.items.filter");
     expect(source).toContain('className="grid grid-cols-7 gap-1 px-1 pb-2"');
@@ -331,7 +344,12 @@ describe("diagram editor canvas surface", () => {
     expect(source).toContain('resourceIcon: architectureResourceIcon(item)');
     expect(source).toContain('...(data?.resourceIcon ? { resourceIcon: data.resourceIcon } : {})');
     expect(source).toContain('architectureNodeVisual(node.shape, appearance, size, node.resourceIcon)');
-    expect(source).toContain('inferArchitectureResourceIcon(node.label, t)');
+    expect(source).toContain('labelKey: "diagram.architectureResources.gpu"');
+    expect(source).toContain('labelKey: "diagram.architectureResources.cpu"');
+    expect(source).toContain('labelKey: "diagram.architectureResources.memory"');
+    expect(source).toContain("ARCHITECTURE_RESOURCE_ALIASES");
+    expect(source).toContain("<ArchitectureIconPicker");
+    expect(source).toContain("updateSelectedResourceIcon");
     expect(source).not.toContain('.render({}, null).props.iconNode');
     expect(source).not.toContain('className="line-clamp-2"');
   });

@@ -55,7 +55,9 @@ import {
   getNotebookSortOptions,
   getNotebookSortComparator,
   hasEdgeEverDragData,
+  readNotebookTreeCollapsedIdsPreference,
   readNotebookSortPreference,
+  writeNotebookTreeCollapsedIdsPreference,
   writeNotebookSortPreference,
 } from "@/lib/app-helpers";
 import type { EdgeEverRepository } from "@/lib/repository";
@@ -529,6 +531,7 @@ export const NotebookPane = ({
   const notebookDragScrollFrameRef = useRef<number | null>(null);
   const [expandSiblingsRequest, setExpandSiblingsRequest] = useState<{ parentId: string | null; token: number } | null>(null);
   const [notebookSortMode, setNotebookSortMode] = useState<NotebookSortMode>(readNotebookSortPreference);
+  const [collapsedNotebookIds, setCollapsedNotebookIds] = useState<Set<string>>(readNotebookTreeCollapsedIdsPreference);
 
   const handleMoveNotebook = useCallback((notebookId: string, targetNotebookId: string, position: NotebookDropPosition) => {
     setNotebookSortMode("custom");
@@ -604,6 +607,26 @@ export const NotebookPane = ({
   useEffect(() => {
     writeNotebookSortPreference(notebookSortMode);
   }, [notebookSortMode]);
+
+  useEffect(() => {
+    writeNotebookTreeCollapsedIdsPreference(collapsedNotebookIds);
+  }, [collapsedNotebookIds]);
+
+  const handleNotebookOpenChange = useCallback((notebookId: string, open: boolean) => {
+    setCollapsedNotebookIds((current) => {
+      if (current.has(notebookId) === !open) {
+        return current;
+      }
+
+      const next = new Set(current);
+      if (open) {
+        next.delete(notebookId);
+      } else {
+        next.add(notebookId);
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (!selectedNotebookId) {
@@ -803,6 +826,8 @@ export const NotebookPane = ({
                 onMoveNotebook={handleMoveNotebook}
                 onMoveMemos={onMoveMemos}
                 onDragScroll={handleNotebookScrollDragOver}
+                collapsedNotebookIds={collapsedNotebookIds}
+                onOpenChange={handleNotebookOpenChange}
                 expandSiblingsRequest={expandSiblingsRequest}
                 onExpandSiblings={handleExpandNotebookSiblings}
               />
