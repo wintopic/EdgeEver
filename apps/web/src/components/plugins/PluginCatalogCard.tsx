@@ -17,8 +17,6 @@ import { getPluginDetailPath, hasPluginSettings, isPluginCardCommand } from "@/l
 import type { PluginUpdateInfo } from "@/lib/plugins/plugin-updates";
 import type { RegisteredPluginCommand } from "@/lib/plugins/plugin-host";
 
-const permissionLabel = (permission: string) => permission.replace(":", " · ");
-
 const sourceBadgeClassName = (sourceKey: ReturnType<typeof getPluginCatalogSourceKey>) =>
   sourceKey === "github" || sourceKey === "manifest"
     ? "bg-amber-50 text-amber-700"
@@ -132,21 +130,6 @@ export const PluginCatalogCard = ({
           ) : null}
         </div>
       </div>
-
-      {extension?.manifest.type === "plugin" && extension.manifest.permissions.length > 0 ? (
-        <div className="mt-2 flex flex-wrap gap-1">
-          {extension.manifest.permissions.slice(0, 3).map((permission) => (
-            <span key={permission} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-600">
-              {permission === "network:public" ? t("plugins.permissions.publicNetwork") : permissionLabel(permission)}
-            </span>
-          ))}
-          {extension.manifest.permissions.length > 3 ? (
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-600">
-              +{extension.manifest.permissions.length - 3}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
 
       {extension?.error ? <div className="mt-2 text-xs text-rose-600">{extension.error}</div> : null}
 

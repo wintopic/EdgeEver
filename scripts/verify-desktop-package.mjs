@@ -93,6 +93,15 @@ if (requestedPlatform === "darwin") {
   assert.ok(existsSync(sidecar), `macOS app bundle is missing the sidecar: ${sidecar}`);
   verifyMachOArch(executable, requestedArch, "Electron executable");
   verifyMachOArch(sidecar, requestedArch, "Rust sidecar");
+  const shareExtension = join(unpackedApp, "Contents", "PlugIns", "EdgeEverShare.appex", "Contents", "MacOS", "EdgeEverShare");
+  assert.ok(existsSync(shareExtension), `macOS app bundle is missing the WeChat share extension: ${shareExtension}`);
+  verifyMachOArch(shareExtension, requestedArch, "WeChat share extension");
+  const extensionSymbols = spawnSync("nm", ["-u", shareExtension], { encoding: "utf8" });
+  assert.equal(extensionSymbols.status, 0, `WeChat share extension symbol inspection failed: ${extensionSymbols.stderr || extensionSymbols.stdout}`);
+  assert.match(extensionSymbols.stdout, /\b_NSExtensionMain\b/, "WeChat share extension must use the system extension entry point");
+  const shareExtensionInfo = readFileSync(join(unpackedApp, "Contents", "PlugIns", "EdgeEverShare.appex", "Contents", "Info.plist"), "utf8");
+  assert.match(shareExtensionInfo, /com\.apple\.share-services/, "WeChat share extension must register a share service");
+  assert.match(shareExtensionInfo, /NSExtensionActivationSupportsFileWithMaxCount/, "WeChat share extension must accept shared files");
   const asarPath = join(appResources, "app.asar");
   assert.ok(existsSync(asarPath), `macOS app bundle is missing app.asar: ${asarPath}`);
   const asarFiles = listAsarFiles(asarPath);

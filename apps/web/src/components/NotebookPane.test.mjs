@@ -47,13 +47,16 @@ test("keeps the desktop sync status bar and sidebar chrome compact without shrin
 
 test("lists diagram note types in the create menu without beta badges", () => {
   const createTypeMenu = source.split("const CreateMemoTypeItems")[1]?.split("const getSyncStatusLabel")[0];
+  const diagramSection = createTypeMenu?.split('onCreateMemo("table")')[0];
 
   expect(createTypeMenu).toContain('onCreateMemo()');
   expect(createTypeMenu).toContain('onCreateMemo("mind-map")');
   expect(createTypeMenu).toContain('onCreateMemo("flowchart")');
   expect(createTypeMenu).toContain('onCreateMemo("architecture")');
-  expect(createTypeMenu).not.toContain("DiagramBetaBadge");
-  expect(createTypeMenu).not.toContain("Beta");
+  expect(createTypeMenu).toContain('onCreateMemo("table")');
+  expect(diagramSection).not.toContain("DiagramBetaBadge");
+  expect(diagramSection).not.toContain("Beta");
+  expect(createTypeMenu).toContain("Beta");
 });
 
 describe("NotebookPane sidebar collapse", () => {

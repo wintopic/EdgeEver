@@ -34,6 +34,9 @@ import type {
   MemoRevision,
   MemoSummary,
   MemoShare,
+  PublicTableForm,
+  TableFormSettings,
+  TableFormUpdateInput,
   MemoTemplate,
   ScheduledTask,
   ScheduledTaskRun,
@@ -803,6 +806,12 @@ export const createEdgeEverClient = (options: EdgeEverClientOptions = {}) => {
     getPublicMemoShare: (token: string) =>
       request<PublicMemoShareResponse>(`/api/public/shares/${encodeURIComponent(token)}`),
 
+    updatePublishedNoteBodyFont: (bodyFont: PublicMemoShare["bodyFont"]) =>
+      request<{ bodyFont: PublicMemoShare["bodyFont"] }>("/api/v1/me/note-body-font", {
+        method: "PUT",
+        body: JSON.stringify({ bodyFont }),
+      }),
+
     unlockPublicMemoShare: (token: string, password: string) =>
       request<{ ok: true }>(`/api/public/shares/${encodeURIComponent(token)}/unlock`, {
         method: "POST",
@@ -1500,6 +1509,39 @@ export const createEdgeEverClient = (options: EdgeEverClientOptions = {}) => {
         method: "PATCH",
         body: JSON.stringify(payload),
       }),
+
+    getTableForm: (memoId: string) =>
+      request<{ form: TableFormSettings | null }>(`/api/v1/memos/${encodeURIComponent(memoId)}/form`),
+
+    updateTableForm: (memoId: string, payload: TableFormUpdateInput) =>
+      request<{ form: TableFormSettings }>(`/api/v1/memos/${encodeURIComponent(memoId)}/form`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      }),
+
+    getPublicTableForm: (token: string) =>
+      request<{ form: PublicTableForm }>(`/api/public/forms/${encodeURIComponent(token)}`),
+
+    unlockPublicTableForm: (token: string, password: string) =>
+      request<{ ok: true }>(`/api/public/forms/${encodeURIComponent(token)}/unlock`, {
+        method: "POST",
+        body: JSON.stringify({ password }),
+      }),
+
+    submitPublicTableForm: (token: string, cells: Record<string, unknown>) =>
+      request<{ ok: true }>(`/api/public/forms/${encodeURIComponent(token)}/submissions`, {
+        method: "POST",
+        body: JSON.stringify({ cells }),
+      }),
+
+    uploadPublicTableFormFile: (token: string, file: File) => {
+      const form = new FormData();
+      form.append("file", file, file.name || "attachment");
+      return request<{ resource: { id: string; filename: string; mimeType: string; byteSize: number } }>(
+        `/api/public/forms/${encodeURIComponent(token)}/resources`,
+        { method: "POST", body: form },
+      );
+    },
 
     revokeMemoShare: (memoId: string) =>
       request<{ ok: true }>(`/api/v1/memos/${memoId}/share`, { method: "DELETE" }),

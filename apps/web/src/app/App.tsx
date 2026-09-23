@@ -18,6 +18,7 @@ import {
 import { classifyLoginError, getLoginProblemMessageKey } from "@/lib/login-error";
 import { EVERNOTE_MIGRATION_PATH } from "@/lib/routes";
 import { isBrowserOffline } from "@/lib/network-status";
+import { syncPublishedNoteBodyFont } from "@/lib/published-note-body-font";
 import type { AuthSession } from "@edgeever/shared";
 
 const EvernoteImportGuidePane = lazy(() =>
@@ -26,6 +27,7 @@ const EvernoteImportGuidePane = lazy(() =>
 const LoginScreen = lazy(() => import("@/components/LoginScreen").then((module) => ({ default: module.LoginScreen })));
 const WorkspaceApp = lazy(() => import("@/components/WorkspaceApp").then((module) => ({ default: module.WorkspaceApp })));
 const PublicSharePage = lazy(() => import("@/components/PublicSharePage").then((module) => ({ default: module.PublicSharePage })));
+const PublicTableFormPage = lazy(() => import("@/components/PublicTableFormPage").then((module) => ({ default: module.PublicTableFormPage })));
 
 const AuthLoadingScreen = ({ title = "EdgeEver", detail }: { title?: string; detail?: string }) => (
   <div className="flex h-[100dvh] items-center justify-center bg-slate-50 px-6 text-center text-slate-700">
@@ -82,6 +84,11 @@ const AuthenticatedWorkspace = () => {
   });
 
   const desktopAccountId = sessionQuery.data?.authenticated ? sessionQuery.data.user?.id ?? null : null;
+
+  useEffect(() => {
+    if (!desktopAccountId) return;
+    void syncPublishedNoteBodyFont();
+  }, [desktopAccountId]);
 
   useEffect(() => {
     if (!desktopBridge?.isAvailable || sessionQuery.isLoading) return;
@@ -222,6 +229,7 @@ export const App = () => {
       <PwaInstallProvider>
         <Routes>
           <Route path="/share/:token" element={<Suspense fallback={<AuthLoadingScreen />}><PublicSharePage /></Suspense>} />
+          <Route path="/form/:token" element={<Suspense fallback={<AuthLoadingScreen />}><PublicTableFormPage /></Suspense>} />
           <Route path={EVERNOTE_MIGRATION_PATH} element={<EvernoteMigrationRoute />} />
           <Route path="/" element={<AuthenticatedWorkspace />} />
           <Route path="/settings" element={<AuthenticatedWorkspace />} />

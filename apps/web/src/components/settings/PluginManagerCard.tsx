@@ -28,7 +28,6 @@ import {
   shouldRequestPluginTrustAcknowledgement,
 } from "@/lib/plugins/plugin-trust";
 
-const permissionLabel = (permission: string) => permission.replace(":", " · ");
 const PLUGIN_CARD_GRID_CLASS_NAME = "grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3";
 
 const LegacyManualScheduledTasksSection = () => {
@@ -230,17 +229,6 @@ const PluginDetailView = ({
               <span className="truncate">{extension.source.repositoryUrl.replace("https://github.com/", "")}</span>
               <ExternalLink className="h-3.5 w-3.5 shrink-0" />
             </a>
-          ) : null}
-
-          {manifest.type === "plugin" && manifest.permissions.length > 0 ? (
-            <section>
-              <h3 className="text-xs font-semibold text-slate-700">{t("plugins.details.permissions")}</h3>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {manifest.permissions.map((permission) => (
-                  <span key={permission} className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">{permission === "network:public" ? t("plugins.permissions.publicNetwork") : permissionLabel(permission)}</span>
-                ))}
-              </div>
-            </section>
           ) : null}
 
           {manifest.type === "plugin" && manifest.networkHosts?.length ? (
