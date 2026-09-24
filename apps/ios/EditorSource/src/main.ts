@@ -5,7 +5,6 @@ import { Editor } from "@tiptap/core";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import CodeBlock from "@tiptap/extension-code-block";
-import { EdgeEverLink } from "@edgeever/shared/editor-link";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection } from "@tiptap/pm/state";
 import mermaid from "mermaid";
@@ -759,7 +758,6 @@ function buildExtensions(placeholder: string) {
       table: { table: { resizable: false } },
       markdown: true,
     }),
-    EdgeEverLink,
     NativeAttachmentMetadata,
     CodeBlock.configure({
       languageClassPrefix: "language-",

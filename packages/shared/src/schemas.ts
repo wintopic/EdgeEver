@@ -387,7 +387,7 @@ export const MemoShareUpdateSchema = z.object({
 });
 
 export const NoteBodyFontUpdateSchema = z.object({
-  bodyFont: z.enum(["wenkai", "wenkai-screen", "source-han-serif", "source-han-sans", "source-serif"]).nullable(),
+  bodyFont: z.enum(["wenkai", "wenkai-screen", "zhuque", "source-han-serif", "neo-zhi-song", "source-han-sans", "source-serif"]).nullable(),
 });
 
 export const PublicShareUnlockSchema = z.object({

@@ -192,6 +192,7 @@ import {
 } from "@/lib/editor-external-link";
 import { insertAiDraftAtTextCursor } from "@/lib/ai-draft-insertion";
 import { createFileBatchQueue, processFileUploadBatch } from "@/lib/file-batch";
+import { resourceToMarkdown } from "@/lib/markdown-resource-paste";
 import { MEMO_ID_REMAPPED_EVENT, MEMO_SYNC_ACKNOWLEDGED_EVENT } from "@/lib/sync-events";
 import { useStandaloneMobileEditor } from "@/hooks/useStandaloneMobileEditor";
 import { statusSettleMotion } from "@/lib/motion";
@@ -886,6 +887,39 @@ const RichEditorPane = ({
     }
   }, [focusMobileInputTarget, isMobileViewport, memo?.id, mobileDefaultEditMemoId, onMobileDefaultEditConsumed, readOnly]);
 
+  const uploadEditorResource = useCallback(async (targetMemoId: string, uploadFile: File, isImage: boolean) => {
+    try {
+      const resource = (await repository.uploadMemoResource(targetMemoId, uploadFile)).resource;
+      return { ...resource, url: toDesktopResourceUrl(resource.url) };
+    } catch (error) {
+      if (!isDesktopResourceRuntime()) throw error;
+      const listed = await repository.listResources().catch(() => ({ resources: [] as Array<{ memoId?: string; url: string; filename?: string | null; kind?: string | null; mimeType?: string | null; byteSize?: number }> }));
+      const existing = findMatchingMemoResource(
+        listed.resources.filter((item) => item.memoId === targetMemoId),
+        uploadFile.name,
+        isImage ? "image" : "attachment",
+      );
+      if (existing) {
+        return {
+          kind: isImage ? "image" as const : "attachment" as const,
+          filename: existing.filename || uploadFile.name,
+          mimeType: existing.mimeType || uploadFile.type || null,
+          byteSize: existing.byteSize ?? uploadFile.size,
+          url: toDesktopResourceUrl(existing.url),
+        };
+      }
+      const staged = await stageDesktopResource(targetMemoId, uploadFile);
+      if (!staged) throw error;
+      return {
+        kind: isImage ? "image" as const : "attachment" as const,
+        filename: uploadFile.name,
+        mimeType: uploadFile.type || null,
+        byteSize: uploadFile.size,
+        url: `edgeever-staged://${staged.id}`,
+      };
+    }
+  }, [repository]);
+
   const insertResourceFiles = useCallback((files: File[]) => {
     const currentMemo = memoRef.current;
     const currentEditor = editorRef.current;
@@ -941,44 +975,7 @@ const RichEditorPane = ({
         setImageUploadState("uploading");
         if (placeholder) updateImageUploadPlaceholder(editorRef.current, placeholder,
           t("editor.uploadState.uploading"));
-        let resource: {
-          kind: "image" | "attachment";
-          filename: string | null;
-          mimeType: string | null;
-          byteSize: number;
-          url: string;
-        };
-        try {
-          const uploadedResource = (await repository.uploadMemoResource(targetMemoId, uploadFile)).resource;
-          resource = { ...uploadedResource, url: toDesktopResourceUrl(uploadedResource.url) };
-        } catch (error) {
-          if (!isDesktopResourceRuntime()) throw error;
-          const listed = await repository.listResources().catch(() => ({ resources: [] as Array<{ memoId?: string; url: string; filename?: string | null; kind?: string | null; mimeType?: string | null; byteSize?: number }> }));
-          const existing = findMatchingMemoResource(
-            listed.resources.filter((item) => item.memoId === targetMemoId),
-            uploadFile.name,
-            isImage ? "image" : "attachment",
-          );
-          if (existing) {
-            resource = {
-              kind: isImage ? "image" : "attachment",
-              filename: existing.filename || uploadFile.name,
-              mimeType: existing.mimeType || uploadFile.type || null,
-              byteSize: existing.byteSize ?? uploadFile.size,
-              url: toDesktopResourceUrl(existing.url),
-            };
-          } else {
-            const staged = await stageDesktopResource(targetMemoId, uploadFile);
-            if (!staged) throw error;
-            resource = {
-              kind: isImage ? "image" : "attachment",
-              filename: uploadFile.name,
-              mimeType: uploadFile.type || null,
-              byteSize: uploadFile.size,
-              url: `edgeever-staged://${staged.id}`,
-            };
-          }
-        }
+        const resource = await uploadEditorResource(targetMemoId, uploadFile, isImage);
         if (resource.kind === "image") {
           imageReadiness.push(waitForImageSourceReady(resource.url));
         }
@@ -1082,7 +1079,7 @@ const RichEditorPane = ({
       });
     });
     return true;
-  }, [queryClient, repository, resourceInsertionLimit, t]);
+  }, [queryClient, resourceInsertionLimit, t, uploadEditorResource]);
 
   const pluginEmbedExtension = useMemo(() => createPluginEmbedExtension(pluginHost), [pluginHost]);
   const inlineFieldExtension = useMemo(() => createInlineFieldExtension(i18n.language), [i18n.language]);
@@ -1281,6 +1278,32 @@ const RichEditorPane = ({
     hydratingRef,
   });
   const useMarkdownSourceEditor = !useMobilePlainTextEditor && isMarkdownMode;
+
+  const uploadMarkdownPasteFiles = useCallback(async (files: File[]) => {
+    const targetMemoId = memoRef.current?.id;
+    if (!targetMemoId || effectiveReadOnly) return "";
+    setImageUploadState("uploading");
+    const results = await processFileUploadBatch(files, async (file) => {
+      const shouldCompress = SUPPORTED_PASTE_IMAGE_TYPES.has(file.type) && imageCompressionEnabledRef.current;
+      if (!shouldCompress) return file;
+      setImageUploadState("compressing");
+      return (await compressImageForUpload(file)).file;
+    }, async (uploadFile, file) => {
+      if (memoRef.current?.id !== targetMemoId) throw new Error("The active note changed during upload");
+      setImageUploadState("uploading");
+      return uploadEditorResource(targetMemoId, uploadFile, SUPPORTED_PASTE_IMAGE_TYPES.has(file.type));
+    });
+    if (results.some((result) => result.status === "fulfilled")) {
+      void queryClient.invalidateQueries({ queryKey: ["resources"] });
+    }
+    const failed = results.some((result) => result.status === "rejected");
+    setImageUploadState(failed ? "error" : "idle");
+    if (failed) window.setTimeout(() => setImageUploadState("idle"), 2200);
+    return results
+      .filter((result) => result.status === "fulfilled")
+      .map((result) => resourceToMarkdown(result.value, result.file.name))
+      .join("\n\n");
+  }, [effectiveReadOnly, queryClient, uploadEditorResource]);
 
   useEffect(() => {
     const syncPreference = (event?: Event) => {
@@ -2608,6 +2631,7 @@ const RichEditorPane = ({
     shareOpen,
     wechatCopyState,
   } = useEditorDocumentActions({
+    canShareMemo: Boolean(memo && !readOnly),
     documentActionRequest,
     editor,
     effectiveReadOnly,
@@ -3530,18 +3554,33 @@ const RichEditorPane = ({
           />
 
           <div className="flex shrink-0 items-center gap-1">
-            {isMemoShared && (
-              <button
-                className="inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-50 px-2 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200 transition-colors hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            {isMemoShared && !readOnly && (
+              <Button
+                className="h-8 gap-1.5 rounded-full bg-emerald-50 px-2 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100 hover:text-emerald-800 focus-visible:ring-emerald-500"
+                size="sm"
+                variant="ghost"
                 type="button"
                 title={t("sharing.manage")}
                 aria-label={t("sharing.manage")}
-                disabled={effectiveReadOnly}
                 onClick={() => setShareOpen(true)}
               >
                 <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
                 <span className="hidden sm:inline">{t("sharing.active")}</span>
-              </button>
+              </Button>
+            )}
+            {!readOnly && !isMemoShared && !mobileEditingActive && (
+              <Button
+                className="h-8 w-8 text-slate-500 sm:hidden"
+                size="icon"
+                variant="ghost"
+                type="button"
+                title={t(isLocalMemoId(memo.id) ? "sharing.afterSync" : "sharing.action")}
+                aria-label={t(isLocalMemoId(memo.id) ? "sharing.afterSync" : "sharing.action")}
+                disabled={isLocalMemoId(memo.id)}
+                onClick={() => setShareOpen(true)}
+              >
+                <Share2 className="h-4 w-4" aria-hidden="true" />
+              </Button>
             )}
             <span
               className="hidden whitespace-nowrap px-1.5 text-xs tabular-nums text-slate-400 sm:inline-flex"
@@ -3753,7 +3792,7 @@ const RichEditorPane = ({
                   <History className="h-4 w-4 text-slate-500" />
                   {t("editor.versionHistory")}
                 </DropdownMenuItem>
-                {!effectiveReadOnly && (
+                {!readOnly && (
                   <DropdownMenuItem
                     className={cn(
                       "flex h-9 w-full items-center gap-2 px-3 text-left text-sm hover:bg-slate-50 cursor-pointer outline-none",
@@ -4069,8 +4108,10 @@ const RichEditorPane = ({
                 <Suspense fallback={<div className="h-full w-full" />}>
                   <MarkdownSourceEditor
                     ref={markdownSourceEditorRef}
+                    memoId={memo?.id ?? ""}
                     value={markdownSource}
                     onChange={handleMarkdownSourceChange}
+                    onPasteFiles={uploadMarkdownPasteFiles}
                     themeName={markdownTheme}
                     readOnly={effectiveReadOnly}
                     placeholder={`# ${t("editor.placeholder")}`}

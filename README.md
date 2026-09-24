@@ -68,7 +68,7 @@ The public demo resets every day at 3:00 AM (China Standard Time) and restores s
 - **Deploy Your Way**: Run on Cloudflare's free serverless platform or with Docker on a VPS, NAS, or home server. Based on Cloudflare's free storage allowances, a personal deployment can hold roughly 150,000 short notes and 50,000 images; Docker storage scales on demand to easily support millions of notes and a vast image library.
 - **Open Data, No Vendor Lock-in**: Built on standard SQLite with complete REST API, MCP, and CLI access. Your knowledge is stored transparently and accessible anytime without being locked to a single app.
 - **Lossless ZIP Backup & Portability**: Export your complete library as a clean archive containing Markdown, Front Matter, nested folders, relative attachment links, and version histories for instant restoration anywhere.
-- **Native AI Agent Synergy**: Deep integration with Model Context Protocol (MCP) allows AI tools like Claude Code, Codex, and Antigravity to read, organize, and summarize your notes, or sync seamlessly with Notion and Feishu Bitable.
+- **Native AI Agent Synergy**: Deep integration with Model Context Protocol (MCP) allows AI Agents like Claude Code, Codex, Antigravity, and WorkBuddy to read, organize, and summarize your notes, or sync seamlessly with Notion and Feishu Bitable.
 - **Bring Your Own AI Models**: Connect OpenAI, Anthropic, or Gemini-compatible services and third-party API relays to empower your editor with smart note summarization, key point extraction, proofreading, translation, and text continuation on full notes or selected text.
 - **Rich Plugin API**: Extend EdgeEver with the [Plugin API](docs/plugin-development.md).
 - **Unlimited Multi-Device Sync**: No commercial device caps or paywalls. Enjoy seamless synchronization across PC, tablet, and mobile via web, PWA, or browser.
@@ -99,7 +99,7 @@ For Cloudflare, choose either of the following online deployment options:
 
 ### Option A: Deploy with an AI Agent (Recommended)
 
-Copy the prompt below directly into an AI Agent (such as Codex, Claude, Cursor, workbuddy, Antigravity, OpenClaw, Hermes Agent, etc.). During execution, if access to GitHub or Cloudflare is required, review the requested permissions and follow the prompts to authorize access.
+Copy the prompt below directly into an AI Agent (such as Codex, Claude, Cursor, WorkBuddy, Antigravity, OpenClaw, Hermes Agent, etc.). During execution, if access to GitHub or Cloudflare is required, review the requested permissions and follow the prompts to authorize access.
 
 ```text
 Deploy EdgeEver online:
@@ -143,13 +143,6 @@ curl -fsSL https://edgeever.org/install.sh | bash
 
 The command pulls the latest image, generates an administrator password, starts
 EdgeEver with Docker Compose, and schedules daily automatic updates.
-
-The official EdgeEver container image is hosted on GitHub Container Registry
-(GHCR). Some network environments in mainland China may experience slow
-connections or timeouts. If the image cannot be pulled normally, configure an
-available network proxy or a trusted registry mirror before deployment. Users
-are responsible for evaluating the availability and security of
-third-party network and registry services.
 
 See the [Docker deployment guide](docs/deploy-docker.md) for manual deployment and configuration.
 

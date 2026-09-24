@@ -6,22 +6,42 @@ const {
   createDesktopSyncDiagnosticText,
   createDesktopSyncSummary,
   isStagedResourceReferenced,
+  stagedIdsReferencedByUnsavedContent,
   hasDesktopSyncStateReset,
   mergeMemoIdMappings,
   mergeSyncedMemos,
   normalizeDesktopMemoPayload,
+  pauseDesktopSyncForImport,
   orderBootstrapNotebooks,
   orderDesktopSyncChanges,
   resolveDesktopMemoSyncBase,
   resolveDesktopStaleMemoUpdate,
   desktopLocalRevisionWitnessesRemote,
   rewriteStagedResource,
+  syncDesktopData,
   shouldAttemptDesktopRecoveryPull,
   shouldPullDesktopChanges,
 } = await import("./desktop-sync.ts");
 const { ApiRequestError } = await import("./api.ts");
 
 describe("desktop staged resource sync", () => {
+  test("holds cloud sync until an imported screenshot is saved", async () => {
+    const originalWindow = globalThis.window;
+    const events = [];
+    globalThis.window = { dispatchEvent: (event) => { events.push(event.type); return true; } };
+    try {
+      const release = await pauseDesktopSyncForImport();
+      const result = await syncDesktopData();
+      expect(result.attempted).toBe(0);
+      expect(events).not.toContain("edgeever:sync-queue-changed");
+      release();
+      release();
+      expect(events.filter((event) => event === "edgeever:sync-queue-changed")).toHaveLength(1);
+    } finally {
+      globalThis.window = originalWindow;
+    }
+  });
+
   test("rewrites placeholders in memo JSON and markdown", () => {
     const rewrites = [{ memoId: "memo-1", placeholder: "edgeever-staged://stage-1", url: "/api/v1/resources/resource-1/blob" }];
     const value = {
@@ -66,6 +86,15 @@ describe("desktop staged resource sync", () => {
     expect(isStagedResourceReferenced([
       { contentMarkdown: "![photo](edgeever-staged://stage-1)" },
     ], "stage-1")).toBe(true);
+  });
+
+  test("keeps staged bytes while an editor draft or visible image still uses the old URL", () => {
+    const rewrites = [{ memoId: "memo-1", placeholder: "edgeever-staged://stage-1", url: "/api/v1/resources/res-1/blob" }];
+    expect(stagedIdsReferencedByUnsavedContent(rewrites, [
+      { contentJson: { type: "doc", content: [{ type: "image", attrs: { src: "edgeever-staged://stage-1" } }] } },
+    ])).toEqual(new Set(["stage-1"]));
+    expect(stagedIdsReferencedByUnsavedContent(rewrites, ["edgeever-staged://stage-1"])).toEqual(new Set(["stage-1"]));
+    expect(stagedIdsReferencedByUnsavedContent(rewrites, ["edgeever-staged://stage-10"])).toEqual(new Set());
   });
 
   test("retains a temporary id mapping when a later sync phase fails", () => {
