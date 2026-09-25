@@ -1,11 +1,9 @@
 import { useRef, useState, useEffect, type DragEvent, type MouseEvent, type PointerEvent as ReactPointerEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import * as m from "motion/react-m";
-import { GitBranch, Network, TableProperties, Workflow, Star, Check, MoreHorizontal, RotateCcw, Trash2 } from "lucide-react";
+import { GitBranch, Network, Presentation, TableProperties, Workflow, Star, Check, MoreHorizontal, RotateCcw, Trash2 } from "lucide-react";
 import { getMemoListTimestamp, type MemoSummary } from "@edgeever/shared";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { selectionSettleMotion } from "@/lib/motion";
 import type { MemoListDensity, MemoSortMode } from "@/lib/app-helpers";
 import { isDefaultMemoTitle, MEMO_DRAG_MIME, setMemoDragPreview } from "@/lib/app-helpers";
 
@@ -345,13 +343,6 @@ export const MemoCard = ({
             : "active:bg-slate-50 lg:hover:bg-slate-50"
       )}
     >
-      {!selectionMode && selected ? (
-        <m.span
-          className="pointer-events-none absolute inset-y-2.5 left-0 z-10 hidden w-[3px] origin-center rounded-r-full bg-emerald-500 shadow-[0_0_8px_rgba(22,160,110,0.35)] lg:block"
-          aria-hidden="true"
-          {...selectionSettleMotion}
-        />
-      ) : null}
       <div className={cn("flex min-h-[132px] items-center", listDensity === "compact" && "min-h-[84px] lg:min-h-[76px]")}>
         {showSelectionControl && (
           <Tooltip><TooltipTrigger asChild><button
@@ -398,7 +389,7 @@ export const MemoCard = ({
           onContextMenu={handleContextMenu}
           onKeyDown={handleKeyDown}
         >
-          <div className={cn("mb-1.5 flex min-w-0 items-center gap-1.5 text-[15px] font-semibold tracking-[-0.012em] leading-snug text-slate-950", listDensity === "compact" && "mb-0.5 text-[14px]")}>
+          <div className={cn("mb-1.5 flex min-w-0 items-center gap-1.5 text-[14px] font-semibold tracking-[-0.012em] leading-snug text-slate-950", listDensity === "compact" && "mb-0.5")}>
             {memo.isPinned && <Star className="h-4 w-4 shrink-0 fill-amber-400 text-amber-500" />}
             <span className="min-w-0 truncate">{memoTitle}</span>
           </div>
@@ -411,9 +402,11 @@ export const MemoCard = ({
                 {memo.diagramPreview ? <span>{t("diagram.listCounts", { nodes: memo.diagramPreview.nodeCount, edges: memo.diagramPreview.edgeCount })}</span> : null}
               </div>
               {listDensity !== "compact" && memo.diagramPreview?.labels.length ? (
-                <div className="line-clamp-2 text-[13px] leading-relaxed text-slate-600 ">{memo.diagramPreview.labels.join(" · ")}</div>
+                <div className="line-clamp-2 text-xs leading-relaxed text-slate-600">{memo.diagramPreview.labels.join(" · ")}</div>
               ) : null}
             </div>
+          ) : memo.infographic ? (
+            <div className="flex items-center gap-1 text-xs text-slate-500"><Presentation className="h-3 w-3" aria-hidden="true" />{t("infographic.name")}</div>
           ) : tableLabel ? (
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
@@ -423,14 +416,14 @@ export const MemoCard = ({
                 {memo.tablePreview ? <span>{t("structuredTable.listCounts", { records: memo.tablePreview.recordCount, fields: memo.tablePreview.fieldCount })}</span> : null}
               </div>
               {listDensity !== "compact" && memo.tablePreview?.fieldNames.length ? (
-                <div className="line-clamp-2 text-[13px] leading-relaxed text-slate-600">{memo.tablePreview.fieldNames.join(" · ")}</div>
+                <div className="line-clamp-2 text-xs leading-relaxed text-slate-600">{memo.tablePreview.fieldNames.join(" · ")}</div>
               ) : null}
             </div>
           ) : (
             <div
               className={cn(
-                "line-clamp-2 min-h-10 text-[13px] leading-relaxed text-slate-600 ",
-                listDensity === "compact" && "line-clamp-1 min-h-0 text-[12.5px]"
+                "line-clamp-2 min-h-10 text-xs leading-relaxed text-slate-600",
+                listDensity === "compact" && "line-clamp-1 min-h-0"
               )}
             >
               {memoExcerpt}
@@ -445,7 +438,7 @@ export const MemoCard = ({
             {memo.tags.slice(0, 3).map((tag) => (
               <span
                 key={tag}
-                className="rounded-[3px] border border-emerald-200/60 bg-emerald-50/60 px-1.5 py-0.5 text-[11px] font-medium tracking-tight text-emerald-800 transition-colors   "
+                className="rounded-[3px] bg-slate-100 px-1.5 py-0.5 text-xs font-medium tracking-tight text-slate-600"
               >
                 #{tag}
               </span>

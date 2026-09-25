@@ -164,7 +164,7 @@ export const LoginDevicesCard = ({ authRequired, isLoggingOut, onLogout }: Login
                           <p className={SETTINGS_ITEM_TITLE_CLASSNAME}>{session.label || t(`loginDevices.${deviceKind}`)}</p>
                         )}
                         {session.isCurrent ? (
-                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
                             {t("loginDevices.current")}
                           </span>
                         ) : null}

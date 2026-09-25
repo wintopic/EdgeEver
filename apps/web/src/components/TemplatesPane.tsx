@@ -192,7 +192,7 @@ export const TemplatesPane = ({
               <div>
                 <h2 className="flex items-center gap-2 text-sm font-bold text-slate-900">
                   <span>{t("templates.myTemplates")}</span>
-                  <span className="rounded-full bg-emerald-100/70 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+                  <span className="rounded-full bg-emerald-100/70 px-2 py-0.5 text-xs font-semibold text-emerald-800">
                     {savedTemplates.length}
                   </span>
                 </h2>
@@ -361,7 +361,7 @@ export const TemplatesPane = ({
                       {template.tags.length > 0 && (
                         <div className="mt-2.5 flex flex-wrap gap-1">
                           {template.tags.map((tag) => (
-                            <span key={tag} className="inline-flex items-center gap-0.5 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600">
+                            <span key={tag} className="inline-flex items-center gap-0.5 rounded-md bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">
                               <Tag className="h-2.5 w-2.5 text-slate-400" />
                               {tag}
                             </span>
@@ -467,7 +467,7 @@ export const TemplatesPane = ({
         <Dialog open={true} onOpenChange={(open) => { if (!open) setPreviewTemplate(null); }}>
           <DialogContent className="max-w-xl bg-card p-0 overflow-hidden border border-slate-200 rounded-xl shadow-xl">
             <DialogHeader className="border-b border-slate-100 px-6 py-4 text-left bg-slate-50/50">
-              <DialogTitle className="text-base font-bold text-slate-900">{previewTemplate.title}</DialogTitle>
+              <DialogTitle className="font-bold text-slate-900">{previewTemplate.title}</DialogTitle>
               {previewTemplate.description && (
                 <DialogDescription className="mt-1 text-xs text-slate-500 leading-relaxed">
                   {previewTemplate.description}
@@ -520,7 +520,7 @@ export const TemplatesPane = ({
         <Dialog open={true} onOpenChange={(open) => { if (!open) setDeleteConfirmTemplate(null); }}>
           <DialogContent className="max-w-md bg-card p-6 border border-slate-200 rounded-xl shadow-xl">
             <DialogHeader className="text-left">
-              <DialogTitle className="text-base font-bold text-slate-900">
+              <DialogTitle className="font-bold text-slate-900">
                 {t("templates.deleteConfirmTitle", { name: deleteConfirmTemplate.name })}
               </DialogTitle>
               <DialogDescription className="mt-2 text-xs text-slate-500 leading-relaxed">

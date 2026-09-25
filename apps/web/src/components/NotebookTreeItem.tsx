@@ -172,7 +172,7 @@ export const NotebookTreeItem = ({
           <div
             data-notebook-id={node.id}
             className={cn(
-              "group relative flex h-9 items-center gap-1 rounded-md px-2 text-sm lg:text-[13px] transition-all duration-200 select-none",
+              "group relative flex h-9 items-center gap-1 rounded-md px-2 text-xs transition-all duration-200 select-none",
               selected
                 ? "edgeever-workspace-selection font-medium text-slate-950"
                 : hasSelectedDescendant
@@ -260,7 +260,7 @@ export const NotebookTreeItem = ({
                 }
               }}
             >
-              <NotebookIcon className={cn("h-4 w-4 shrink-0 transition-colors duration-200", selected ? "text-emerald-600 " : hasSelectedDescendant ? "text-slate-700" : "text-slate-500")} />
+              <NotebookIcon className={cn("h-4 w-4 shrink-0 transition-colors duration-200", selected || hasSelectedDescendant ? "text-slate-700" : "text-slate-500")} />
               <span
                 className={cn(
                   "truncate font-medium transition-colors duration-200",
@@ -282,7 +282,7 @@ export const NotebookTreeItem = ({
             <div ref={actionsRef} className="relative shrink-0">
                 <button
                   className={cn(
-                    "hidden h-6 w-6 items-center justify-center rounded-md group-focus-within:flex group-hover:flex transition-colors duration-150",
+                    "edgeever-reveal-on-touch hidden h-6 w-6 items-center justify-center rounded-md group-focus-within:flex group-hover:flex transition-colors duration-150",
                     selected ? "hover:bg-slate-200" : "hover:bg-slate-100"
                   )}
                   type="button"

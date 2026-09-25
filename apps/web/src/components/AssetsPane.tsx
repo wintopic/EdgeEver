@@ -210,7 +210,7 @@ export const AssetsPane = ({ onClose, repository, onOpenExecutionCenter }: Asset
               <Paperclip className="h-4.5 w-4.5 text-emerald-700" />
               {t("assets.title")}
             </h1>
-            <p className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] font-medium text-slate-400 uppercase tracking-wider">
+            <p className="mt-0.5 flex flex-wrap items-center gap-2 text-xs font-medium text-slate-400 uppercase tracking-wider">
               <span className="inline-flex items-center gap-1">
                 <HardDrive className="h-3 w-3" />
                 {formatBytes(summary.totalBytes)}
@@ -333,7 +333,7 @@ export const AssetsPane = ({ onClose, repository, onOpenExecutionCenter }: Asset
                       size="icon"
                       variant="ghost"
                       aria-label={t("assets.deleteAria", { filename: resource.filename || resource.id })}
-                      className="absolute right-2 top-2 z-10 h-8 w-8 bg-card/90 text-slate-500 opacity-0 shadow-sm transition-opacity hover:bg-rose-50 hover:text-rose-600 focus:opacity-100 group-hover:opacity-100"
+                      className="edgeever-reveal-on-touch absolute right-2 top-2 z-10 h-8 w-8 bg-card/90 text-slate-500 opacity-0 shadow-sm transition-opacity hover:bg-rose-50 hover:text-rose-600 focus:opacity-100 group-hover:opacity-100 focus-within:opacity-100"
                       onClick={() => requestResourceDelete(resource)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -377,7 +377,7 @@ export const AssetsPane = ({ onClose, repository, onOpenExecutionCenter }: Asset
                     )}
                     {/* Hover detail overlay */}
                     <div className="absolute inset-0 bg-slate-900/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100 flex items-center justify-center">
-                      <span className="rounded bg-card/90 px-2.5 py-1.5 text-[11px] font-semibold text-slate-800 shadow flex items-center gap-1">
+                      <span className="rounded bg-card/90 px-2.5 py-1.5 text-xs font-semibold text-slate-800 shadow flex items-center gap-1">
                         {resource.kind === "image"
                           ? t("assets.previewImage")
                           : isPdfAttachment(resource.mimeType, resource.filename)
@@ -395,7 +395,7 @@ export const AssetsPane = ({ onClose, repository, onOpenExecutionCenter }: Asset
                         {resource.filename || resource.id}
                       </span>
                     </ButtonTooltip>
-                    <span className="mt-1 flex items-center justify-between text-[10px] font-medium text-slate-400">
+                    <span className="mt-1 flex items-center justify-between text-xs font-medium text-slate-400">
                       <span>{formatBytes(resource.byteSize)}</span>
                       <span>{(resource.mimeType?.split("/")[1] || resource.kind).toUpperCase()}</span>
                     </span>
@@ -458,11 +458,11 @@ export const AssetsPane = ({ onClose, repository, onOpenExecutionCenter }: Asset
                     <span className="block truncate text-sm font-bold text-slate-800 leading-snug group-hover:text-emerald-700 transition-colors">
                       {resource.filename || resource.id}
                     </span>
-                    <span className="mt-1 block truncate text-[11px] font-medium text-slate-400">
+                    <span className="mt-1 block truncate text-xs font-medium text-slate-400">
                       {formatBytes(resource.byteSize)} · {resource.mimeType?.split("/")[1] || resource.kind} ·{" "}
                       {formatDateTime(resource.createdAt)}
                     </span>
-                    <span className="mt-1 block truncate text-[10px] text-slate-500">
+                    <span className="mt-1 block truncate text-xs text-slate-500">
                       {t("assets.sourceMemo", { source: getResourceMemoSource(resource) })}
                     </span>
                   </div>
@@ -474,7 +474,7 @@ export const AssetsPane = ({ onClose, repository, onOpenExecutionCenter }: Asset
                       size="icon"
                       variant="ghost"
                       aria-label={t("assets.deleteAria", { filename: resource.filename || resource.id })}
-                      className="h-8 w-8 text-slate-350 opacity-0 transition-all duration-150 hover:bg-rose-50 hover:text-rose-600 focus:opacity-100 group-hover:opacity-100"
+                      className="edgeever-reveal-on-touch h-8 w-8 text-slate-350 opacity-0 transition-all duration-150 hover:bg-rose-50 hover:text-rose-600 focus:opacity-100 group-hover:opacity-100 focus-within:opacity-100"
                       onClick={() => requestResourceDelete(resource)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -486,7 +486,7 @@ export const AssetsPane = ({ onClose, repository, onOpenExecutionCenter }: Asset
                       target="_blank"
                       rel="noreferrer"
                       aria-label={t("assets.openInNewWindow")}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-350 hover:bg-slate-50 hover:text-emerald-600 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all duration-150"
+                      className="edgeever-reveal-on-touch flex h-8 w-8 items-center justify-center rounded-lg text-slate-350 hover:bg-slate-50 hover:text-emerald-600 opacity-0 group-hover:opacity-100 focus:opacity-100 focus-within:opacity-100 transition-all duration-150"
                     >
                       <ExternalLink className="h-4 w-4" />
                     </a>

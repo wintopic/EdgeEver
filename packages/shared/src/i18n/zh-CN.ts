@@ -2,6 +2,23 @@ import { memoTemplateSeedTranslations } from "../memo-template-seeds";
 
 // Shared by the PWA and native mobile clients.
 export const zhCN = {
+  infographic: {
+    name: "信息图", autoLayout: "自动排版", describe: "描述内容并生成", chooseTemplate: "选择模板手动填内容",
+    prompt: "描述你想呈现的信息、结构与重点", generate: "生成信息图", generating: "正在生成…",
+    refine: "描述要修改的地方", refinePrompt: "例如：把第二项改成用户增长，其余内容保留", applyRefinement: "用 AI 修改", undoGeneration: "撤回上次生成", fineTune: "人工微调",
+    historyTitle: "AI 对话记录", scrollToBottom: "滚动到最新消息", historyGenerated: "已生成「{{title}}」", historyRefined: "已修改「{{title}}」", historyClarified: "请补充信息", historyFailed: "这次修改未完成", historyUndone: "这次修改已撤回",
+    doubleClickText: "双击图中文字可直接修改，修改后自动保存。",
+    structureSettings: "结构与样式 · 批量调整", editSyntax: "编辑源语法", backToStructure: "返回结构与样式",
+    title: "标题", description: "说明", items: "条目（每行一个，使用“标题 | 说明”）", comparisonItems: "对比双方各占一行；子项用“- 维度 | 说明”", template: "模板", theme: "配色",
+    content: "内容", syntax: "语法", preview: "预览", save: "保存", saving: "保存中…", exportSvg: "导出 SVG", exportPng: "导出 PNG",
+    empty: "用一句话描述内容，或从模板开始。", noPreview: "填写内容后显示预览。",
+    invalidSyntax: "信息图语法无效，请检查后重试。", renderError: "信息图渲染失败，请调整语法或模板。", contentTooLarge: "信息图内容过长，请先精简后再用 AI 修改。",
+    saveError: "保存失败，请重试。", sessionError: "无法开启编辑会话，请重试。", aiError: "生成失败，请检查 AI 模型设置后重试。", aiInvalidResponse: "生成内容无法组成信息图，请重试。",
+    selectTemplate: "选择模板", simpleList: "横向步骤", numberedSteps: "编号步骤", zigzagSteps: "交错流程", verticalList: "纵向清单", gridList: "网格清单", pyramidList: "金字塔清单", timeline: "时间线", timelineChecklist: "里程碑时间线", roadmap: "纵向路线图", comparison: "双栏对比图", compactComparison: "紧凑对比图", arrowComparison: "方向对比图", quadrant: "四象限图", circularQuadrant: "圆形四象限", themeDefault: "默认", themeDark: "深色",
+    stepsGroup: "流程型", listGroup: "列表型", timelineGroup: "时间与路线", comparisonGroup: "对比型", quadrantGroup: "四象限型",
+    officialTemplates: "AntV 官方模板（{{count}}）", searchTemplates: "搜索模板 ID", templateCategory: "模板分类", chooseCategory: "这段内容适合哪类信息图？", keepCategory: "保持当前类型", allCategories: "全部分类", chartCategory: "图表型", comparisonCategory: "对比型", hierarchyCategory: "层级型", listCategory: "列表型", quadrantCategory: "四象限型", relationCategory: "关系型", sequenceCategory: "顺序型",
+    sourceHelp: "语法是此信息图的可编辑源文件；预览随更改更新。", readOnly: "只读",
+  },
   companion: {
     learning: { rule: { move: "你通常把带「{{tag}}」标签的笔记归入「{{notebook}}」。", tag: "你经常给「{{notebook}}」中的笔记添加「{{tag}}」标签。" }, "basedOn": "参考了这些记忆", "help": "开启学习后，猫爪会从之后的归档与标签选择中积累偏好，用于更相关的建议。暂停学习会保留记忆；停止使用后，对话和主动发现都不再参考记忆。相关记忆会随选中的笔记发送给默认模型。", "learningEnabled": "从操作中学习", "useMemory": "使用已保存的记忆", "active": "根据多次操作推测 · 已生效", "candidate": "候选偏好 · 尚未用于建议", "conflicted": "证据不足或存在冲突 · 暂停使用", "evidence": "查看操作依据", "feedback": "不再建议这种整理", "feedbackHelp": "会记住你对这些笔记本的整理偏好，可在个人记忆中纠正或忘记。"},
     discovery: {

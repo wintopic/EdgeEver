@@ -329,7 +329,7 @@ export const EditorToolbar = ({
                 <TooltipContent side="bottom" className="flex items-center gap-2">
                   <span>{markdownMode ? t("editorToolbar.richText") : t("editorToolbar.markdown")}</span>
                   {markdownModeShortcutLabel && (
-                    <kbd className="rounded border border-border/20 bg-card/10 px-1.5 py-0.5 font-mono text-[10px] leading-none">
+                    <kbd className="rounded border border-border/20 bg-card/10 px-1.5 py-0.5 font-mono text-xs leading-none">
                       {markdownModeShortcutLabel}
                     </kbd>
                   )}

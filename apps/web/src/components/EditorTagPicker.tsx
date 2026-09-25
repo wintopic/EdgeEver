@@ -151,7 +151,7 @@ export const EditorTagPicker = ({ contentMarkdown, disabled, loadTags, title, va
         <button
           type="button"
           disabled={disabled}
-          className="flex h-7 min-w-0 max-w-[32rem] items-center gap-1 rounded-md border border-transparent px-1.5 text-left text-xs text-slate-500 outline-none transition hover:border-slate-200 hover:bg-slate-50 focus-visible:border-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-500/15 disabled:opacity-50 sm:h-8 sm:gap-1.5 sm:px-2 sm:text-sm"
+          className="flex h-7 min-w-0 max-w-[32rem] items-center gap-1 rounded-md border border-transparent px-1.5 text-left text-xs text-slate-500 outline-none transition hover:border-slate-200 hover:bg-slate-50 focus-visible:border-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-500/15 disabled:opacity-50 sm:gap-1.5 sm:px-2"
           aria-label={t("editor.tagPicker.open")}
           onClick={() => setOpen(true)}
         >
@@ -160,13 +160,13 @@ export const EditorTagPicker = ({ contentMarkdown, disabled, loadTags, title, va
               {selectedTags.slice(0, 3).map((tag) => (
                 <span
                   key={tag}
-                  className="rounded-sm border border-emerald-200/70 bg-emerald-50/70 px-1.5 py-0.5 text-[11px] font-medium text-emerald-800 transition-colors    sm:text-xs"
+                  className="rounded-sm bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600"
                 >
                   #{tag}
                 </span>
               ))}
               {selectedTags.length > 3 && (
-                <span className="text-[11px] font-medium text-slate-400 sm:text-xs">+{selectedTags.length - 3}</span>
+                <span className="text-xs font-medium text-slate-400">+{selectedTags.length - 3}</span>
               )}
             </span>
           ) : (
@@ -182,20 +182,20 @@ export const EditorTagPicker = ({ contentMarkdown, disabled, loadTags, title, va
                 type="button"
                 disabled={disabled || suggesting || selectedTags.length >= 24 || (!title.trim() && !contentMarkdown.trim())}
                 className={aiStatus.kind === "error"
-                  ? "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-rose-700 outline-none transition hover:bg-rose-50 focus-visible:ring-2 focus-visible:ring-rose-500/20 disabled:opacity-50 sm:h-8 sm:w-8"
+                  ? "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-rose-700 outline-none transition hover:bg-rose-50 focus-visible:ring-2 focus-visible:ring-rose-500/20 disabled:opacity-50"
                   : aiStatus.kind === "success"
-                    ? "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-700 outline-none transition focus-visible:ring-2 focus-visible:ring-emerald-500/20 disabled:opacity-50 sm:h-8 sm:w-8"
-                    : "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-emerald-700 outline-none transition hover:bg-emerald-50 focus-visible:ring-2 focus-visible:ring-emerald-500/20 disabled:opacity-50 sm:h-8 sm:w-8"}
+                    ? "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-700 outline-none transition focus-visible:ring-2 focus-visible:ring-emerald-500/20 disabled:opacity-50"
+                    : "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-emerald-700 outline-none transition hover:bg-emerald-50 focus-visible:ring-2 focus-visible:ring-emerald-500/20 disabled:opacity-50"}
                 aria-label={aiDescription}
                 onClick={() => void generateAndApplyTags()}
               >
                 {suggesting
-                  ? <Loader2 className="h-3.5 w-3.5 animate-spin sm:h-4 sm:w-4" />
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   : aiStatus.kind === "success"
-                    ? <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    ? <Check className="h-3.5 w-3.5" />
                     : aiStatus.kind === "error"
-                    ? <CircleAlert className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    : <TagPlus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                    ? <CircleAlert className="h-3.5 w-3.5" />
+                    : <TagPlus className="h-3.5 w-3.5" />}
               </button>
             </TooltipTrigger>
             <TooltipContent side="bottom">{aiDescription}</TooltipContent>

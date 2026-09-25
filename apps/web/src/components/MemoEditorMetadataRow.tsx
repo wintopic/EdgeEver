@@ -61,7 +61,7 @@ export const MemoEditorMetadataRow = ({
             disabled={disabled || notebookUpdatePending}
             onValueChange={onNotebookChange}
           >
-            <SelectTrigger className="h-8 min-w-0 whitespace-nowrap border-transparent bg-transparent px-2 text-sm font-medium text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900">
+            <SelectTrigger className="h-7 min-w-0 whitespace-nowrap border-transparent bg-transparent px-2 text-xs font-medium text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900">
               <SelectValue placeholder={t("editor.notebookPlaceholder")}>{currentNotebookLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent className="max-h-60 rounded-md border border-slate-200 bg-card py-1 shadow-md">

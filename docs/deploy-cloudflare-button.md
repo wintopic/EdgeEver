@@ -38,9 +38,10 @@ Log into your [Cloudflare Dashboard](https://dash.cloudflare.com/). If an entry 
 1. Open **Workers & Pages**, click **Create application**, then **Get started** next to **Import a repository**. If the entry moves, see [Cloudflare's instructions](https://developers.cloudflare.com/workers/ci-cd/builds/#connect-a-new-worker).
 2. Follow the prompts to connect your GitHub account, authorize access to your Fork, and select the Forked `edgeever` repository.
 3. Project settings:
+   - **Worker name**: `edgeever`, matching the `name` in the root `wrangler.toml`
    - **Git branch** (or **Production branch**): `main`
    - **Root directory**: Leave blank to use the repository root
-   - Deploy command: npx wrangler deploy (keep the default)
+   - Deploy command: npx wrangler deploy (keep Cloudflare's default; Workers Builds runs it online, not on your computer)
    - **API token**: The automatically generated token may lack D1 permissions. Select or create a User API Token scoped to the target account with D1 read and edit permissions; if permissions are insufficient, correct them based on the build log and retry.
 
 The deployment command creates the `DB` and `RESOURCES` bindings and looks up the D1 UUID. Do not edit `wrangler.toml` or add duplicate bindings in the Dashboard.
@@ -53,7 +54,7 @@ Click **Save and Deploy** to create the Worker. The first build fails verificati
 
 | Type | Name | Value | Purpose |
 | :--- | :--- | :--- | :--- |
-| **Secret** | `EDGE_EVER_AUTH_PASSWORD` | Preferably at least 32 characters and unique to this instance | Administrator login password |
+| **Secret** | `EDGE_EVER_AUTH_PASSWORD` | Preferably at least 32 characters | Administrator login password |
 
 `EDGE_EVER_AUTH_PASSWORD` is the variable name; its value is the administrator login password. It is a Worker runtime Secret, not a Workers Builds variable.
 
@@ -99,7 +100,7 @@ To customize an instance, add non-secret values under the Worker's **Settings â†
 | `EDGE_EVER_WORKERS_DEV` | Enable or disable the `workers.dev` route |
 | `EDGE_EVER_CUSTOM_DOMAIN` / `EDGE_EVER_ROUTE_PATTERN` | Custom routing |
 
-Set a custom administrator username before the first build; changing the variable later does not rename the account.
+Set a custom administrator username before retrying the initial build; changing the variable after the account exists does not rename it.
 
 Older deployments need not migrate a custom R2 bucket; upgrades reuse the live `RESOURCES` binding unless overridden. Existing explicit build commands remain supported; see [Workers Builds configuration](cloudflare-workers-builds.md).
 

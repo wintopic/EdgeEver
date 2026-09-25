@@ -1080,13 +1080,13 @@ export const MemoListPane = ({
             </button>
             <div
               className={cn(
-                "flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full border bg-card px-3 text-sm shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition",
+                "flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full border border-transparent px-3 text-sm transition",
                 searchActive
-                  ? "border-emerald-400 bg-emerald-50/80 text-emerald-700 ring-2 ring-emerald-200/70"
-                  : "border-slate-200 text-slate-500"
+                  ? "bg-slate-200/90 text-slate-800"
+                  : "bg-slate-100/80 text-slate-500"
               )}
             >
-              <Search className={cn("h-4 w-4 shrink-0", searchActive && "text-emerald-600")} />
+              <Search className="h-4 w-4 shrink-0" />
               <input
                 ref={mobileSearchInputRef}
                 type="text"
@@ -1369,13 +1369,13 @@ export const MemoListPane = ({
         <div className={cn("items-center gap-2", mobileSearchActive ? "hidden lg:flex" : "flex")}>
           <div
             className={cn(
-              "flex h-mobile-control min-w-0 flex-1 items-center gap-2 rounded-full border px-3 text-sm transition-all duration-200 focus-within:ring-2 lg:rounded-md",
+              "flex h-mobile-control min-w-0 flex-1 items-center gap-2 rounded-full border border-transparent px-3 text-sm transition-all duration-200 focus-within:ring-2 lg:rounded-md",
               searchActive
-                ? "border-emerald-400 bg-emerald-50/80 text-emerald-700 shadow-[0_0_0_1px_rgba(52,211,153,0.18)] ring-1 ring-emerald-200 focus-within:border-emerald-500 focus-within:bg-card focus-within:ring-emerald-300/50"
-                : "border-slate-200 bg-card text-slate-500 hover:border-slate-300 focus-within:border-emerald-400/90 focus-within:bg-card focus-within:ring-emerald-200/60"
+                ? "bg-slate-200/90 text-slate-800 focus-within:ring-slate-300"
+                : "bg-slate-100/80 text-slate-500 hover:bg-slate-100 focus-within:bg-card focus-within:ring-slate-200"
             )}
           >
-            <Search className={cn("h-4 w-4 shrink-0", searchActive && "text-emerald-600")} />
+            <Search className="h-4 w-4 shrink-0" />
             <input
               ref={searchInputRef}
               type="text"
@@ -1434,16 +1434,13 @@ export const MemoListPane = ({
         {hasListConstraint && (
           <m.div
             className={cn(
-              "mt-3 flex min-h-8 items-center gap-2 rounded-md border px-3 py-1.5 text-xs",
-              searchActive
-                ? "border-emerald-200 bg-emerald-50 text-emerald-800 shadow-[inset_3px_0_0_#10b981]"
-                : "border-slate-200 bg-card text-slate-500"
+              "mt-3 flex min-h-8 items-center gap-2 rounded-md bg-slate-100 px-3 py-1.5 text-xs text-slate-600",
             )}
             role="status"
             {...contentEnterMotion}
           >
             {searchActive && (
-              <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500 px-2 py-1 font-semibold text-white">
+              <span className="flex shrink-0 items-center gap-1 font-medium text-slate-700">
                 <Search className="h-3 w-3" />
                 {t("memoList.searchActive")}
               </span>
@@ -1459,7 +1456,7 @@ export const MemoListPane = ({
             <button
               className={cn(
                 "shrink-0 font-semibold transition",
-                searchActive ? "text-emerald-800 hover:text-emerald-950" : "text-slate-600 hover:text-slate-950"
+                "text-slate-600 hover:text-slate-950"
               )}
               type="button"
               onClick={searchActive ? handleClearSearch : handleResetListConstraints}

@@ -47,7 +47,7 @@ test("keeps the desktop sync status bar and sidebar chrome compact without shrin
 
 test("lists diagram note types in the create menu without beta badges", () => {
   const createTypeMenu = source.split("const CreateMemoTypeItems")[1]?.split("const getSyncStatusLabel")[0];
-  const diagramSection = createTypeMenu?.split('onCreateMemo("table")')[0];
+  const diagramSection = createTypeMenu?.split('onCreateMemo("infographic")')[0];
 
   expect(createTypeMenu).toContain('onCreateMemo()');
   expect(createTypeMenu).toContain('onCreateMemo("mind-map")');

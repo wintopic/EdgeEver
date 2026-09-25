@@ -304,7 +304,7 @@ export const SettingsPane = ({
                   type="button"
                   onClick={() => setActiveTab(item.key)}
                   className={cn(
-                    "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 text-left w-full",
+                    "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-normal leading-5 transition-all duration-150 text-left w-full",
                     isSelected
                       ? `${item.colorClass} ${item.bgColorClass}`
                       : "text-slate-600 hover:bg-slate-200/50 hover:text-slate-900"
@@ -315,7 +315,7 @@ export const SettingsPane = ({
                   {item.badge ? (
                     <span
                       className={cn(
-                        "rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none",
+                        "rounded-full px-1.5 py-0.5 text-xs font-semibold leading-none",
                         isSelected
                           ? "bg-emerald-600/15 text-emerald-800"
                           : "bg-slate-200/80 text-slate-600"
@@ -352,7 +352,7 @@ export const SettingsPane = ({
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50/80">
                       <LayoutTemplate className="h-4 w-4 text-emerald-600" />
                     </div>
-                    <span className="text-sm font-semibold text-slate-800">{t("nav.templates")}</span>
+                    <span className="text-xs font-normal leading-5 text-slate-800">{t("nav.templates")}</span>
                   </div>
                   <ChevronRight className="h-4 w-4 text-slate-400" />
                 </button>
@@ -365,7 +365,7 @@ export const SettingsPane = ({
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50/80">
                       <Sparkles className="h-4 w-4 text-emerald-600" />
                     </div>
-                    <span className="text-sm font-semibold text-slate-800">{t("nav.prompts")}</span>
+                    <span className="text-xs font-normal leading-5 text-slate-800">{t("nav.prompts")}</span>
                   </div>
                   <ChevronRight className="h-4 w-4 text-slate-400" />
                 </button>
@@ -384,9 +384,9 @@ export const SettingsPane = ({
                         <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", item.bgColorClass)}>
                           <Icon className={cn("h-4 w-4", item.iconColorClass)} />
                         </div>
-                        <span className="text-sm font-semibold text-slate-800">{item.label}</span>
+                        <span className="text-xs font-normal leading-5 text-slate-800">{item.label}</span>
                         {item.badge ? (
-                          <span className="rounded-full border border-emerald-200/80 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                          <span className="rounded-full border border-emerald-200/80 bg-emerald-50 px-1.5 py-0.5 text-xs font-semibold text-emerald-700">
                             {item.badge}
                           </span>
                         ) : null}

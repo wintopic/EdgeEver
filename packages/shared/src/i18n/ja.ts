@@ -2,6 +2,23 @@ import { memoTemplateSeedTranslations } from "../memo-template-seeds";
 
 // Shared by the PWA and native mobile clients.
 export const ja = {
+  infographic: {
+    name: "インフォグラフィック", autoLayout: "自動配置", describe: "説明して生成", chooseTemplate: "テンプレートを選んで入力",
+    prompt: "表示したい情報、構成、要点を説明してください", generate: "インフォグラフィックを生成", generating: "生成中…",
+    refine: "変更したい点を説明", refinePrompt: "例：2 番目の項目をユーザー成長に変更", applyRefinement: "AI で修正", undoGeneration: "前回の生成を元に戻す", fineTune: "手動で微調整",
+    historyTitle: "AI の対話履歴", scrollToBottom: "最新のメッセージまでスクロール", historyGenerated: "「{{title}}」を生成しました", historyRefined: "「{{title}}」を修正しました", historyClarified: "追加情報が必要です", historyFailed: "今回の修正は完了しませんでした", historyUndone: "この変更は取り消されました",
+    doubleClickText: "図内の文字をダブルクリックして編集できます。変更は自動保存されます。",
+    structureSettings: "構成とスタイル · 一括編集", editSyntax: "元の構文を編集", backToStructure: "構成とスタイルに戻る",
+    title: "タイトル", description: "説明", items: "項目（1 行に 1 件、「タイトル | 説明」）", comparisonItems: "比較する 2 者を各 1 行にし、観点は「- 項目 | 説明」で追加", template: "テンプレート", theme: "配色",
+    content: "内容", syntax: "構文", preview: "プレビュー", save: "保存", saving: "保存中…", exportSvg: "SVG を出力", exportPng: "PNG を出力",
+    empty: "内容を説明するか、テンプレートから始めてください。", noPreview: "内容を入力するとプレビューが表示されます。",
+    invalidSyntax: "構文が正しくありません。確認して再試行してください。", renderError: "描画に失敗しました。構文またはテンプレートを調整してください。", contentTooLarge: "内容が長すぎるため AI で修正できません。先に短くしてください。",
+    saveError: "保存できませんでした。再試行してください。", sessionError: "編集セッションを開始できませんでした。", aiError: "生成に失敗しました。AI モデルの設定を確認してください。", aiInvalidResponse: "生成内容からインフォグラフィックを作成できません。再試行してください。",
+    selectTemplate: "テンプレートを選択", simpleList: "横向きの手順", numberedSteps: "番号付き手順", zigzagSteps: "ジグザグ手順", verticalList: "縦向きのリスト", gridList: "グリッドリスト", pyramidList: "ピラミッドリスト", timeline: "タイムライン", timelineChecklist: "マイルストーン", roadmap: "縦型ロードマップ", comparison: "左右比較図", compactComparison: "コンパクト比較図", arrowComparison: "方向比較図", quadrant: "四象限図", circularQuadrant: "円形四象限", themeDefault: "標準", themeDark: "ダーク",
+    stepsGroup: "手順", listGroup: "リスト", timelineGroup: "時間とロードマップ", comparisonGroup: "比較", quadrantGroup: "四象限",
+    officialTemplates: "AntV テンプレート（{{count}}）", searchTemplates: "テンプレート ID を検索", templateCategory: "テンプレート分類", chooseCategory: "この内容に合う図の種類を選んでください", keepCategory: "現在の種類を維持", allCategories: "すべての分類", chartCategory: "チャート", comparisonCategory: "比較", hierarchyCategory: "階層", listCategory: "リスト", quadrantCategory: "四象限", relationCategory: "関係", sequenceCategory: "順序",
+    sourceHelp: "構文が編集可能な元データです。変更するとプレビューが更新されます。", readOnly: "読み取り専用",
+  },
   companion: {
     learning: { rule: { move: "「{{tag}}」タグのノートは、たいてい「{{notebook}}」に整理しています。", tag: "「{{notebook}}」のノートには、よく「{{tag}}」を付けています。" }, "basedOn": "参照した記憶", "help": "学習をオンにすると、今後の整理やタグ付けから好みを蓄積し、提案の精度を高めます。学習を一時停止しても記憶は残ります。記憶の使用を止めると、チャットと発見のどちらでも参照されません。関連する記憶は、選んだノートとともにデフォルトモデルへ送信されます。", "learningEnabled": "操作から学習する", "useMemory": "保存した記憶を使う", "active": "繰り返しの操作から推測 · 有効", "candidate": "候補の好み · まだ未使用", "conflicted": "根拠不足または矛盾 · 一時停止", "evidence": "根拠となった操作を見る", "feedback": "この整理の提案をやめる", "feedbackHelp": "これらのノートブックに対する好みを記憶します。個人記憶で訂正または削除できます。"},
     discovery: {

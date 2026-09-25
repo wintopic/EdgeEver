@@ -620,7 +620,9 @@ pub(crate) fn delete_memo(database: &Connection, params: &Value) -> Result<Value
         if !bool_param(params, "permanent", false) || !memo_id.starts_with("memo_local_") {
             return Err("Only an unsynced local memo can be cancelled".to_owned());
         }
-        let tx = database.unchecked_transaction().map_err(|e| e.to_string())?;
+        let tx = database
+            .unchecked_transaction()
+            .map_err(|e| e.to_string())?;
         let pending_create: i64 = tx.query_row(
             "SELECT COUNT(*) FROM _edgeever_sidecar_outbox WHERE kind = 'memo.create' AND entity_id = ?1 AND status = 'pending'",
             [&memo_id],
@@ -634,7 +636,9 @@ pub(crate) fn delete_memo(database: &Connection, params: &Value) -> Result<Value
         if pending_create != 1 || other_changes != 0 {
             return Err("Local memo cannot be cancelled after synchronization started".to_owned());
         }
-        let deleted = tx.execute("DELETE FROM memos WHERE id = ?1", [&memo_id]).map_err(|e| e.to_string())?;
+        let deleted = tx
+            .execute("DELETE FROM memos WHERE id = ?1", [&memo_id])
+            .map_err(|e| e.to_string())?;
         if deleted != 1 {
             return Err("Local memo no longer exists".to_owned());
         }

@@ -87,11 +87,11 @@ const LegacyManualScheduledTasksSection = () => {
           <div key={task.id} className="flex flex-wrap items-center gap-3 rounded-md border border-slate-200 bg-card px-3 py-2">
             <div className="min-w-0 flex-1">
               <div className="truncate text-xs font-semibold text-slate-800">{task.name}</div>
-              <div className="mt-0.5 truncate font-mono text-[10px] text-slate-400">
+              <div className="mt-0.5 truncate font-mono text-xs text-slate-400">
                 {task.cronExpression} · {task.timezone} · {task.taskPayload.pluginId}:{task.taskPayload.commandId}
               </div>
               {task.lastRun ? (
-                <div className={`mt-1 text-[10px] ${task.lastRun.status === "failed" ? "text-rose-600" : "text-slate-400"}`}>
+                <div className={`mt-1 text-xs ${task.lastRun.status === "failed" ? "text-rose-600" : "text-slate-400"}`}>
                   {t(`plugins.schedules.status.${task.lastRun.status}`)} · {new Date(task.lastRun.startedAt).toLocaleString()}
                 </div>
               ) : null}
@@ -174,9 +174,9 @@ const PluginDetailView = ({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-xl font-semibold text-slate-950">{name}</h2>
-            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{manifest.type}</span>
+            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-slate-500">{manifest.type}</span>
             {update ? (
-              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
                 {t("plugins.updates.available", { version: update.latestVersion })}
               </span>
             ) : null}
@@ -400,7 +400,7 @@ export const PluginManagerCard = ({
           <CardTitle className="flex min-w-0 items-center gap-2 text-sm">
             <Puzzle className="h-4 w-4 shrink-0 text-emerald-700" />
             {selectedPluginId ? t("plugins.details.title") : t("plugins.title")}
-            <span className="inline-flex items-center rounded-full border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-emerald-700">
+            <span className="inline-flex items-center rounded-full border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-xs font-semibold tracking-wide text-emerald-700">
               Beta
             </span>
           </CardTitle>
@@ -423,7 +423,7 @@ export const PluginManagerCard = ({
                       : t("plugins.updates.found", { count: lastManualCheckCount })}
                 </span>
                 {lastManualCheckCount === null && (updateQuery.data?.updates.length ?? 0) > 0 ? (
-                  <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                  <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-xs font-semibold text-emerald-700">
                     {updateQuery.data?.updates.length}
                   </span>
                 ) : null}

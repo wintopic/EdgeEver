@@ -52,7 +52,7 @@ const PluginSettingListDialog = ({ field }: { field: PluginSettingField }) => {
         <ul className="min-h-0 divide-y divide-slate-100 overflow-y-auto pb-1">
           {list.items.map((item, index) => (
             <li key={`${item.title}:${item.description ?? ""}:${index}`} className="px-6 py-3">
-              <div className="text-sm font-medium text-slate-800">{item.title}</div>
+              <div className="text-xs font-normal leading-5 text-slate-800">{item.title}</div>
               {item.description ? <div className="mt-0.5 text-xs leading-5 text-slate-500">{item.description}</div> : null}
             </li>
           ))}

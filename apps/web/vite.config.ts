@@ -1,4 +1,5 @@
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 import { resolveDeploymentBuildMetadata } from "@edgeever/shared/deployment-metadata";
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -138,6 +139,7 @@ export default defineConfig({
     __EDGEEVER_DESKTOP_BUILD__: JSON.stringify(isDesktopBuild),
   },
   plugins: [
+    tailwindcss(),
     localDevelopmentAuth(),
     developmentServiceWorkerReset,
     react(),

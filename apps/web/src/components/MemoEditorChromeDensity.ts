@@ -9,4 +9,4 @@ export const MEMO_EDITOR_TOOLBAR_COLLAPSED_CLASS_NAME =
   "max-h-12 overflow-hidden sm:max-h-9";
 
 export const MEMO_EDITOR_TITLE_REGION_CLASS_NAME =
-  "space-y-1.5 px-4 pb-2.5 pt-2.5 sm:space-y-3 sm:px-7 sm:pb-4 sm:pt-4 lg:space-y-0 lg:px-10 lg:py-0";
+  "space-y-1.5 px-5 pb-2.5 pt-2.5 sm:space-y-3 sm:px-6 sm:pb-4 sm:pt-4 lg:space-y-0 lg:py-0";

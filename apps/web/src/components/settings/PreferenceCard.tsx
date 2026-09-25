@@ -159,7 +159,7 @@ const FontChoiceFields = ({
             maxLength={200}
             onChange={(event) => onChange({ choice: "custom", customFamily: event.target.value })}
           />
-          <div className="flex flex-wrap items-center gap-1 text-[11px] text-slate-500">
+          <div className="flex flex-wrap items-center gap-1 text-xs text-slate-500">
             <span className="shrink-0 text-slate-400">{t("settings.editorBodyFontSuggestions")}:</span>
             {CUSTOM_FONT_SUGGESTIONS.map((item) => (
               <button

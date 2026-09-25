@@ -82,29 +82,29 @@ export const PluginCatalogCard = ({
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="truncate text-sm font-semibold text-slate-900">{name}</span>
             {extension ? (
-              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 {extension.manifest.type}
               </span>
             ) : null}
-            {extension && version ? <span className="text-[11px] text-slate-400">v{version}</span> : null}
+            {extension && version ? <span className="text-xs text-slate-400">v{version}</span> : null}
             {sourceKey === "official" ? (
-              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
                 {t("plugins.marketplace.officialAutoUpdate")}
               </span>
             ) : sourceKey ? (
-              <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] ${sourceBadgeClassName(sourceKey)}`}>
+              <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs ${sourceBadgeClassName(sourceKey)}`}>
                 {sourceKey === "verified" ? <BadgeCheck className="h-3 w-3" /> : sourceKey === "github" ? <GitHubMark className="h-3 w-3" /> : null}
                 {t(`plugins.sources.${sourceKey}`)}
               </span>
             ) : null}
             {update ? (
-              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
                 {t("plugins.updates.available", { version: update.latestVersion })}
               </span>
             ) : null}
           </div>
           {!extension && item.marketplaceEntry ? (
-            <div className="mt-0.5 text-[10px] text-slate-400">
+            <div className="mt-0.5 text-xs text-slate-400">
               {item.marketplaceEntry.author} · {item.marketplaceEntry.category}{version ? ` · v${version}` : ""}
             </div>
           ) : null}

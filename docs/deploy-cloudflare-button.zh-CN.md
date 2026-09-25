@@ -38,9 +38,10 @@
 1. 打开 **Workers & Pages**，点击 **Create application** → **Import a repository** 旁的 **Get started**。入口变化时参考 [Cloudflare 官方步骤](https://developers.cloudflare.com/workers/ci-cd/builds/#connect-a-new-worker)。
 2. 按提示连接 GitHub 账户，授权 Cloudflare 访问该 Fork，并选中您刚才 Fork 的 `edgeever` 仓库。
 3. 在项目设置中：
+   - **Worker 名称**：`edgeever`，与根目录 `wrangler.toml` 中的 `name` 一致
    - **Git branch**（或 **Production branch**）：选择 `main`
    - **Root directory**：保持留空，使用仓库根目录
-   - Deploy command: npx wrangler deploy（保留默认值）
+   - Deploy command: npx wrangler deploy（保留 Cloudflare 默认值，由 Workers Builds 在线执行，无需在本机运行）
    - **API token**：自动生成的 token 可能没有 D1 权限。选择或创建限定到目标账户、具备 D1 读取与编辑权限的 User API Token；权限不足时按构建日志调整后重试。
 
 部署命令会自动生成 `DB` 与 `RESOURCES` binding，并查询 D1 UUID。不要修改 `wrangler.toml` 或在控制台重复添加 binding。
@@ -53,7 +54,7 @@
 
 | 类型 (Type) | 名称 (Name) | 值 (Value) | 说明 |
 | :--- | :--- | :--- | :--- |
-| **Secret** | `EDGE_EVER_AUTH_PASSWORD` | 建议至少 32 个字符且仅用于此实例的强密码 | 管理员登录密码 |
+| **Secret** | `EDGE_EVER_AUTH_PASSWORD` | 建议至少 32 个字符的强密码 | 管理员登录密码 |
 
 `EDGE_EVER_AUTH_PASSWORD` 是变量名，值是管理员登录密码。它属于 Worker 运行时 Secret，不是 Workers Builds 构建变量。
 
@@ -99,7 +100,7 @@ EDGE_EVER_UPDATE_CHANNEL=edge
 | `EDGE_EVER_WORKERS_DEV` | 启用或禁用 `workers.dev` 路由 |
 | `EDGE_EVER_CUSTOM_DOMAIN` / `EDGE_EVER_ROUTE_PATTERN` | 自定义路由 |
 
-自定义管理员用户名须在首次构建前设置；账号创建后修改该变量不会重命名账号。
+自定义管理员用户名须在重试首次构建前设置；账号创建后修改该变量不会重命名账号。
 
 旧部署的自定义 R2 存储桶无需迁移；不设置覆盖变量时，升级会沿用线上 `RESOURCES` binding。已有项目的显式构建命令也可继续使用，详见 [Workers Builds 配置](cloudflare-workers-builds.zh-CN.md)。
 

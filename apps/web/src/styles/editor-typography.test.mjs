@@ -50,7 +50,7 @@ describe("editor typography contract", () => {
     const linkRules = declarationsForSelector(globals, ".ProseMirror a");
     const markdownLinkRules = declarationsForSelector(globals, ".markdown-content a");
 
-    expect(linkRules).toMatch(/color\s*:\s*var\(--brand-green-text\)/);
+    expect(linkRules).toMatch(/color\s*:\s*rgb\(var\(--slate-700-rgb\)\)/);
     expect(linkRules).toMatch(/text-decoration\s*:\s*underline/);
     expect(markdownLinkRules).toMatch(/color\s*:\s*var\(--brand-green-text\)/);
     expect(markdownLinkRules).toMatch(/text-decoration\s*:\s*underline/);

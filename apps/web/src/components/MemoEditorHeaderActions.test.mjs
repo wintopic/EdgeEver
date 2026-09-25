@@ -69,13 +69,15 @@ describe("shared memo editor header actions", () => {
     expect(densitySource).toContain("max-h-12 overflow-hidden sm:max-h-9");
     expect(densitySource.match(/MEMO_EDITOR_TOP_ROW_CLASS_NAME =\s*"([^"]+)"/)?.[1]).not.toContain("sm:px-7");
     expect(densitySource.match(/MEMO_EDITOR_TOOLBAR_PADDING_CLASS_NAME =\s*"([^"]+)"/)?.[1]).not.toContain("sm:px-7");
-    expect(densitySource).toContain("lg:space-y-0 lg:px-10 lg:py-0");
+    expect(densitySource).toContain("sm:px-6 sm:pb-4 sm:pt-4 lg:space-y-0 lg:py-0");
+    expect(densitySource.match(/MEMO_EDITOR_TITLE_REGION_CLASS_NAME =\s*"([^"]+)"/)?.[1]).not.toContain("lg:px-24");
     expect(densitySource).not.toContain("min-[1600px]:flex");
   });
 
-  test("keeps Evernote-like desktop reading gutters aligned with the title", () => {
-    expect(editorSource).toContain("min-h-full items-start px-4 py-2 sm:px-7 lg:px-10");
-    expect(densitySource).toContain("sm:px-7 sm:pb-4 sm:pt-4 lg:space-y-0 lg:px-10 lg:py-0");
+  test("keeps the notebook row aligned with the note title while the body keeps its reading gutter", () => {
+    expect(editorSource).toContain("min-h-full items-start px-4 py-2 sm:px-7 lg:px-24");
+    expect(densitySource).toContain("sm:px-6 sm:pb-4 sm:pt-4 lg:space-y-0 lg:py-0");
+    expect(densitySource.match(/MEMO_EDITOR_TITLE_REGION_CLASS_NAME =\s*"([^"]+)"/)?.[1]).not.toContain("lg:px-24");
     expect(editorSource).toContain("overflow-y-auto lg:[scrollbar-gutter:stable_both-edges]");
   });
 });

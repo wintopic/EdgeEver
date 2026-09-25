@@ -26,7 +26,11 @@ describe("application color system", () => {
     expect(globals).toContain("--slate-500-rgb: 115 115 115;");
     expect(globals).toContain("--slate-950-rgb: 10 10 10;");
     expect(globals).toContain("--amber-50-rgb: 255 251 235;");
+    expect(globals).toContain("--amber-300-rgb: 252 211 77;");
+    expect(globals).toContain("--amber-400-rgb: 251 191 36;");
+    expect(globals).toContain("--amber-500-rgb: 245 158 11;");
     expect(globals).toContain("--rose-50-rgb: 255 241 242;");
+    expect(globals).toContain("--rose-400-rgb: 251 113 133;");
     expect(globals).not.toContain("--slate-500-rgb: 100 116 139;");
     expect(contrastRatio("#222222", "#ffffff")).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio("#737373", "#ffffff")).toBeGreaterThanOrEqual(4.5);
@@ -37,6 +41,7 @@ describe("application color system", () => {
     expect(globals).toContain("--workspace-sidebar: #121612;");
     expect(globals).toContain("--workspace-memo-list: #151a17;");
     expect(globals).toContain("--workspace-editor: #191e1b;");
+    expect(globals).toContain("--amber-300-rgb: 180 83 9;");
     expect(globals).not.toContain("scrollbar-color: rgba(100, 116, 139, 0.18)");
     expect(contrastRatio("#cad4ce", "#191e1b")).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio("#9aa9a0", "#191e1b")).toBeGreaterThanOrEqual(4.5);

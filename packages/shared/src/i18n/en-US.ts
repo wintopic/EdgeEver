@@ -2,6 +2,23 @@ import { memoTemplateSeedTranslations } from "../memo-template-seeds";
 
 // Shared by the PWA and native mobile clients.
 export const enUS = {
+  infographic: {
+    name: "Infographic", autoLayout: "Auto layout", describe: "Describe and generate", chooseTemplate: "Choose a template and fill content",
+    prompt: "Describe the information, structure, and key points", generate: "Generate infographic", generating: "Generating…",
+    refine: "Describe what to change", refinePrompt: "For example: change the second item to user growth", applyRefinement: "Revise with AI", undoGeneration: "Undo last generation", fineTune: "Fine-tune manually",
+    historyTitle: "AI conversation history", scrollToBottom: "Scroll to latest message", historyGenerated: "Generated “{{title}}”", historyRefined: "Revised “{{title}}”", historyClarified: "More information needed", historyFailed: "This revision was not completed", historyUndone: "This revision was undone",
+    doubleClickText: "Double-click text in the graphic to edit it. Changes save automatically.",
+    structureSettings: "Structure and style · Bulk edit", editSyntax: "Edit source syntax", backToStructure: "Back to structure and style",
+    title: "Title", description: "Description", items: "Items (one per line, use ‘Title | Description’)", comparisonItems: "One line per side; add aspects as ‘- Aspect | Description’", template: "Template", theme: "Color theme",
+    content: "Content", syntax: "Syntax", preview: "Preview", save: "Save", saving: "Saving…", exportSvg: "Export SVG", exportPng: "Export PNG",
+    empty: "Describe your content or start from a template.", noPreview: "Add content to see a preview.",
+    invalidSyntax: "The infographic syntax is invalid. Check it and try again.", renderError: "Rendering failed. Adjust the syntax or template.", contentTooLarge: "This infographic is too large for AI editing. Shorten it first.",
+    saveError: "Could not save. Try again.", sessionError: "Could not start an editing session. Try again.", aiError: "Generation failed. Check your AI model settings and try again.", aiInvalidResponse: "The generated content could not make an infographic. Try again.",
+    selectTemplate: "Choose template", simpleList: "Horizontal steps", numberedSteps: "Numbered steps", zigzagSteps: "Zigzag process", verticalList: "Vertical list", gridList: "Grid list", pyramidList: "Pyramid list", timeline: "Timeline", timelineChecklist: "Milestone timeline", roadmap: "Vertical roadmap", comparison: "Side-by-side comparison", compactComparison: "Compact comparison", arrowComparison: "Directional comparison", quadrant: "Quadrant", circularQuadrant: "Circular quadrant", themeDefault: "Default", themeDark: "Dark",
+    stepsGroup: "Process", listGroup: "List", timelineGroup: "Time and roadmap", comparisonGroup: "Comparison", quadrantGroup: "Quadrant",
+    officialTemplates: "AntV templates ({{count}})", searchTemplates: "Search template IDs", templateCategory: "Template category", chooseCategory: "Which infographic type fits this content?", keepCategory: "Keep current type", allCategories: "All categories", chartCategory: "Chart", comparisonCategory: "Comparison", hierarchyCategory: "Hierarchy", listCategory: "List", quadrantCategory: "Quadrant", relationCategory: "Relation", sequenceCategory: "Sequence",
+    sourceHelp: "The syntax is the editable source of this infographic. The preview updates as you edit.", readOnly: "Read only",
+  },
   companion: {
     learning: { rule: { move: "You usually file notes tagged “{{tag}}” in “{{notebook}}”.", tag: "You often add “{{tag}}” to notes in “{{notebook}}”." }, "basedOn": "Memories used", "help": "Learning uses future filing and tag choices to improve suggestions. Pausing learning keeps memories. Disabling memory use stops recall in both chat and discoveries. Relevant memories are sent with selected notes to your default model.", "learningEnabled": "Learn from my choices", "useMemory": "Use saved memories", "active": "Inferred from repeated choices · Active", "candidate": "Candidate preference · Not used yet", "conflicted": "Insufficient or conflicting evidence · Paused", "evidence": "View supporting choices", "feedback": "Stop suggesting this kind of organization", "feedbackHelp": "Remembers your preference for these notebooks. You can correct or forget it in personal memory."},
     discovery: {

@@ -53,11 +53,11 @@ export const MemoEditorHeaderActions = ({
           aria-label={t("editor.searchCurrentMemo")}
           onClick={onSearch}
         >
-          <Search className="h-5 w-5" strokeWidth={2.25} />
+          <Search className="h-4 w-4" strokeWidth={1.75} />
         </Button>
       </IconTooltip>
       {textNoteActions}
-      <GitHubRepositoryLink className="hidden h-8 w-8 justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/70 min-[1600px]:inline-flex" iconClassName="h-5 w-5" />
+      <GitHubRepositoryLink className="hidden h-8 w-8 justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/70 min-[1600px]:inline-flex" iconClassName="h-4 w-4" />
       <IconTooltip label={t("systemInfo.title")}>
         <Button
           className="relative hidden h-8 w-8 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-emerald-500/70 min-[1600px]:inline-flex"
@@ -66,7 +66,7 @@ export const MemoEditorHeaderActions = ({
           aria-label={t("systemInfo.title")}
           onClick={() => handleSystemInfoOpenChange(true)}
         >
-          <Info className="h-5 w-5" strokeWidth={2.25} />
+          <Info className="h-4 w-4" strokeWidth={1.75} />
           {deployedUpdateUnseen ? <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-emerald-500 ring-2 ring-white" /> : null}
         </Button>
       </IconTooltip>
