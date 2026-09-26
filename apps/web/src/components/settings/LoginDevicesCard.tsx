@@ -3,9 +3,8 @@ import { Check, Laptop, MonitorSmartphone, Pencil, Smartphone, Tablet, X } from 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  SETTINGS_CARD_DESCRIPTION_CLASSNAME,
   SETTINGS_CARD_HEADER_CLASSNAME,
   SETTINGS_CARD_ICON_CLASSNAME,
   SETTINGS_CARD_TITLE_CLASSNAME,
@@ -124,13 +123,12 @@ export const LoginDevicesCard = ({ authRequired, isLoggingOut, onLogout }: Login
               <MonitorSmartphone className={SETTINGS_CARD_ICON_CLASSNAME} />
               {t("loginDevices.title")}
             </CardTitle>
-            <CardDescription className={SETTINGS_CARD_DESCRIPTION_CLASSNAME}>{t("loginDevices.description")}</CardDescription>
           </div>
         </CardHeader>
         <CardContent className="p-4 pt-0">
-          {sessionsQuery.isLoading ? <p className="text-sm text-slate-500">{t("loginDevices.loading")}</p> : null}
-          {sessionsQuery.isError ? <p className="text-sm font-medium text-rose-600" role="alert">{t("loginDevices.loadFailed")}</p> : null}
-          {sessionsQuery.data?.sessions.length === 0 ? <p className="text-sm text-slate-500">{t("loginDevices.empty")}</p> : null}
+          {sessionsQuery.isLoading ? <p className="text-xs leading-5 text-slate-500">{t("loginDevices.loading")}</p> : null}
+          {sessionsQuery.isError ? <p className="text-xs font-medium leading-5 text-rose-600" role="alert">{t("loginDevices.loadFailed")}</p> : null}
+          {sessionsQuery.data?.sessions.length === 0 ? <p className="text-xs leading-5 text-slate-500">{t("loginDevices.empty")}</p> : null}
           {sessionsQuery.data?.sessions.length ? (
             <ul className="divide-y divide-slate-100">
               {sessionsQuery.data.sessions.map((session) => {
@@ -164,7 +162,7 @@ export const LoginDevicesCard = ({ authRequired, isLoggingOut, onLogout }: Login
                           <p className={SETTINGS_ITEM_TITLE_CLASSNAME}>{session.label || t(`loginDevices.${deviceKind}`)}</p>
                         )}
                         {session.isCurrent ? (
-                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
                             {t("loginDevices.current")}
                           </span>
                         ) : null}

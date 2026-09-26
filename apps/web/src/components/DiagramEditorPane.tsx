@@ -491,7 +491,7 @@ const ArchitectureComponentLibrary = ({
           {categories.length > 0 ? categories.map((category) => (
             <Collapsible key={category.id} defaultOpen>
               <DropdownMenuItem asChild onSelect={(event) => event.preventDefault()}>
-                <CollapsibleTrigger className="group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-green)]">
+                <CollapsibleTrigger className="group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/25">
                   <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-data-[state=closed]:-rotate-90" />
                   {t(category.labelKey)}
                 </CollapsibleTrigger>
@@ -580,7 +580,7 @@ const ArchitectureIconPicker = ({
             <Button
               variant="outline"
               size="icon"
-              className="h-8 w-8 shrink-0 rounded-md border-slate-200 bg-card p-0 text-slate-700 hover:bg-slate-50 focus-visible:ring-1 focus-visible:ring-[var(--brand-green)]"
+              className="h-8 w-8 shrink-0 rounded-md border-slate-200 bg-card p-0 text-slate-700 hover:bg-slate-50 focus-visible:ring-1 focus-visible:ring-slate-900/25"
               aria-label={t("diagram.changeNodeIcon")}
             >
               <CurrentLucide className="h-4 w-4" />
@@ -613,7 +613,7 @@ const ArchitectureIconPicker = ({
           {categories.length > 0 ? categories.map((category) => (
             <Collapsible key={category.id} defaultOpen>
               <DropdownMenuItem asChild onSelect={(event) => event.preventDefault()}>
-                <CollapsibleTrigger className="group flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--brand-green)]">
+                <CollapsibleTrigger className="group flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900/25">
                   <ChevronDown className="h-3.5 w-3.5 text-slate-400 transition-transform group-data-[state=closed]:-rotate-90" />
                   {t(category.labelKey)}
                 </CollapsibleTrigger>
@@ -3042,7 +3042,7 @@ export const DiagramEditorPane = ({
     ? "bg-rose-50 text-rose-700"
     : saveStatus === "saved"
       ? "bg-slate-100 text-slate-500"
-      : "bg-emerald-50 text-emerald-700";
+      : "bg-slate-100 text-slate-700";
 
   return (
     <TooltipProvider>
@@ -3355,9 +3355,9 @@ export const DiagramEditorPane = ({
             >
               <span>{t("diagram.navHintPan")}</span>
               <span className="text-slate-300 dark:text-slate-600">·</span>
-              <span className={cn("inline-flex items-center transition-colors duration-150", shiftSelectActive && "font-medium text-emerald-600 dark:text-emerald-400")}>
+              <span className={cn("inline-flex items-center transition-colors duration-150", shiftSelectActive && "font-medium text-slate-950")}>
                 <span className="mr-1">{t("diagram.navHintHoldShift")}</span>
-                <kbd className={cn("mr-1 inline-flex items-center rounded border px-1.5 py-0.5 text-xs font-semibold transition-colors duration-150", shiftSelectActive ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" : "border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300")}>
+                <kbd className={cn("mr-1 inline-flex items-center rounded border px-1.5 py-0.5 text-xs font-semibold transition-colors duration-150", shiftSelectActive ? "border-slate-400 bg-slate-100 text-slate-950" : "border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300")}>
                   Shift
                 </kbd>
                 <span>{t("diagram.navHintBoxSelect")}</span>

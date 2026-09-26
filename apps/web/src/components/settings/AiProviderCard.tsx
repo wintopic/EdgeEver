@@ -250,7 +250,7 @@ export const AiProviderCard = ({ provider: saved, defaultDisplayName, defaultMod
                     <span className="min-w-0 truncate font-mono text-xs text-slate-400">({model.modelId})</span>
                   ) : null}
                   {model.id === defaultModelId ? (
-                    <span className="shrink-0 rounded border border-emerald-200/60 bg-emerald-50 px-1 py-0.5 text-xs font-medium text-emerald-700">
+                    <span className="shrink-0 rounded border border-slate-200 bg-slate-100 px-1 py-0.5 text-xs font-medium text-slate-700">
                       {t("aiModel.defaultBadge")}
                     </span>
                   ) : null}

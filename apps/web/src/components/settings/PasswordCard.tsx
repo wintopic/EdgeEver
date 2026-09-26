@@ -2,9 +2,8 @@ import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  SETTINGS_CARD_DESCRIPTION_CLASSNAME,
   SETTINGS_CARD_HEADER_CLASSNAME,
   SETTINGS_CARD_ICON_CLASSNAME,
   SETTINGS_CARD_TITLE_CLASSNAME,
@@ -69,13 +68,10 @@ export const PasswordCard = ({ authRequired, demoMode }: PasswordCardProps) => {
           <KeyRound className={SETTINGS_CARD_ICON_CLASSNAME} />
           {t("password.title")}
         </CardTitle>
-        <CardDescription className={SETTINGS_CARD_DESCRIPTION_CLASSNAME}>
-          {t("password.description")}
-        </CardDescription>
       </CardHeader>
       <CardContent className="p-4 pt-0">
         {demoMode ? (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="status">
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900" role="status">
             {t("password.demoReadOnly")}
           </p>
         ) : (

@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, type DragEvent, type MouseEvent, type PointerEvent as ReactPointerEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { GitBranch, Network, Presentation, TableProperties, Workflow, Star, Check, MoreHorizontal, RotateCcw, Trash2 } from "lucide-react";
+import { Component, GitFork, PieChart, Table2, Workflow, Star, Check, MoreHorizontal, RotateCcw, Trash2 } from "lucide-react";
 import { getMemoListTimestamp, type MemoSummary } from "@edgeever/shared";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -90,7 +90,7 @@ export const MemoCard = ({
     ? t(`diagram.${memo.diagramKind === "mind-map" ? "mindMap" : memo.diagramKind}`)
     : null;
   const tableLabel = !diagramLabel && memo.structuredTable ? t("structuredTable.name") : null;
-  const DiagramIcon = memo.diagramKind === "mind-map" ? GitBranch : memo.diagramKind === "architecture" ? Network : Workflow;
+  const DiagramIcon = memo.diagramKind === "mind-map" ? GitFork : memo.diagramKind === "architecture" ? Component : Workflow;
   const listTimestamp = getMemoListTimestamp(memo, sortMode);
   const listTimestampLabel = formatMemoPreviewDate(
     listTimestamp.value,
@@ -333,14 +333,14 @@ export const MemoCard = ({
       draggable={!isTrashView}
       onDragStart={handleDragStart}
       className={cn(
-        "edgeever-memo-divider group relative overflow-hidden border border-slate-100 bg-card transition lg:rounded-none lg:border-x-0 lg:border-t-0 lg:border-slate-200 lg:shadow-none transition-all duration-200 select-none",
-        isLast && "lg:border-b-0",
-        listDensity === "compact" ? "rounded-md shadow-none" : "rounded-lg shadow-[0_4px_16px_rgba(15,23,42,0.045)]",
+        "edgeever-memo-divider group relative overflow-hidden border border-slate-100 bg-card transition lg:my-0.5 lg:rounded-lg lg:border lg:border-transparent lg:bg-transparent lg:shadow-none transition-all duration-200 select-none",
+        isLast && "lg:border-b-transparent",
+        listDensity === "compact" ? "rounded-md shadow-none" : "rounded-lg shadow-[0_4px_16px_rgba(15,23,42,0.045)] lg:shadow-none",
         !selectionMode && selected
-          ? "edgeever-workspace-selection-desktop"
+          ? "edgeever-workspace-selection border-[var(--workspace-divider)] bg-workspace-selection lg:border-[var(--workspace-divider)] lg:bg-workspace-selection"
           : checked
-            ? "edgeever-workspace-selection-desktop bg-slate-50 ring-1 ring-slate-200 lg:ring-0"
-            : "active:bg-slate-50 lg:hover:bg-slate-50"
+            ? "bg-slate-50 ring-1 ring-slate-200 lg:border-[var(--workspace-divider)] lg:bg-[var(--workspace-selection)] lg:ring-0"
+            : "active:bg-slate-50 lg:hover:bg-workspace-hover"
       )}
     >
       <div className={cn("flex min-h-[132px] items-center", listDensity === "compact" && "min-h-[84px] lg:min-h-[76px]")}>
@@ -395,25 +395,46 @@ export const MemoCard = ({
           </div>
           {diagramLabel ? (
             <div className="space-y-1.5">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 ">
-                <span className="inline-flex items-center gap-1 rounded border border-slate-200 px-1.5 py-0.5">
-                  <DiagramIcon className="h-3 w-3" aria-hidden="true" />{diagramLabel}
-                </span>
-                {memo.diagramPreview ? <span>{t("diagram.listCounts", { nodes: memo.diagramPreview.nodeCount, edges: memo.diagramPreview.edgeCount })}</span> : null}
+              <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex shrink-0 items-center text-slate-500">
+                      <DiagramIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>{diagramLabel}</TooltipContent>
+                </Tooltip>
+                {memo.diagramPreview ? (
+                  <span>{t("diagram.listCounts", { nodes: memo.diagramPreview.nodeCount, edges: memo.diagramPreview.edgeCount })}</span>
+                ) : (
+                  <span>{diagramLabel}</span>
+                )}
               </div>
               {listDensity !== "compact" && memo.diagramPreview?.labels.length ? (
                 <div className="line-clamp-2 text-xs leading-relaxed text-slate-600">{memo.diagramPreview.labels.join(" · ")}</div>
               ) : null}
             </div>
           ) : memo.infographic ? (
-            <div className="flex items-center gap-1 text-xs text-slate-500"><Presentation className="h-3 w-3" aria-hidden="true" />{t("infographic.name")}</div>
+            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+              <PieChart className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>{t("infographic.name")}</span>
+            </div>
           ) : tableLabel ? (
             <div className="space-y-1.5">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-                <span className="inline-flex items-center gap-1 rounded border border-slate-200 px-1.5 py-0.5">
-                  <TableProperties className="h-3 w-3" aria-hidden="true" />{tableLabel}
-                </span>
-                {memo.tablePreview ? <span>{t("structuredTable.listCounts", { records: memo.tablePreview.recordCount, fields: memo.tablePreview.fieldCount })}</span> : null}
+              <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex shrink-0 items-center text-slate-500">
+                      <Table2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>{tableLabel}</TooltipContent>
+                </Tooltip>
+                {memo.tablePreview ? (
+                  <span>{t("structuredTable.listCounts", { records: memo.tablePreview.recordCount, fields: memo.tablePreview.fieldCount })}</span>
+                ) : (
+                  <span>{tableLabel}</span>
+                )}
               </div>
               {listDensity !== "compact" && memo.tablePreview?.fieldNames.length ? (
                 <div className="line-clamp-2 text-xs leading-relaxed text-slate-600">{memo.tablePreview.fieldNames.join(" · ")}</div>
@@ -422,7 +443,7 @@ export const MemoCard = ({
           ) : (
             <div
               className={cn(
-                "line-clamp-2 min-h-10 text-xs leading-relaxed text-slate-600",
+                "line-clamp-2 min-h-10 text-xs leading-relaxed text-slate-500",
                 listDensity === "compact" && "line-clamp-1 min-h-0"
               )}
             >
@@ -438,7 +459,7 @@ export const MemoCard = ({
             {memo.tags.slice(0, 3).map((tag) => (
               <span
                 key={tag}
-                className="rounded-[3px] bg-slate-100 px-1.5 py-0.5 text-xs font-medium tracking-tight text-slate-600"
+                className="text-xs tracking-tight text-slate-400"
               >
                 #{tag}
               </span>
@@ -448,9 +469,8 @@ export const MemoCard = ({
         {!selectionMode && (
           <div
             className={cn(
-              "mr-3 mt-4 hidden shrink-0 flex-col gap-1 opacity-0 transition-opacity duration-200 focus-within:opacity-100 group-hover:opacity-100 lg:flex",
-              selected && "opacity-100",
-              listDensity === "compact" && "lg:mt-3"
+              "mr-2 mt-3 hidden shrink-0 flex-col gap-1 opacity-0 transition-opacity duration-200 focus-within:opacity-100 group-hover:opacity-100 lg:flex",
+              listDensity === "compact" && "lg:mt-2"
             )}
           >
             <Tooltip><TooltipTrigger asChild><button

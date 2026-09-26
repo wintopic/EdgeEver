@@ -51,7 +51,7 @@ export const NoteLinkInteractionHint = ({
 }) => createPortal(
   <div
     role="tooltip"
-    className="pointer-events-none fixed z-[100] whitespace-nowrap rounded-md bg-[var(--tooltip-bg)] px-2.5 py-1.5 text-xs font-medium text-[var(--tooltip-fg)] shadow-md"
+    className="pointer-events-none fixed z-[100] whitespace-nowrap rounded-lg border border-[var(--tooltip-border)] bg-[var(--tooltip-bg)] px-2.5 py-1.5 text-xs font-medium leading-4 text-[var(--tooltip-fg)] shadow-[var(--tooltip-shadow)]"
     style={{
       left: position.left,
       top: position.top,
@@ -219,7 +219,7 @@ export const MobileNotebookSelectSheet = ({
                     key={option.id}
                     className={cn(
                       "h-12 px-3 text-base",
-                      selected ? "bg-emerald-50 font-semibold text-emerald-700 data-[selected=true]:bg-emerald-50" : "text-slate-700",
+                      selected ? "bg-workspace-selection font-semibold text-slate-950 data-[selected=true]:bg-workspace-selection" : "text-slate-700",
                     )}
                     style={{ paddingLeft: `${12 + option.depth * 18}px` }}
                     value={option.id}

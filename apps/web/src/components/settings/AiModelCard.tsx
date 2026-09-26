@@ -136,7 +136,7 @@ export const AiModelCard = () => {
         <CollapsibleContent asChild>
           <CardContent className="grid gap-5 p-4 pt-0 sm:px-5 sm:pb-5">
             {settingsQuery.isLoading ? (
-              <p className="flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />{t("common.loading")}</p>
+              <p className="flex items-center gap-2 text-xs leading-5 text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />{t("common.loading")}</p>
             ) : (
               <>
                 {!encryptionConfigured ? (
@@ -223,7 +223,7 @@ export const AiModelCard = () => {
                 </section>
 
                 <div className="flex items-start gap-2 border-t border-slate-200/60 pt-3 ">
-                  <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600 " />
+                  <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-900" />
                   <p className="text-xs leading-relaxed text-slate-500 ">
                     {t("aiModel.privacyNotice")}
                   </p>

@@ -3347,7 +3347,7 @@ export const WorkspaceApp = ({
                   ) : rendererRecoveryMode ? (
                     <EditorRecoveryPane />
                   ) : memoSelectionModeActive ? (
-                    <div className="flex h-full min-w-0 flex-col bg-card">
+                    <div className="flex h-full min-w-0 flex-col bg-transparent">
                       {memoSelectionActionBar}
                     </div>
                   ) : (

@@ -66,14 +66,14 @@ export const AiTagSuggestionPromptCard = () => {
         <CollapsibleContent asChild>
           <CardContent className="grid gap-3 px-4 pb-4 pt-0">
             {settingsQuery.isLoading ? (
-              <p className="flex items-center gap-2 text-sm text-slate-500">
+              <p className="flex items-center gap-2 text-xs leading-5 text-slate-500">
                 <Loader2 className="h-4 w-4 animate-spin" />{t("common.loading")}
               </p>
             ) : (
               <>
                 <textarea
                   aria-label={t("settings.aiTagPromptTitle")}
-                  className="min-h-44 w-full resize-y rounded-md border border-slate-200 bg-card px-3 py-2 font-mono text-xs leading-5 text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+                  className="min-h-44 w-full resize-y rounded-md border border-slate-200 bg-card px-3 py-2 font-mono text-xs leading-5 text-slate-800 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
                   disabled={disabled}
                   maxLength={4000}
                   onChange={(event) => setPrompt(event.target.value)}

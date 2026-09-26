@@ -55,12 +55,12 @@ export const DesktopLocalBackupCard = () => {
   return (
     <Card className="w-full min-w-0 overflow-hidden shadow-none">
       <CardHeader className="p-4 pb-3">
-        <CardTitle className="flex items-center gap-2 text-sm"><Database className="h-4 w-4 text-emerald-700" />{t("dataExport.desktopLocalTitle")}</CardTitle>
+        <CardTitle className="flex items-center gap-2 text-sm"><Database className="h-4 w-4 text-slate-900" />{t("dataExport.desktopLocalTitle")}</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-3 p-4 pt-0">
         <CardDescription className="text-xs leading-5">{t("dataExport.desktopLocalDescription")}</CardDescription>
         {backups.length > 0 ? (
-          <select className="h-10 rounded-md border border-slate-200 bg-card px-3 text-sm text-slate-950 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20" value={selectedPath} disabled={state === "working"} onChange={(event) => setSelectedPath(event.target.value)}>
+          <select className="h-10 rounded-md border border-slate-200 bg-card px-3 text-xs leading-5 text-slate-950 outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10" value={selectedPath} disabled={state === "working"} onChange={(event) => setSelectedPath(event.target.value)}>
             {backups.map((backup) => <option key={backup.path} value={backup.path}>{backup.name} · {formatSize(backup.size)}</option>)}
           </select>
         ) : <p className="text-xs text-slate-500">{state === "working" ? t("dataExport.desktopLocalRefreshing") : t("dataExport.desktopLocalEmpty")}</p>}
