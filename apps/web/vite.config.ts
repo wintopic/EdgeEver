@@ -346,6 +346,17 @@ export default defineConfig({
               priority: 37,
             },
             {
+              name: "vendor-streamdown",
+              test: /node_modules[\\/](?:streamdown|@streamdown|micromark|mdast|unist|remark|rehype|vfile|zwitch|longest-streak|character-entities|property-information|space-separated-tokens|comma-separated-tokens|html-void-elements|ccount|devlop|bail|trough|unified)[\\/]/,
+              priority: 35,
+              // Streamdown and the unified/micromark/mdast parser stack rely on
+              // tight cross-module references and top-level initializer functions
+              // (e.g. unist-util-is convert() called at import time by mdast-util-phrasing).
+              // Splitting these modules across chunks via maxSize or entriesAware causes
+              // circular chunk evaluation order issues where convert() is undefined.
+              // Keep the entire Streamdown parsing graph atomic.
+            },
+            {
               name: "vendor-tiptap-pm",
               test: /node_modules[\\/]@tiptap[\\/]pm[\\/]/,
               priority: 36,

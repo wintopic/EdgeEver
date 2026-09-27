@@ -14,9 +14,6 @@ export const MEMO_EDITOR_TOOLBAR_PADDING_CLASS_NAME =
 export const MEMO_EDITOR_TOOLBAR_COLLAPSED_CLASS_NAME =
   "max-h-12 overflow-hidden sm:max-h-9";
 
-export const MEMO_EDITOR_TITLE_REGION_CLASS_NAME =
-  `space-y-1 pb-2 pt-1 sm:pb-2 sm:pt-1 ${MEMO_EDITOR_READING_GUTTER_CLASS_NAME}`;
-
 /** Extra right inset so the title field stops before the header status cluster. */
 export const nextTitleStatusClearance = (
   current: number,

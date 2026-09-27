@@ -26,7 +26,7 @@ export const AccountInfoCard = ({ user }: { user: AuthUser | null }) => {
           <UserRound className="h-5 w-5" />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-slate-800">
+          <p className="truncate text-xs font-normal text-slate-800">
             {user.displayName || user.username}
           </p>
           <p className="truncate text-xs text-slate-500">

@@ -1,6 +1,6 @@
 import { diagramEditorSnapshot } from "@/lib/diagram-editor-snapshot";
 import { MemoTitleInput } from "@/components/MemoTitleInput";
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { Dom, Export, Graph, History, Keyboard, Scroller, Selection, type Edge, type Node } from "@antv/x6";
 import * as m from "motion/react-m";
 import {
@@ -154,8 +154,8 @@ import { MemoEditorMetadataRow } from "@/components/MemoEditorMetadataRow";
 import { MemoEditorFocusModeButton, MemoEditorTopRowLeading, MemoEditorUpdatedLabel } from "@/components/MemoEditorTopRowLeading";
 import { MemoEditorToolbarDivider } from "@/components/MemoEditorToolbarChrome";
 import {
-  MEMO_EDITOR_TITLE_REGION_CLASS_NAME,
   MEMO_EDITOR_TOP_ROW_CLASS_NAME,
+  nextTitleStatusClearance,
 } from "@/components/MemoEditorChromeDensity";
 import { EditorNoteSearchBar } from "@/components/editor/EditorNoteSearchBar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -1684,6 +1684,9 @@ export const DiagramEditorPane = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchIndex, setSearchIndex] = useState(0);
   const [mobileNotebookSheetOpen, setMobileNotebookSheetOpen] = useState(false);
+  const [headerTitleSlot, setHeaderTitleSlot] = useState<HTMLDivElement | null>(null);
+  const [headerStatusCluster, setHeaderStatusCluster] = useState<HTMLDivElement | null>(null);
+  const [titleStatusClearancePx, setTitleStatusClearancePx] = useState(0);
   const [notebookUpdatePending, setNotebookUpdatePending] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [zoomPercent, setZoomPercent] = useState(100);
@@ -3024,6 +3027,32 @@ export const DiagramEditorPane = ({
     if (searchMatches[0]) selectSearchMatch(0);
   }, [searchMatches, selectSearchMatch]);
 
+  useLayoutEffect(() => {
+    const titleSlot = headerTitleSlot;
+    const status = headerStatusCluster;
+    if (!titleSlot || !status) return;
+    let frame = 0;
+    const measure = () => {
+      const titleRect = titleSlot.getBoundingClientRect();
+      const statusRect = status.getBoundingClientRect();
+      if (titleRect.width < 1 || statusRect.width < 1) return;
+      const paddingRight = Number.parseFloat(getComputedStyle(titleSlot).paddingRight) || 0;
+      const inputRight = titleRect.right - paddingRight;
+      setTitleStatusClearancePx((current) => nextTitleStatusClearance(current, inputRight, statusRect.left));
+    };
+    measure();
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    });
+    observer.observe(titleSlot);
+    observer.observe(status);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [editorDirty, headerStatusCluster, headerTitleSlot, saveError, saving]);
+
   if (!document) return null;
   const kindLabel = document.kind === "mind-map" ? t("diagram.mindMap") : document.kind === "architecture" ? t("diagram.architecture") : t("diagram.flowchart");
   const updatedLabel = formatDateTime(memo.updatedAt);
@@ -3048,8 +3077,17 @@ export const DiagramEditorPane = ({
     <TooltipProvider>
       <div className="flex h-full min-h-0 flex-col bg-card">
       <header className="shrink-0 border-b border-slate-200 bg-card">
-        <div className={MEMO_EDITOR_TOP_ROW_CLASS_NAME}>
+        <div className={cn(MEMO_EDITOR_TOP_ROW_CLASS_NAME, "border-b-0")}>
+          <div
+            className="min-w-0 w-full"
+            style={titleStatusClearancePx > 0 ? { paddingRight: titleStatusClearancePx } : undefined}
+          >
+          <div
+            ref={setHeaderTitleSlot}
+            className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-4 sm:flex-nowrap"
+          >
           <MemoEditorTopRowLeading
+            className="min-w-0 flex-1"
             mobileBackButton={(
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -3062,6 +3100,7 @@ export const DiagramEditorPane = ({
             )}
             titleInput={(
               <MemoTitleInput
+                className="w-full min-w-0 px-2"
                 value={title}
                 readOnly={readOnly}
                 placeholder={kindLabel}
@@ -3081,8 +3120,30 @@ export const DiagramEditorPane = ({
               />
             )}
           />
+          <MemoEditorMetadataRow
+            rowClassName="shrink-0 flex-nowrap"
+            contentMarkdown={memo.contentMarkdown}
+            disabled={readOnly}
+            mobileNotebookPickerOpen={mobileNotebookSheetOpen}
+            notebookOptions={notebookOptions}
+            notebookUpdatePending={notebookUpdatePending || saving}
+            repository={repository}
+            selectedNotebookId={memoRef.current.notebookId}
+            tagsText={tagsText}
+            title={title}
+            onMobileNotebookPickerOpenChange={setMobileNotebookSheetOpen}
+            onNotebookChange={handleNotebookChange}
+            onTagsChange={(nextTagsText) => {
+              tagsRef.current = nextTagsText;
+              setTagsText(nextTagsText);
+              setTagsDirty(true);
+              setDirtyVersion((current) => current + 1);
+            }}
+          />
+          </div>
+          </div>
 
-          <div className="flex shrink-0 items-center gap-1">
+          <div ref={setHeaderStatusCluster} className="absolute right-1 top-0 flex h-full shrink-0 items-center gap-1 sm:right-2">
             <div className="flex min-w-0 items-center gap-1.5">
               <MemoEditorUpdatedLabel updatedLabel={updatedLabel} />
             <m.span
@@ -3193,27 +3254,6 @@ export const DiagramEditorPane = ({
           </div>
         </div>
 
-        <div className={MEMO_EDITOR_TITLE_REGION_CLASS_NAME}>
-          <MemoEditorMetadataRow
-            contentMarkdown={memo.contentMarkdown}
-            disabled={readOnly}
-            mobileNotebookPickerOpen={mobileNotebookSheetOpen}
-            notebookOptions={notebookOptions}
-            notebookUpdatePending={notebookUpdatePending || saving}
-            repository={repository}
-            selectedNotebookId={memoRef.current.notebookId}
-            tagsText={tagsText}
-            title={title}
-            onMobileNotebookPickerOpenChange={setMobileNotebookSheetOpen}
-            onNotebookChange={handleNotebookChange}
-            onTagsChange={(nextTagsText) => {
-              tagsRef.current = nextTagsText;
-              setTagsText(nextTagsText);
-              setTagsDirty(true);
-              setDirtyVersion((current) => current + 1);
-            }}
-          />
-        </div>
         {searchOpen ? (
           <EditorNoteSearchBar
             inputRef={searchInputRef}

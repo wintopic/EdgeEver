@@ -3,6 +3,8 @@ import {
   ChevronRight,
   Database,
   Info,
+  Keyboard,
+  KeyRound,
   LayoutTemplate,
   Shield,
   SlidersHorizontal,
@@ -26,14 +28,13 @@ import { DesktopLocalDataCard } from "./settings/DesktopLocalDataCard";
 import { LoginDevicesCard } from "./settings/LoginDevicesCard";
 import { EvernoteImportGuideCard } from "./settings/EvernoteImportGuideCard";
 import { FeedbackLink } from "./settings/FeedbackLink";
-import { ProductHuntLink } from "./settings/ProductHuntLink";
 import { McpConfigCard } from "./settings/McpConfigCard";
 import { PreferenceCard } from "./settings/PreferenceCard";
+import { ShortcutSettingsItem } from "./settings/ShortcutSettingsItem";
 import { PasswordCard } from "./settings/PasswordCard";
 import { UserManagementCard } from "./settings/UserManagementCard";
 import { ObjectStorageCard } from "./settings/ObjectStorageCard";
 import { AiModelCard } from "./settings/AiModelCard";
-import { AiTagSuggestionPromptCard } from "./settings/AiTagSuggestionPromptCard";
 import { ThemeToggle } from "./ThemeToggle";
 import type { AuthUser } from "@edgeever/shared";
 import { contentEnterMotion } from "@/lib/motion";
@@ -67,7 +68,7 @@ const SettingsGroup = ({ children }: { children: ReactNode }) => (
   </div>
 );
 
-type TabKey = "general" | "users" | "data" | "ai" | "advanced" | "account";
+type TabKey = "general" | "shortcuts" | "users" | "data" | "ai" | "mcp" | "advanced" | "account";
 
 interface TabItem {
   key: TabKey;
@@ -109,9 +110,19 @@ export const SettingsPane = ({
       icon: SlidersHorizontal,
     },
     {
+      key: "shortcuts",
+      label: t("settings.tabs.shortcuts"),
+      icon: Keyboard,
+    },
+    {
       key: "ai",
       label: t("settings.tabs.ai"),
       icon: Sparkles,
+    },
+    {
+      key: "mcp",
+      label: t("settings.tabs.mcp"),
+      icon: KeyRound,
     },
     {
       key: "data",
@@ -127,17 +138,23 @@ export const SettingsPane = ({
           },
         ]
       : []),
-    {
-      key: "advanced",
-      label: t("settings.tabs.advanced"),
-      icon: Wrench,
-    },
+    ...(isOwner || canClearLocalData
+      ? [
+          {
+            key: "advanced" as const,
+            label: t("settings.tabs.advanced"),
+            icon: Wrench,
+          },
+        ]
+      : []),
     {
       key: "account",
       label: t("settings.tabs.account"),
       icon: Shield,
     },
   ];
+
+  const mobileTabItems = tabItems.filter((item) => item.key !== "shortcuts");
 
   const handleBack = () => {
     if (activeMobileTab !== null) {
@@ -167,18 +184,24 @@ export const SettingsPane = ({
     switch (key) {
       case "general":
         return (
-          <SettingsGroup>
+          <div className="grid gap-6">
             <PreferenceCard
               imageCompressionEnabled={imageCompressionEnabled}
               onImageCompressionChange={onImageCompressionChange}
-              shortcutSettings={shortcutSettings}
-              onShortcutSettingsChange={onShortcutSettingsChange}
               editorContentAlignment={editorContentAlignment}
               onEditorContentAlignmentChange={onEditorContentAlignmentChange}
             />
-            <FeedbackLink className="hidden lg:flex" />
-            <ProductHuntLink className="hidden lg:flex" />
-          </SettingsGroup>
+            <div className="hidden overflow-hidden rounded-xl border border-slate-200 bg-card lg:block">
+              <FeedbackLink />
+            </div>
+          </div>
+        );
+      case "shortcuts":
+        return (
+          <ShortcutSettingsItem
+            shortcutSettings={shortcutSettings}
+            onShortcutSettingsChange={onShortcutSettingsChange}
+          />
         );
       case "users":
         return isOwner ? (
@@ -197,13 +220,17 @@ export const SettingsPane = ({
         return (
           <SettingsGroup>
             <AiModelCard />
+          </SettingsGroup>
+        );
+      case "mcp":
+        return (
+          <SettingsGroup>
             <McpConfigCard />
           </SettingsGroup>
         );
       case "advanced":
         return (
           <SettingsGroup>
-            <AiTagSuggestionPromptCard />
             {isOwner ? <ObjectStorageCard demoMode={demoMode} /> : null}
             {canClearLocalData ? <DesktopLocalDataCard /> : null}
           </SettingsGroup>
@@ -270,7 +297,7 @@ export const SettingsPane = ({
                   className={cn(
                     "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs leading-5 transition-all duration-150 text-left w-full",
                     isSelected
-                      ? "bg-workspace-selection font-semibold text-slate-950"
+                      ? "bg-workspace-selection font-normal text-slate-950"
                       : "font-normal text-slate-600 hover:bg-workspace-hover hover:text-slate-900"
                   )}
                 >
@@ -335,7 +362,7 @@ export const SettingsPane = ({
                 </button>
               </div>
               <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-card">
-                {tabItems.map((item) => {
+                {mobileTabItems.map((item) => {
                   const Icon = item.icon;
                   return (
                     <button
@@ -377,7 +404,6 @@ export const SettingsPane = ({
                   <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
                 </button>
                 <FeedbackLink />
-                <ProductHuntLink />
               </div>
             </div>
           ) : (

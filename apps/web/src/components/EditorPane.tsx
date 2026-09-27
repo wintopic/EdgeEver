@@ -331,6 +331,7 @@ type EditorPaneProps = {
   pluginHost: EdgeEverPluginHost;
   pluginNavigationRequest?: { id: number; noteId: string; search: string } | null;
   onOpenExecutionCenter: () => void;
+  demoMode?: boolean;
 };
 
 type RichEditorPaneProps = EditorPaneProps & {
@@ -408,6 +409,7 @@ const RichEditorPane = ({
   pluginHost,
   pluginNavigationRequest,
   onOpenExecutionCenter,
+  demoMode = false,
   onRequestMobileNativeEdit,
 }: RichEditorPaneProps) => {
   const { t, i18n } = useTranslation();
@@ -487,7 +489,9 @@ const RichEditorPane = ({
   const [desktopReadingProtection, setDesktopReadingProtection] = useState(readDesktopReadingProtectionPreference);
   const [mobilePlainText, setMobilePlainText] = useState("");
   const [mobileToolbarOpen, setMobileToolbarOpen] = useState(false);
-  const [editorOutlineCollapsed, setEditorOutlineCollapsed] = useState(readEditorOutlineCollapsedPreference);
+  const [editorOutlineCollapsed, setEditorOutlineCollapsed] = useState(() =>
+    readEditorOutlineCollapsedPreference({ defaultCollapsed: !demoMode })
+  );
   const [phonePreviewOpen, setPhonePreviewOpen] = useState(readEditorPhonePreviewPreference);
   const [memoIdCopyNotice, setMemoIdCopyNotice] = useState<{ status: "copied" | "error"; id: string } | null>(null);
   const handledSaveAndSyncTokenRef = useRef(saveAndSyncToken);

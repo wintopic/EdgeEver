@@ -172,11 +172,11 @@ export const DataExportCard = ({ refreshWorkspaceAfterImport }: DataExportCardPr
               </CardDescription>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <Button size="sm" variant="outline" type="button" disabled={busy} onClick={() => fileInputRef.current?.click()}>
+              <Button size="sm" variant="outline" className="text-xs font-normal" type="button" disabled={busy} onClick={() => fileInputRef.current?.click()}>
                 <Upload className="h-4 w-4" />
                 {t("dataExport.importButton")}
               </Button>
-              <Button size="sm" type="button" disabled={busy} onClick={() => void handleExport()}>
+              <Button size="sm" variant="outline" className="text-xs font-normal" type="button" disabled={busy} onClick={() => void handleExport()}>
                 <Download className="h-4 w-4" />
                 {t("dataExport.exportButton")}
               </Button>
