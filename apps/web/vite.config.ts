@@ -284,7 +284,7 @@ export default defineConfig({
       ? false
       : {
           resolveDependencies: (_filename, dependencies) => dependencies.filter((dependency) =>
-            !/(?:vendor-code-highlight|vendor-(?:mermaid|D3|tiptap|prosemirror|floating|codemirror|x6|zod)|vendor~(?:wasm|emacs-lisp)-|vendor-radix(?!-slot)|ui-primitives|ui-button-tooltip|i18n-ja-)/.test(dependency),
+            !/(?:vendor-code-highlight|vendor-(?:mermaid|D3|tiptap|prosemirror|floating|codemirror|x6|infographic|zod)|vendor~(?:wasm|emacs-lisp)-|vendor-radix(?!-slot)|ui-primitives|ui-button-tooltip|i18n-ja-)/.test(dependency),
           ),
         },
     rolldownOptions: {
@@ -334,6 +334,16 @@ export default defineConfig({
               // graph. Size-based splitting can evaluate clipboard storage
               // before Config is initialized, crashing the lazy diagram editor.
               // Keep the graph atomic and defer the resulting chunk instead.
+            },
+            {
+              name: "vendor-infographic",
+              test: /node_modules[\\/]@antv[\\/]infographic[\\/]/,
+              priority: 39,
+              // AntV Infographic registers its template and shape catalogs through
+              // internal registries. Size-based splitting across chunks breaks
+              // initialization order, causing registry map lookups (e.g. .set)
+              // to fail on undefined during chunk evaluation. Keep this graph
+              // atomic and leave the resulting chunk off the initial modulepreload.
             },
             {
               name: "vendor-prosemirror",

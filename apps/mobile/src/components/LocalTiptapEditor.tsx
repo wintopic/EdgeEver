@@ -37,6 +37,8 @@ import {
   getImageReferrerPolicy,
   ImageGallery,
   getResourceIdFromUrl,
+  DIAGRAM_CANVAS_DARK,
+  DIAGRAM_CANVAS_LIGHT,
   diagramDocumentToX6Cells,
   attachDiagramReader,
   MIND_MAP_CONNECTOR_NAME,
@@ -62,6 +64,7 @@ import {
 import {
   MOBILE_EDITOR_ACTIVE_FLAGS,
   MOBILE_EDITOR_TOOLBAR_ACTIONS,
+  clearMobileEditorUndoHistory,
   getMobileEditorInputAttributes,
   getMobileEditorImageScaleLabel,
   getMobileEditorImageWidthPresetLabel,
@@ -867,6 +870,7 @@ function LocalTiptapEditorImpl(props: LocalTiptapEditorProps) {
       // composer reset). Callers already own persistence for that state, so an
       // emitted update would create a delayed stale write during screen teardown.
       editor.commands.setContent(next, { emitUpdate: false });
+      clearMobileEditorUndoHistory(editor);
     } catch {
       // Ignore malformed payloads from the native bridge.
     }
@@ -1447,6 +1451,7 @@ function LocalTiptapEditorImpl(props: LocalTiptapEditorProps) {
     const incoming = JSON.stringify(next);
     if (current !== incoming) {
       editor.commands.setContent(next, { emitUpdate: false });
+      clearMobileEditorUndoHistory(editor);
     }
   }, [editor, isViewer, props.baseUrl, props.content, props.locale]);
 
@@ -1561,6 +1566,20 @@ function LocalTiptapEditorImpl(props: LocalTiptapEditorProps) {
       (activeEditor?.isActive("taskList") ? MOBILE_EDITOR_ACTIVE_FLAGS.taskList : 0) |
       (activeEditor?.isActive("blockquote") ? MOBILE_EDITOR_ACTIVE_FLAGS.blockquote : 0),
   });
+  const historyState = useEditorState({
+    editor,
+    selector: ({ editor: activeEditor }) => {
+      if (!activeEditor) return 0;
+      const available = (command: "undo" | "redo") => {
+        try {
+          return activeEditor.can().chain().focus()[command]().run();
+        } catch {
+          return false;
+        }
+      };
+      return (available("undo") ? 1 : 0) | (available("redo") ? 2 : 0);
+    },
+  });
   const requestOpenAiForSelection = () => {
     if (openAiForSelection()) {
       setAiSelectionHint(false);
@@ -1598,6 +1617,8 @@ function LocalTiptapEditorImpl(props: LocalTiptapEditorProps) {
   };
 
   const toolbarIcons: Record<MobileEditorToolbarActionId, ReactNode> = {
+    undo: <UndoIcon />,
+    redo: <RedoIcon />,
     image: <ImagePlusIcon />,
     bold: <BoldIcon />,
     bulletList: <ListIcon />,
@@ -1609,6 +1630,8 @@ function LocalTiptapEditorImpl(props: LocalTiptapEditorProps) {
   };
   const activeListItemType = editor?.isActive("taskItem") ? "taskItem" : "listItem";
   const toolbarHandlers: Record<MobileEditorToolbarActionId, () => void> = {
+    undo: () => editor?.chain().focus().undo().run(),
+    redo: () => editor?.chain().focus().redo().run(),
     image: () => void insertImage(),
     bold: () => editor?.chain().focus().toggleBold().run(),
     bulletList: () => editor?.chain().focus().toggleBulletList().run(),
@@ -1628,7 +1651,9 @@ function LocalTiptapEditorImpl(props: LocalTiptapEditorProps) {
               <ToolbarButton
                 key={action.id}
                 active={action.activeFlag > 0 && Boolean(toolbarState & action.activeFlag)}
-                disabled={(action.id === "increaseListIndent"
+                disabled={(action.id === "undo" && ((historyState ?? 0) & 1) === 0)
+                  || (action.id === "redo" && ((historyState ?? 0) & 2) === 0)
+                  || (action.id === "increaseListIndent"
                     && !Boolean(editor?.can().chain().focus().sinkListItem(activeListItemType).run()))
                   || (action.id === "decreaseListIndent"
                     && !Boolean(editor?.can().chain().focus().liftListItem(activeListItemType).run()))}
@@ -2064,6 +2089,20 @@ const EditorIcon = ({ children, size, strokeWidth }: { children: ReactNode; size
 
 // Keep the same Lucide paths as the PWA toolbar without pulling the full icon
 // barrel into the standalone DOM bundle (which adds roughly 1.8 MB in Metro).
+const UndoIcon = () => (
+  <EditorIcon size={18} strokeWidth={2}>
+    <path d="M9 14 4 9l5-5" />
+    <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" />
+  </EditorIcon>
+);
+
+const RedoIcon = () => (
+  <EditorIcon size={18} strokeWidth={2}>
+    <path d="m15 14 5-5-5-5" />
+    <path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13" />
+  </EditorIcon>
+);
+
 const ImagePlusIcon = () => (
   <EditorIcon size={18} strokeWidth={2}>
     <path d="M16 5h6" />
@@ -3224,7 +3263,7 @@ const getEditorStyles = (theme: "light" | "dark", options?: { viewer?: boolean }
   .edgeever-editor-scroll:has(.edgeever-x6-document) { display: flex; flex-direction: column; overflow: hidden; }
   .edgeever-x6-document, .edgeever-diagram-reader-host { display: flex; flex-direction: column; height: 100%; min-height: 100%; padding: 8px 12px 12px; background: ${theme === "dark" ? "#0f172a" : "#fff"}; }
   .edgeever-diagram-reader-controls { flex: 0 0 auto; }
-  .edgeever-x6-diagram { flex: 1 1 auto; width: 100%; height: auto; min-height: 240px; overflow: hidden; border: 1px solid ${theme === "dark" ? "#26382f" : "#e3ece7"}; border-radius: 14px; background: ${theme === "dark" ? "#101311" : "#f8faf9"}; touch-action: none; }
+  .edgeever-x6-diagram { flex: 1 1 auto; width: 100%; height: auto; min-height: 240px; overflow: hidden; border: 1px solid ${theme === "dark" ? "#26382f" : "#e3ece7"}; border-radius: 14px; background: ${theme === "dark" ? DIAGRAM_CANVAS_DARK : DIAGRAM_CANVAS_LIGHT}; touch-action: none; }
   .edgeever-x6-diagram .x6-graph-svg { overflow: hidden; }
   .edgeever-x6-diagram .x6-node { cursor: pointer; }
   .edgeever-mermaid-code-block > pre { display: none; margin: 8px 0 0; }
