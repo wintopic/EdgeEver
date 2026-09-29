@@ -116,7 +116,9 @@ describe("dark theme contracts", () => {
     const editorPane = readFileSync(new URL("../components/EditorPane.tsx", import.meta.url), "utf8");
     const editorThemeCss = readFileSync(new URL("../styles/editor-themes/base.css", import.meta.url), "utf8");
 
-    expect(editorPane).toContain("useEditorTheme()");
+    expect(editorPane).toContain('data-editor-theme="default"');
+    expect(editorPane).toContain("noteProseCssVariables(noteProse)");
+    expect(editorPane).not.toContain("useEditorTheme()");
     expect(editorPane).not.toContain("resolvedTheme");
     expect(editorThemeCss).toContain(':root.dark .edgeever-editor[data-editor-theme="custom"]:not([data-editor-theme="default"])');
     expect(editorThemeCss).toContain("--editor-theme-dark-bg");

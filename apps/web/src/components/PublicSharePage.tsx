@@ -4,7 +4,7 @@ import Image from "@tiptap/extension-image";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Clock3, FileText, LoaderCircle, LockKeyhole, ShieldCheck } from "lucide-react";
-import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router";
 import { ApiRequestError, api } from "@/lib/api";
@@ -13,11 +13,14 @@ import { Input } from "@/components/ui/input";
 import { EdgeEverCodeBlock, codeBlockLowlight } from "@/lib/code-block";
 import { withEnvironmentTitlePrefix } from "@/lib/environment-title";
 import { resolvePublicShareBody } from "@/lib/public-share-body";
+import { sanitizeAndScopeCss } from "@/lib/css-sandbox";
 import {
   parseImageWidth,
   getImageReferrerPolicy,
   createEdgeEverDocumentExtensions,
+  noteProseCssVariables,
   parsePublishedNoteBodyFont,
+  resolveNoteProse,
   type PublicMemoShare,
 } from "@edgeever/shared";
 import { applyEditorBodyFontPreference } from "@/lib/editor-body-font";
@@ -256,6 +259,7 @@ export const PublicSharePage = () => {
     );
   }
 
+  const prose = resolveNoteProse(share.prose);
   return (
     <main className="edgeever-public-share min-h-[100dvh] bg-slate-50 px-4 py-6 sm:px-8 sm:py-10">
       <article className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-card shadow-sm">
@@ -280,7 +284,15 @@ export const PublicSharePage = () => {
             </div>
           ) : null}
         </header>
-        <div className="edgeever-editor px-1 py-4 sm:px-4 sm:py-7" data-editor-theme="default">
+        <div
+          className="edgeever-editor px-1 py-4 sm:px-4 sm:py-7"
+          data-editor-theme="default"
+          data-note-palette={prose.palette}
+          style={noteProseCssVariables(prose) as CSSProperties}
+        >
+          {prose.customCss ? (
+            <style dangerouslySetInnerHTML={{ __html: sanitizeAndScopeCss(prose.customCss) }} />
+          ) : null}
           <SharedDocument
             locale={(i18n.resolvedLanguage || i18n.language || "zh-CN").startsWith("en") ? "en-US" : "zh-CN"}
             share={share}

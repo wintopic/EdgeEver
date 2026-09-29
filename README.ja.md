@@ -1,6 +1,6 @@
 <div align="center">
   <h1>
-    <img src="assets/brand/edgeever-icon.svg" alt="EdgeEver のロゴ" width="40" align="absmiddle" /> EdgeEver
+    <img src="assets/brand/edgeever-icon.svg" alt="EdgeEver のロゴ" width="48" align="absmiddle" /> EdgeEver
   </h1>
   <p>
     <b>オープンソース、AI ネイティブ、Cloudflare 無料枠 / Docker で自前運用できる Evernote 代替ノート</b>

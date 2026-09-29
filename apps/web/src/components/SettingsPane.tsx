@@ -19,7 +19,9 @@ import * as m from "motion/react-m";
 import { SystemInfoDialog } from "@/components/SystemInfoDialog";
 import { Button } from "@/components/ui/button";
 
-import type { EditorContentAlignment, ShortcutSettings } from "@/lib/app-helpers";
+import type { ShortcutSettings } from "@/lib/app-helpers";
+import type { EditorContentWidth } from "@/lib/editor-content-width";
+import type { NoteProsePatch, ResolvedNoteProse } from "@edgeever/shared";
 import { BETA_BADGE_CLASSNAME, WORKSPACE_PAGE_TITLE_CLASSNAME } from "@/lib/workspace-ui";
 import { cn } from "@/lib/utils";
 import { AccountInfoCard } from "./settings/AccountInfoCard";
@@ -49,8 +51,10 @@ interface SettingsPaneProps {
   onImageCompressionChange: (enabled: boolean) => void;
   shortcutSettings: ShortcutSettings;
   onShortcutSettingsChange: (settings: ShortcutSettings) => void;
-  editorContentAlignment: EditorContentAlignment;
-  onEditorContentAlignmentChange: (alignment: EditorContentAlignment) => void;
+  editorContentWidth: EditorContentWidth;
+  onEditorContentWidthChange: (width: EditorContentWidth) => void;
+  noteProse: ResolvedNoteProse;
+  onNoteProseChange: (patch: NoteProsePatch) => void;
   onLogout: () => void;
   isLoggingOut: boolean;
   authRequired: boolean;
@@ -85,8 +89,10 @@ export const SettingsPane = ({
   onImageCompressionChange,
   shortcutSettings,
   onShortcutSettingsChange,
-  editorContentAlignment,
-  onEditorContentAlignmentChange,
+  editorContentWidth,
+  onEditorContentWidthChange,
+  noteProse,
+  onNoteProseChange,
   onLogout,
   isLoggingOut,
   authRequired,
@@ -188,8 +194,10 @@ export const SettingsPane = ({
             <PreferenceCard
               imageCompressionEnabled={imageCompressionEnabled}
               onImageCompressionChange={onImageCompressionChange}
-              editorContentAlignment={editorContentAlignment}
-              onEditorContentAlignmentChange={onEditorContentAlignmentChange}
+              editorContentWidth={editorContentWidth}
+              onEditorContentWidthChange={onEditorContentWidthChange}
+              noteProse={noteProse}
+              onNoteProseChange={onNoteProseChange}
             />
             <div className="hidden overflow-hidden rounded-xl border border-slate-200 bg-card lg:block">
               <FeedbackLink />

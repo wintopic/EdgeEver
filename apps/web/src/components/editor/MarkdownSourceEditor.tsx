@@ -77,7 +77,7 @@ const baseEditorTheme = EditorView.theme({
   "&": {
     height: "100%",
     width: "100%",
-    fontSize: "14px",
+    fontSize: "var(--editor-body-font-size, 16px)",
     fontFamily:
       'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
   },

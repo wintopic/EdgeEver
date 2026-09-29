@@ -2,79 +2,9 @@
  * 安全的 CSS 过滤器与作用域限制器
  */
 
-const ALLOWED_CSS_PROPERTIES = new Set([
-  "font-family",
-  "font-size",
-  "font-style",
-  "font-weight",
-  "line-height",
-  "letter-spacing",
-  "color",
-  "background",
-  "background-color",
-  "border",
-  "border-top",
-  "border-right",
-  "border-bottom",
-  "border-left",
-  "border-color",
-  "border-width",
-  "border-style",
-  "border-radius",
-  "padding",
-  "padding-top",
-  "padding-right",
-  "padding-bottom",
-  "padding-left",
-  "margin",
-  "margin-top",
-  "margin-right",
-  "margin-bottom",
-  "margin-left",
-  "text-align",
-  "text-decoration",
-  "text-transform",
-  "text-indent",
-  "word-break",
-  "word-wrap",
-  "white-space",
-  "list-style",
-  "list-style-type",
-]);
+import { sanitizeNoteProseDeclarationBlock } from "@edgeever/shared";
 
-/**
- * 过滤单行 CSS 规则，仅保留安全的排版属性，阻断 url() 和定位等危险内容
- */
-const sanitizeRulesBlock = (block: string): string => {
-  return block
-    .split(";")
-    .map((rule) => {
-      const parts = rule.split(":");
-      if (parts.length < 2) return "";
-      const property = parts[0].trim().toLowerCase();
-      const value = parts.slice(1).join(":").trim();
-
-      // 仅允许白名单属性
-      if (!ALLOWED_CSS_PROPERTIES.has(property)) {
-        return "";
-      }
-
-      // 深度拦截潜在危险值 (如 url, expression, javascript)
-      if (
-        /url\s*\(/i.test(value) ||
-        /expression/i.test(value) ||
-        /javascript\s*:/i.test(value) ||
-        /behavior/i.test(value) ||
-        /-moz-binding/i.test(value)
-      ) {
-        return "";
-      }
-
-      return `${property}: ${value};`;
-    })
-    .filter(Boolean)
-    .join(" ");
-};
+const sanitizeRulesBlock = (block: string): string => sanitizeNoteProseDeclarationBlock(block);
 
 /**
  * 对用户的 CSS 进行安全过滤，并将其作用域限定在当前编辑器的 ProseMirror 区域

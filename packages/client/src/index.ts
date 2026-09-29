@@ -47,6 +47,8 @@ import type {
   ResourceListItem,
   ResourceStorageSummary,
   ObjectStorageSettings,
+  AccountNoteProse,
+  NoteProsePatch,
   PublicMemoShare,
   TagSummary,
   TiptapDoc,
@@ -811,6 +813,14 @@ export const createEdgeEverClient = (options: EdgeEverClientOptions = {}) => {
       request<{ bodyFont: PublicMemoShare["bodyFont"] }>("/api/v1/me/note-body-font", {
         method: "PUT",
         body: JSON.stringify({ bodyFont }),
+      }),
+
+    getNoteProse: () => request<AccountNoteProse>("/api/v1/me/note-prose"),
+
+    updateNoteProse: (patch: NoteProsePatch) =>
+      request<AccountNoteProse>("/api/v1/me/note-prose", {
+        method: "PUT",
+        body: JSON.stringify(patch),
       }),
 
     unlockPublicMemoShare: (token: string, password: string) =>
