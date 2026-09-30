@@ -10,7 +10,6 @@ export const NOTE_PROSE_PALETTE_IDS = [
   "clay",
   "orange",
   "dawn",
-  "emerald",
   "teal",
   "azure",
   "violet",
@@ -20,7 +19,7 @@ export const NOTE_PROSE_PALETTE_IDS = [
 ] as const;
 export type NoteProsePaletteId = (typeof NOTE_PROSE_PALETTE_IDS)[number];
 
-export const NOTE_PROSE_PALETTE_CHOICES = ["native", ...NOTE_PROSE_PALETTE_IDS, "custom"] as const;
+export const NOTE_PROSE_PALETTE_CHOICES = ["native", ...NOTE_PROSE_PALETTE_IDS] as const;
 export type NoteProsePaletteChoice = (typeof NOTE_PROSE_PALETTE_CHOICES)[number];
 
 export const MAX_NOTE_PROSE_CSS_BYTES = 8 * 1024;
@@ -144,22 +143,11 @@ export const NOTE_PROSE_PALETTES: Record<NoteProsePaletteId, NoteProsePaletteCol
     codeText: "#7C5500",
     background: "#FFFFFF",
   }),
-  emerald: palette({
-    accent: "#16A06E",
-    text: "#2C3A34",
-    muted: "#5C6F66",
-    surface: "#F4FBF7",
-    divider: "#D7EBE1",
-    link: "#0F7A54",
-    codeBackground: "#F3F7F5",
-    codeText: "#0F7A54",
-    background: "#FFFFFF",
-  }),
   teal: palette({
     accent: "#22B8A7",
-    text: "#4D4F46",
-    muted: "#4D4F46",
-    surface: "#EEEFE9",
+    text: "#3E4C4A",
+    muted: "#5C6E6B",
+    surface: "#F2FBFA",
     divider: "#CDEFEA",
     link: "#1A8F82",
     codeBackground: "#ECFBF8",
@@ -224,11 +212,6 @@ export const NOTE_PROSE_PALETTES: Record<NoteProsePaletteId, NoteProsePaletteCol
 };
 
 const LEGACY_EDITOR_THEME_PALETTES: Record<string, NoteProsePaletteChoice> = {
-  "minimal-emerald": "emerald",
-  "outline-emerald": "emerald",
-  "wechat-green": "emerald",
-  "modern-mint": "emerald",
-  grove: "emerald",
   letter: "dawn",
   stub: "dawn",
   brief: "teal",
@@ -278,10 +261,13 @@ export const parseNoteProseLineHeight = (value: unknown): NoteProseLineHeight | 
   return null;
 };
 
-export const parseNoteProsePalette = (value: unknown): NoteProsePaletteChoice | null =>
-  typeof value === "string" && (NOTE_PROSE_PALETTE_CHOICES as readonly string[]).includes(value)
+export const parseNoteProsePalette = (value: unknown): NoteProsePaletteChoice | null => {
+  // Green and the custom color editor were removed. Stored rows read as native.
+  if (value === "emerald" || value === "custom") return "native";
+  return typeof value === "string" && (NOTE_PROSE_PALETTE_CHOICES as readonly string[]).includes(value)
     ? value as NoteProsePaletteChoice
     : null;
+};
 
 const isColorSet = (value: unknown): value is NoteProseCustomColorSet => {
   if (typeof value !== "object" || value === null) return false;
@@ -309,7 +295,6 @@ export const paletteForLegacyEditorTheme = (theme: string | null | undefined): N
   if (!theme || theme === "default" || theme === "marxico") return null;
   const mapped = LEGACY_EDITOR_THEME_PALETTES[theme];
   if (mapped) return mapped;
-  if (theme === "custom" || theme.startsWith("custom-")) return "custom";
   return null;
 };
 
@@ -323,11 +308,9 @@ export const noteProseCodeFontSize = (fontSize: number): number => {
 export const resolveNoteProse = (account: Partial<AccountNoteProse> | null | undefined): ResolvedNoteProse => ({
   fontSize: account?.fontSize ?? DEFAULT_NOTE_PROSE_FONT_SIZE,
   lineHeight: account?.lineHeight ?? DEFAULT_NOTE_PROSE_LINE_HEIGHT,
-  palette: account?.palette ?? "native",
+  palette: parseNoteProsePalette(account?.palette) ?? "native",
   customCss: account?.customCss ?? "",
-  customColors: account?.palette === "custom"
-    ? account.customColors ?? DEFAULT_NOTE_PROSE_CUSTOM_COLORS
-    : account?.customColors ?? null,
+  customColors: account?.customColors ?? null,
 });
 
 export const publicNoteProseFromAccount = (account: Partial<AccountNoteProse> | null | undefined): PublicNoteProse => {
@@ -337,7 +320,7 @@ export const publicNoteProseFromAccount = (account: Partial<AccountNoteProse> | 
     lineHeight: resolved.lineHeight,
     palette: resolved.palette,
     customCss: resolved.customCss,
-    customColors: resolved.palette === "custom" ? resolved.customColors : null,
+    customColors: null,
   };
 };
 
@@ -366,11 +349,9 @@ export const noteProseMigrationPatch = (
   },
 ): NoteProsePatch => {
   const patch: NoteProsePatch = {};
-  if (account.palette == null && local.palette && local.palette !== "native") {
-    patch.palette = local.palette;
-    if (local.palette === "custom") {
-      patch.customColors = local.customColors ?? DEFAULT_NOTE_PROSE_CUSTOM_COLORS;
-    }
+  const palette = parseNoteProsePalette(local.palette);
+  if (account.palette == null && palette && palette !== "native") {
+    patch.palette = palette;
   }
   if (account.customCss == null && local.customCss?.trim()) {
     patch.customCss = local.customCss;
@@ -380,20 +361,6 @@ export const noteProseMigrationPatch = (
 
 export const noteProsePaletteColors = (prose: Pick<ResolvedNoteProse, "palette" | "customColors">): NoteProsePaletteColors | null => {
   if (prose.palette === "native") return null;
-  if (prose.palette === "custom") {
-    const light = prose.customColors?.light ?? DEFAULT_NOTE_PROSE_CUSTOM_COLORS.light;
-    return {
-      accent: light.accent,
-      text: light.text,
-      muted: light.muted,
-      surface: light.soft,
-      divider: light.border,
-      link: light.accent,
-      codeBackground: light.codeBackground,
-      codeText: light.text,
-      background: light.background,
-    };
-  }
   return NOTE_PROSE_PALETTES[prose.palette];
 };
 
@@ -415,20 +382,5 @@ export const noteProseCssVariables = (prose: ResolvedNoteProse): Record<string, 
   variables["--note-palette-code-bg"] = colors.codeBackground;
   variables["--note-palette-code-text"] = colors.codeText;
   variables["--note-palette-bg"] = colors.background;
-  if (prose.palette === "custom") {
-    const light = prose.customColors?.light ?? DEFAULT_NOTE_PROSE_CUSTOM_COLORS.light;
-    const dark = prose.customColors?.dark ?? DEFAULT_NOTE_PROSE_CUSTOM_COLORS.dark;
-    variables["--note-palette-heading"] = light.heading;
-    variables["--note-palette-dark-accent"] = dark.accent;
-    variables["--note-palette-dark-text"] = dark.text;
-    variables["--note-palette-dark-muted"] = dark.muted;
-    variables["--note-palette-dark-heading"] = dark.heading;
-    variables["--note-palette-dark-surface"] = dark.soft;
-    variables["--note-palette-dark-divider"] = dark.border;
-    variables["--note-palette-dark-link"] = dark.accent;
-    variables["--note-palette-dark-code-bg"] = dark.codeBackground;
-    variables["--note-palette-dark-code-text"] = dark.text;
-    variables["--note-palette-dark-bg"] = dark.background;
-  }
   return variables;
 };

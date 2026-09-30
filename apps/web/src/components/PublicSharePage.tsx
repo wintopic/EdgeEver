@@ -4,7 +4,7 @@ import Image from "@tiptap/extension-image";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Clock3, FileText, LoaderCircle, LockKeyhole, ShieldCheck } from "lucide-react";
-import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties, type FormEvent, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router";
 import { ApiRequestError, api } from "@/lib/api";
@@ -29,6 +29,7 @@ import { PdfAttachment } from "@/components/editor/PdfAttachment";
 import { FileAttachment } from "@/components/editor/FileAttachment";
 
 const ReadOnlyX6Diagram = lazy(() => import("@/components/ReadOnlyX6Diagram"));
+const ImageViewer = lazy(() => import("@/components/editor/ImageViewer").then((module) => ({ default: module.ImageViewer })));
 
 const SharedImage = Image.extend({
   addAttributes() {
@@ -81,6 +82,8 @@ const SharedThemeBlock = Node.create({
 });
 
 const SharedRichText = ({ content }: { content: PublicMemoShare["contentJson"] }) => {
+  const { t } = useTranslation();
+  const [imagePreview, setImagePreview] = useState<{ alt: string; url: string } | null>(null);
   const editor = useEditor({
     extensions: [
       ...createEdgeEverDocumentExtensions({
@@ -104,7 +107,32 @@ const SharedRichText = ({ content }: { content: PublicMemoShare["contentJson"] }
     },
   }, [content]);
 
-  return <EditorContent editor={editor} />;
+  const previewImage = (event: MouseEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (!(target instanceof HTMLImageElement) || !target.currentSrc) return;
+    event.preventDefault();
+    setImagePreview({ alt: target.alt, url: target.currentSrc });
+  };
+
+  return (
+    <div onDoubleClick={previewImage}>
+      <EditorContent editor={editor} />
+      {imagePreview ? (
+        <Suspense fallback={null}>
+          <ImageViewer
+            alt={imagePreview.alt}
+            closeLabel={t("editor.closeImagePreview")}
+            open
+            src={imagePreview.url}
+            viewerLabel={t("editor.imageViewer")}
+            zoomInLabel={t("editor.imageZoomIn")}
+            zoomOutLabel={t("editor.imageZoomOut")}
+            onClose={() => setImagePreview(null)}
+          />
+        </Suspense>
+      ) : null}
+    </div>
+  );
 };
 
 const SharedDocument = ({

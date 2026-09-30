@@ -76,6 +76,8 @@ describe("markdown theme contracts", () => {
     expect(toolbar).not.toContain('t("editorToolbar.editorTheme")');
     expect(toolbar).not.toContain("namedEditorThemes");
     expect(toolbar).toContain('t("editorToolbar.blockStyle")');
+    expect(toolbar).toContain("<Heading");
+    expect(toolbar).not.toContain("<Palette");
     expect(toolbar).toContain("EDITOR_HEADING_LEVELS");
   });
 

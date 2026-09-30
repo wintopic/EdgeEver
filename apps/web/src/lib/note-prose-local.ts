@@ -1,6 +1,5 @@
 import {
   paletteForLegacyEditorTheme,
-  parseNoteProseCustomColors,
   type NoteProseCustomColors,
   type NoteProsePaletteChoice,
 } from "@edgeever/shared";
@@ -27,7 +26,6 @@ export const readLocalNoteProseMigration = (): LocalNoteProseMigration => {
   const theme = readStorage(EDITOR_THEME_STORAGE_KEY);
   const palette = paletteForLegacyEditorTheme(theme);
   let customCss: string | null = null;
-  let customColors: NoteProseCustomColors | null = null;
   const rawThemes = readStorage(CUSTOM_EDITOR_THEMES_STORAGE_KEY);
   if (rawThemes) {
     try {
@@ -41,20 +39,10 @@ export const readLocalNoteProseMigration = (): LocalNoteProseMigration => {
           && typeof (item as { customCss?: unknown }).customCss === "string"
           && (item as { customCss: string }).customCss.trim());
         if (cssOwner) customCss = (cssOwner as { customCss: string }).customCss;
-        if (palette === "custom") {
-          const colorOwner = selected ?? parsed[0];
-          if (typeof colorOwner === "object" && colorOwner !== null) {
-            customColors = parseNoteProseCustomColors({
-              light: (colorOwner as { light?: unknown }).light,
-              dark: (colorOwner as { dark?: unknown }).dark,
-            });
-          }
-        }
       }
     } catch {
       customCss = null;
-      customColors = null;
     }
   }
-  return { palette, customCss, customColors };
+  return { palette, customCss, customColors: null };
 };

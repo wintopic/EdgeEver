@@ -70,13 +70,23 @@ describe("reading typography settings", () => {
     const editorToolbar = readFileSync(new URL("../EditorToolbar.tsx", import.meta.url), "utf8");
 
     expect(preferenceCard).toContain('t("settings.editorBodyFontSizeTitle")');
-    expect(preferenceCard).toContain('t("settings.editorBodyFontSizeDescription")');
+    expect(preferenceCard).not.toContain('t("settings.editorBodyFontSizeDescription")');
     expect(preferenceCard).toContain('t("settings.editorBodyLineHeightTitle")');
-    expect(preferenceCard).toContain('t("settings.editorBodyLineHeightDescription")');
+    expect(preferenceCard).not.toContain('t("settings.editorBodyLineHeightDescription")');
+    expect(preferenceCard).toContain('t("settings.editorContentWidthDescription")');
     expect(preferenceCard).toContain('t("settings.editorBodyPaletteTitle")');
+    expect(preferenceCard).toContain("NoteProsePaletteSwatch");
+    expect(preferenceCard).toContain("NOTE_PROSE_PALETTES[paletteId].accent");
     expect(preferenceCard).toContain('t("settings.editorBodyCssTitle")');
+    expect(preferenceCard.slice(preferenceCard.indexOf("editorBodyCssTitle") - 500, preferenceCard.indexOf("editorBodyCssTitle"))).toContain("lg:flex");
     expect(preferenceCard).toContain('t("settings.editorBodyCssDescription")');
+    expect(preferenceCard).toContain('t("settings.editorBodyCssReset")');
+    expect(preferenceCard).toContain("DEFAULT_NOTE_PROSE_CSS");
+    expect(preferenceCard.match(/t\("settings\.accountSyncDescription"\)/g)).toHaveLength(1);
     expect(preferenceCard).toContain("NoteProseCssEditor");
+    expect(preferenceCard).toContain("NoteProseCssPreview");
+    expect(preferenceCard).toContain("noteProseCssDropsDeclarations");
+    expect(preferenceCard).toContain("overflow-hidden");
     expect(readFileSync(new URL("./NoteProseCssEditor.tsx", import.meta.url), "utf8")).toContain("@codemirror/lang-css");
     expect(preferenceCard).toContain('t("common.save")');
     expect(preferenceCard).not.toContain('t("settings.publishLayoutTitle")');

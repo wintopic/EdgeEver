@@ -218,6 +218,10 @@ describe("copy pipeline wiring", () => {
     expect(source).toContain("export const preparePublishArticle");
     expect(source).not.toContain("applyPublishLayout");
     expect(source).toContain("applyLegacyWeChatStyles");
+    expect(source).toContain("const bold = colors ? `font-weight: 700; color: ${accent};` : \"font-weight: 700;\"");
+    expect(source).toContain("accentOnly");
+    expect(source).toContain('palette !== "native"');
+    expect(source).not.toContain('palette !== "custom"');
     expect(preview).toContain("preparePublishArticle(editor.getHTML(), editor.view.dom)");
     expect(preview).toContain("previewRef.current?.setAttribute(\"style\", markup.style)");
     expect(preview).toContain("noteProse");

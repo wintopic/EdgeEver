@@ -40,26 +40,30 @@ const applyLegacyWeChatStyles = (
   root: HTMLElement,
   metrics: WeChatMetrics,
   colors: NoteProsePaletteColors | null,
+  accentOnly = false,
 ) => {
   const fontSize = `${metrics.fontSize}px`;
   const lineHeight = String(metrics.lineHeight);
   const codeSize = `${noteProseCodeFontSize(metrics.fontSize)}px`;
-  const text = colors?.text ?? "#333";
-  const headingColor = colors?.text ?? "#1f2937";
-  const background = colors?.background ?? "#ffffff";
+  // Named hues move link, inline-code, and bold ink. The rest stays on the WeChat defaults.
+  const painted = accentOnly ? null : colors;
+  const text = painted?.text ?? "#333";
+  const headingColor = painted?.text ?? "#1f2937";
+  const background = painted?.background ?? "#ffffff";
   const accent = colors?.accent ?? "#059669";
-  const quoteBorder = colors?.accent ?? "#10b981";
-  const quoteBackground = colors?.surface ?? "#f0fdf4";
-  const quoteColor = colors?.muted ?? "#4b5563";
+  const quoteBorder = painted?.accent ?? "#10b981";
+  const quoteBackground = painted?.surface ?? "#f0fdf4";
+  const quoteColor = painted?.muted ?? "#4b5563";
   const link = colors?.link ?? "#059669";
-  const inlineCodeBackground = colors?.codeBackground ?? "#f3f4f6";
-  const inlineCodeColor = colors?.codeText ?? "#be123c";
-  const preBackground = colors?.codeBackground ?? "#f6f8fa";
-  const preColor = colors?.codeText ?? "#24292f";
-  const ruleColor = colors?.divider ?? "#e5e7eb";
-  const cellBorder = colors?.divider ?? "#d1d5db";
-  const headBackground = colors?.surface ?? "#f3f4f6";
-  const cellColor = colors ? ` color: ${text};` : "";
+  const inlineCodeBackground = painted?.codeBackground ?? "#f3f4f6";
+  const inlineCodeColor = (accentOnly ? colors?.codeText : painted?.codeText) ?? "#be123c";
+  const preBackground = painted?.codeBackground ?? "#f6f8fa";
+  const preColor = painted?.codeText ?? "#24292f";
+  const ruleColor = painted?.divider ?? "#e5e7eb";
+  const cellBorder = painted?.divider ?? "#d1d5db";
+  const headBackground = painted?.surface ?? "#f3f4f6";
+  const cellColor = painted ? ` color: ${text};` : "";
+  const bold = colors ? `font-weight: 700; color: ${accent};` : "font-weight: 700;";
   const styles: Record<string, string> = {
     p: `margin: 0 0 ${PARAGRAPH_SPACING}; padding: 0; line-height: ${lineHeight}; font-size: ${fontSize}; color: ${text};`,
     h1: headingStyle("h1", metrics, headingColor),
@@ -73,7 +77,8 @@ const applyLegacyWeChatStyles = (
     ol: `margin: 0 0 1em; padding-left: 1.6em; line-height: ${lineHeight};`,
     li: `margin: 0.25em 0; line-height: ${lineHeight};`,
     a: `color: ${link}; text-decoration: underline;`,
-    strong: "font-weight: 700;",
+    strong: bold,
+    b: bold,
     em: "font-style: italic;",
     del: "text-decoration: line-through;",
     code: `padding: 0.15em 0.35em; border-radius: 3px; background: ${inlineCodeBackground}; color: ${inlineCodeColor}; font-family: Menlo, Consolas, monospace; font-size: ${codeSize};`,
@@ -100,6 +105,12 @@ const applyLegacyWeChatStyles = (
   root.querySelectorAll<HTMLElement>("pre code").forEach((element) => {
     element.style.cssText = `padding: 0; background: transparent; color: inherit; font-family: Menlo, Consolas, monospace; font-size: ${codeSize}; white-space: pre-wrap;`;
   });
+
+  if (colors?.accent) {
+    root.querySelectorAll<HTMLElement>('ul[data-type="taskList"] li[data-checked] > label input').forEach((element) => {
+      element.style.accentColor = colors.accent;
+    });
+  }
 };
 
 const applyInlineStyles = (
@@ -107,8 +118,9 @@ const applyInlineStyles = (
   metrics: WeChatMetrics,
   colors: NoteProsePaletteColors | null,
   customCss?: string,
+  accentOnly = false,
 ) => {
-  applyLegacyWeChatStyles(root, metrics, colors);
+  applyLegacyWeChatStyles(root, metrics, colors, accentOnly);
 
   const customStyles = customCss ? parseCustomCssToStyles(customCss) : null;
   if (!customStyles) return;
@@ -502,6 +514,7 @@ export const readEditorCopyContext = (from?: HTMLElement | null) => {
     fontSize,
     lineHeight,
     colors,
+    accentOnly: Boolean(palette && palette !== "native"),
     customCss: customStyleTag?.dataset.originalCss || "",
   };
 };
@@ -518,6 +531,7 @@ export const preparePublishArticle = (
     { fontSize: context.fontSize, lineHeight: context.lineHeight },
     context.colors,
     context.customCss,
+    context.accentOnly,
   );
   flattenDetailsForLinearHtml(root);
   convertImageGalleriesForWeChat(root);

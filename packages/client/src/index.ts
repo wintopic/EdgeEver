@@ -1078,6 +1078,11 @@ export const createEdgeEverClient = (options: EdgeEverClientOptions = {}) => {
       );
     },
     clearCompanionHistory: () => request<{ ok: true }>("/api/v1/companion/history", { method: "DELETE" }),
+    uploadCompanionAttachment: (attachment: { filename: string; mediaType: string; base64Data: string }) =>
+      request<{ attachment: { id: string; filename: string; mediaType: string; byteLength: number; expiresAt: string } }>(
+        "/api/v1/companion/attachments",
+        { method: "POST", body: JSON.stringify(attachment) },
+      ),
     exportCompanion: () => request<{ version: 2; controls: { useMemory: boolean; learningEnabled: boolean }; exportedAt: string; memories: CompanionMemory[]; turns: CompanionTurn[]; actions: CompanionAction[] }>("/api/v1/companion/export"),
     importCompanionMemories: (memories: { content: string; kind?: "explicit" | "inferred" }[], controls?: { useMemory: boolean; learningEnabled: boolean }) => request<{ memories: CompanionMemory[] }>("/api/v1/companion/import-memories", {
       method: "POST", body: JSON.stringify({ version: 2, memories, controls }),

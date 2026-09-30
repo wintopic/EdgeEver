@@ -1,132 +1,48 @@
-.edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror,
-.edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror h1,
-.edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror h2,
-.edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror h3,
-.edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror h4,
-.edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror h5,
-.edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror h6 {
-  color: var(--note-palette-text);
-}
-
-.edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror a:not(.edgeever-attachment-link) {
+/* Named hues tint links, inline code, bold, and checked task boxes. Body, quotes, rules, tables, and code chrome stay native. */
+.edgeever-editor[data-note-palette]:not([data-note-palette="native"]) .ProseMirror a:not(.edgeever-attachment-link) {
   color: var(--note-palette-link);
+  text-decoration-color: color-mix(in srgb, var(--note-palette-link) 45%, transparent);
 }
 
-.edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror blockquote {
-  background: var(--note-palette-surface);
-  color: var(--note-palette-muted);
+.edgeever-editor[data-note-palette]:not([data-note-palette="native"]) .ProseMirror a:not(.edgeever-attachment-link):hover {
+  color: var(--note-palette-link);
+  text-decoration-color: var(--note-palette-link);
 }
 
-.edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror hr,
-.edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror td,
-.edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror th {
-  border-color: var(--note-palette-divider);
-}
-
-.edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror code {
-  background: var(--note-palette-code-bg);
-  color: var(--note-palette-code-text);
-  border-color: var(--note-palette-divider);
-}
-
-:root.dark .edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror,
-:root.dark .edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror h1,
-:root.dark .edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror h2,
-:root.dark .edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror h3,
-:root.dark .edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror h4,
-:root.dark .edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror h5,
-:root.dark .edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror h6 {
-  color: hsl(var(--foreground));
-  background: transparent;
-}
-
-:root.dark .edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror blockquote {
-  color: hsl(var(--foreground));
-  background: rgb(255 255 255 / 0.05);
-}
-
-:root.dark .edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror a:not(.edgeever-attachment-link),
-:root.dark .edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror code {
+.edgeever-editor[data-note-palette]:not([data-note-palette="native"]) .ProseMirror strong,
+.edgeever-editor[data-note-palette]:not([data-note-palette="native"]) .ProseMirror b {
   color: var(--note-palette-accent);
 }
 
-:root.dark .edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror code {
-  border-color: rgb(255 255 255 / 0.12);
-  background: rgb(255 255 255 / 0.06);
+.edgeever-editor[data-note-palette]:not([data-note-palette="native"]) .ProseMirror ul[data-type="taskList"] li[data-checked] > label input {
+  accent-color: var(--note-palette-accent);
 }
 
-:root.dark .edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror hr,
-:root.dark .edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror td,
-:root.dark .edgeever-editor[data-note-palette]:not([data-note-palette="native"]):not([data-note-palette="custom"]) .ProseMirror th {
-  border-color: rgb(var(--slate-200-rgb) / 0.7);
-}
-
-.edgeever-editor[data-note-palette="custom"] .ProseMirror {
-  color: var(--note-palette-text);
-  background: var(--note-palette-bg);
-}
-
-.edgeever-editor[data-note-palette="custom"] .ProseMirror h1,
-.edgeever-editor[data-note-palette="custom"] .ProseMirror h2,
-.edgeever-editor[data-note-palette="custom"] .ProseMirror h3,
-.edgeever-editor[data-note-palette="custom"] .ProseMirror h4,
-.edgeever-editor[data-note-palette="custom"] .ProseMirror h5,
-.edgeever-editor[data-note-palette="custom"] .ProseMirror h6 {
-  color: var(--note-palette-heading, var(--note-palette-text));
-}
-
-.edgeever-editor[data-note-palette="custom"] .ProseMirror a:not(.edgeever-attachment-link) {
-  color: var(--note-palette-link);
-}
-
-.edgeever-editor[data-note-palette="custom"] .ProseMirror blockquote {
-  background: var(--note-palette-surface);
-  color: var(--note-palette-muted);
-}
-
-.edgeever-editor[data-note-palette="custom"] .ProseMirror hr,
-.edgeever-editor[data-note-palette="custom"] .ProseMirror td,
-.edgeever-editor[data-note-palette="custom"] .ProseMirror th {
-  border-color: var(--note-palette-divider);
-}
-
-.edgeever-editor[data-note-palette="custom"] .ProseMirror code {
-  background: var(--note-palette-code-bg);
+.edgeever-editor[data-note-palette]:not([data-note-palette="native"]) .ProseMirror code {
   color: var(--note-palette-code-text);
-  border-color: var(--note-palette-divider);
 }
 
-:root.dark .edgeever-editor[data-note-palette="custom"] .ProseMirror {
-  color: var(--note-palette-dark-text);
-  background: var(--note-palette-dark-bg);
+.edgeever-editor[data-note-palette]:not([data-note-palette="native"]) .ProseMirror pre code,
+.edgeever-editor[data-note-palette]:not([data-note-palette="native"]) .ProseMirror .edgeever-code-block code {
+  color: inherit;
 }
 
-:root.dark .edgeever-editor[data-note-palette="custom"] .ProseMirror h1,
-:root.dark .edgeever-editor[data-note-palette="custom"] .ProseMirror h2,
-:root.dark .edgeever-editor[data-note-palette="custom"] .ProseMirror h3,
-:root.dark .edgeever-editor[data-note-palette="custom"] .ProseMirror h4,
-:root.dark .edgeever-editor[data-note-palette="custom"] .ProseMirror h5,
-:root.dark .edgeever-editor[data-note-palette="custom"] .ProseMirror h6 {
-  color: var(--note-palette-dark-heading, var(--note-palette-dark-text));
+:root.dark .edgeever-editor[data-note-palette]:not([data-note-palette="native"]) .ProseMirror a:not(.edgeever-attachment-link) {
+  color: var(--note-palette-accent);
+  text-decoration-color: color-mix(in srgb, var(--note-palette-accent) 45%, transparent);
 }
 
-:root.dark .edgeever-editor[data-note-palette="custom"] .ProseMirror a:not(.edgeever-attachment-link) {
-  color: var(--note-palette-dark-link);
+:root.dark .edgeever-editor[data-note-palette]:not([data-note-palette="native"]) .ProseMirror a:not(.edgeever-attachment-link):hover {
+  color: var(--note-palette-accent);
+  text-decoration-color: var(--note-palette-accent);
 }
 
-:root.dark .edgeever-editor[data-note-palette="custom"] .ProseMirror blockquote {
-  background: var(--note-palette-dark-surface);
-  color: var(--note-palette-dark-muted);
+:root.dark .edgeever-editor[data-note-palette]:not([data-note-palette="native"]) .ProseMirror code {
+  color: var(--note-palette-accent);
 }
 
-:root.dark .edgeever-editor[data-note-palette="custom"] .ProseMirror hr,
-:root.dark .edgeever-editor[data-note-palette="custom"] .ProseMirror td,
-:root.dark .edgeever-editor[data-note-palette="custom"] .ProseMirror th {
-  border-color: var(--note-palette-dark-divider);
+:root.dark .edgeever-editor[data-note-palette]:not([data-note-palette="native"]) .ProseMirror pre code,
+:root.dark .edgeever-editor[data-note-palette]:not([data-note-palette="native"]) .ProseMirror .edgeever-code-block code {
+  color: inherit;
 }
 
-:root.dark .edgeever-editor[data-note-palette="custom"] .ProseMirror code {
-  background: var(--note-palette-dark-code-bg);
-  color: var(--note-palette-dark-code-text);
-  border-color: var(--note-palette-dark-divider);
-}

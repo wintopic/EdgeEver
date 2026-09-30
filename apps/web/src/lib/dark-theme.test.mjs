@@ -80,7 +80,6 @@ describe("dark theme contracts", () => {
   test("dark chrome uses workspace tokens instead of leftover blue-slate", () => {
     const css = readFileSync(new URL("../styles/globals.css", import.meta.url), "utf8");
 
-    expect(css).toContain("html.dark[data-edgeever-environment=\"local\"] body::after");
     expect(css).toContain("--tooltip-bg: #2c3330;");
     expect(css).toContain("--scrollbar-thumb: rgb(137 150 142 / 0.38);");
     expect(css).toContain("--search-match: rgb(22 160 110 / 0.32);");

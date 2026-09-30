@@ -198,48 +198,6 @@
   animation: edgeever-token-created 2.2s ease-out;
 }
 
-html[data-edgeever-environment="local"] body::after,
-html[data-edgeever-environment="demo"] body::after {
-  position: fixed;
-  right: 12px;
-  bottom: 12px;
-  z-index: 2147483647;
-  border-radius: 9999px;
-  padding: 4px 9px;
-  font: 600 10px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  letter-spacing: 0.08em;
-  pointer-events: none;
-  box-shadow: 0 2px 8px rgb(15 23 42 / 10%);
-}
-
-html[data-edgeever-environment="local"] body::after {
-  content: "LOCAL DEV";
-  border: 1px solid rgb(16 185 129 / 45%);
-  background: rgb(236 253 245 / 94%);
-  color: rgb(4 120 87);
-}
-
-html[data-edgeever-environment="demo"] body::after {
-  content: "LOCAL DEMO";
-  border: 1px solid rgb(245 158 11 / 50%);
-  background: rgb(255 251 235 / 96%);
-  color: rgb(180 83 9);
-}
-
-html.dark[data-edgeever-environment="local"] body::after {
-  border-color: rgb(22 160 110 / 42%);
-  background: rgb(18 42 36 / 92%);
-  color: #9ee0c8;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 28%);
-}
-
-html.dark[data-edgeever-environment="demo"] body::after {
-  border-color: rgb(217 119 6 / 48%);
-  background: rgb(69 26 3 / 88%);
-  color: #fde68a;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 28%);
-}
-
 .ProseMirror .tiptap-mathematics-render {
   font-size: var(--editor-code-font-size, 0.875em);
 }

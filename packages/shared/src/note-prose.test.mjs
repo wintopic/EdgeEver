@@ -1,11 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import {
-  DEFAULT_NOTE_PROSE_CUSTOM_COLORS,
   MAX_NOTE_PROSE_CSS_BYTES,
   NoteProseUpdateSchema,
   noteProseCodeFontSize,
   noteProseMigrationPatch,
   paletteForLegacyEditorTheme,
+  parseNoteProsePalette,
+  resolveNoteProse,
+  DEFAULT_NOTE_PROSE_CSS,
+  noteProseCssDropsDeclarations,
   sanitizeNoteProseCss,
 } from "@edgeever/shared";
 
@@ -22,9 +25,13 @@ describe("note prose", () => {
     expect(paletteForLegacyEditorTheme("stance")).toBe("clay");
     expect(paletteForLegacyEditorTheme("stub")).toBe("dawn");
     expect(paletteForLegacyEditorTheme("letter")).toBe("dawn");
-    expect(paletteForLegacyEditorTheme("grove")).toBe("emerald");
-    expect(paletteForLegacyEditorTheme("minimal-emerald")).toBe("emerald");
-    expect(paletteForLegacyEditorTheme("wechat-green")).toBe("emerald");
+    expect(paletteForLegacyEditorTheme("grove")).toBeNull();
+    expect(paletteForLegacyEditorTheme("minimal-emerald")).toBeNull();
+    expect(paletteForLegacyEditorTheme("outline-emerald")).toBeNull();
+    expect(paletteForLegacyEditorTheme("wechat-green")).toBeNull();
+    expect(paletteForLegacyEditorTheme("modern-mint")).toBeNull();
+    expect(parseNoteProsePalette("emerald")).toBe("native");
+    expect(resolveNoteProse({ palette: "emerald" }).palette).toBe("native");
     expect(paletteForLegacyEditorTheme("brief")).toBe("teal");
     expect(paletteForLegacyEditorTheme("zen")).toBe("teal");
     expect(paletteForLegacyEditorTheme("guide")).toBe("azure");
@@ -33,7 +40,9 @@ describe("note prose", () => {
     expect(paletteForLegacyEditorTheme("journal")).toBe("slate");
     expect(paletteForLegacyEditorTheme("default")).toBeNull();
     expect(paletteForLegacyEditorTheme("marxico")).toBeNull();
-    expect(paletteForLegacyEditorTheme("custom-default")).toBe("custom");
+    expect(paletteForLegacyEditorTheme("custom-default")).toBeNull();
+    expect(parseNoteProsePalette("custom")).toBe("native");
+    expect(resolveNoteProse({ palette: "custom" }).palette).toBe("native");
     expect(paletteForLegacyEditorTheme("not-a-theme")).toBeNull();
   });
 
@@ -56,11 +65,11 @@ describe("note prose", () => {
 
   test("fills only account fields that were never set", () => {
     expect(noteProseMigrationPatch(emptyAccount(), {
-      palette: "emerald",
+      palette: "teal",
       customCss: "p { color: red; }",
       customColors: null,
     })).toEqual({
-      palette: "emerald",
+      palette: "teal",
       customCss: "p { color: red; }",
     });
 
@@ -74,14 +83,35 @@ describe("note prose", () => {
       customColors: null,
     })).toEqual({});
 
-    const custom = noteProseMigrationPatch(emptyAccount(), {
+    expect(noteProseMigrationPatch(emptyAccount(), {
       palette: "custom",
       customCss: "   ",
       customColors: null,
-    });
-    expect(custom.palette).toBe("custom");
-    expect(custom.customCss).toBeUndefined();
-    expect(custom.customColors).toEqual(DEFAULT_NOTE_PROSE_CUSTOM_COLORS);
+    })).toEqual({});
+  });
+
+  test("ships a light and dark starter sheet without font size or line height", () => {
+    expect(DEFAULT_NOTE_PROSE_CSS).toContain("/* 正文。text-indent 是首行缩进，margin-bottom 是段距。 */");
+    expect(DEFAULT_NOTE_PROSE_CSS).toContain("text-indent: 0;");
+    expect(DEFAULT_NOTE_PROSE_CSS).toContain("/* 深色 · 标题 */");
+    expect(DEFAULT_NOTE_PROSE_CSS).toContain("color: #212121;");
+    expect(DEFAULT_NOTE_PROSE_CSS).toContain("color: #dee3e0;");
+    expect(DEFAULT_NOTE_PROSE_CSS).not.toContain("font-size");
+    expect(DEFAULT_NOTE_PROSE_CSS).not.toContain("line-height");
+    const sanitized = sanitizeNoteProseCss(DEFAULT_NOTE_PROSE_CSS);
+    expect(sanitized).toContain(":root.dark p");
+    expect(sanitized).toContain("color: #dee3e0");
+    expect(DEFAULT_NOTE_PROSE_CSS.indexOf(":root.dark p")).toBeGreaterThan(DEFAULT_NOTE_PROSE_CSS.indexOf("p {"));
+    expect(DEFAULT_NOTE_PROSE_CSS.indexOf(":root.dark p")).toBeLessThan(DEFAULT_NOTE_PROSE_CSS.indexOf("/* 一级标题 */"));
+    expect(DEFAULT_NOTE_PROSE_CSS.indexOf(":root.dark a")).toBeGreaterThan(DEFAULT_NOTE_PROSE_CSS.indexOf("\na {"));
+    expect(DEFAULT_NOTE_PROSE_CSS.indexOf(":root.dark a")).toBeLessThan(DEFAULT_NOTE_PROSE_CSS.indexOf("/* 粗体 */"));
+    expect(noteProseCssDropsDeclarations(DEFAULT_NOTE_PROSE_CSS)).toBe(false);
+    expect(noteProseCssDropsDeclarations("p { color: red; }")).toBe(false);
+    expect(noteProseCssDropsDeclarations("p { font-size: 18px; color: red; }")).toBe(true);
+    expect(noteProseCssDropsDeclarations("p { line-height: 2; }")).toBe(true);
+    expect(noteProseCssDropsDeclarations("p { color: red; } /* font-size: 1px */")).toBe(false);
+    expect(noteProseCssDropsDeclarations('@import "x.css"; p { color: red; }')).toBe(true);
+    expect(new TextEncoder().encode(DEFAULT_NOTE_PROSE_CSS).byteLength).toBeLessThan(MAX_NOTE_PROSE_CSS_BYTES);
   });
 
   test("rejects a stylesheet larger than 8 KB", () => {
