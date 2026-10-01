@@ -1,4 +1,4 @@
-export type DesktopAcpAdapterId = "codex" | "antigravity" | "grokBuild" | "deepseekHarness" | "piAgent" | "workbuddyCn" | "workbuddyIntl";
+export type DesktopAcpAdapterId = "codex" | "claudeCode" | "antigravity" | "openClaw" | "hermesAgent" | "grokBuild" | "deepseekHarness" | "piAgent" | "workbuddyCn" | "workbuddyIntl";
 export type DesktopAcpAdapterState = "not_installed" | "installing" | "needs_login" | "available" | "failed";
 
 export type DesktopAcpPromptCapabilities = {
@@ -16,6 +16,24 @@ export type DesktopAcpAdapter = {
   managed?: boolean;
   updateError?: string;
   authMethods?: Array<{ id: string; name: string }>;
+};
+
+export const displayedDesktopAcpAdapter = ({
+  id,
+  path,
+  listed,
+  probed,
+}: {
+  id: DesktopAcpAdapterId;
+  path: string;
+  listed: DesktopAcpAdapter[];
+  probed: DesktopAcpAdapter | null;
+}): DesktopAcpAdapter | undefined => {
+  const current = listed.find((adapter) => adapter.id === id);
+  const checked = probed?.id === id ? probed : undefined;
+  if (id === "antigravity" && path.trim()) return checked;
+  if (current?.state === "installing" || (current?.managed && (!checked?.managed || current.version !== checked.version))) return current;
+  return checked ?? current;
 };
 
 export type DesktopAcpAttachment = {
@@ -48,6 +66,8 @@ export type DesktopAcpEvent =
 export const AI_SIDEBAR_WIDTH_KEY = "edgeever.aiSidebar.width";
 export const AI_SIDEBAR_OPEN_KEY = "edgeever.aiSidebar.open";
 export const AI_SIDEBAR_THREAD_KEY = "edgeever.aiSidebar.thread";
+export const AI_SIDEBAR_LOCAL_THREAD_KEY = "edgeever.aiSidebar.localThread";
+export const AI_SIDEBAR_LOCAL_THREADS_KEY = "edgeever.aiSidebar.localThreads";
 export const AI_SIDEBAR_SOURCE_KEY = "edgeever.aiSidebar.source";
 export const AI_SIDEBAR_ADAPTER_KEY = "edgeever.aiSidebar.adapterId";
 export const AI_SIDEBAR_ADAPTER_PATH_KEY = "edgeever.aiSidebar.adapterPath";

@@ -245,7 +245,7 @@ Open **Profile** -> **Import and export** to export or import an EdgeEver ZIP. I
 
 ## MCP
 
-Create an API token in **Profile** -> **MCP settings** and give it to your AI Agent. The Agent can then securely manage your knowledge base within your account permissions. It supports both text notes and diagram notes (including mind maps, flowcharts, and architecture diagrams) with full CRUD capabilities. The Agent can also manage note templates and AI instructions.
+Create an API token in **Profile** -> **MCP settings** and give it to your AI Agent. The Agent can then securely manage your knowledge base within your account permissions. It supports both text notes and diagram notes (including mind maps, flowcharts, and architecture diagrams) with full CRUD capabilities. The Agent can create a structured table note from a field plan, edit its fields, and read, add, update, or delete its records. The Agent can also manage note templates and AI instructions.
 
 > 💡 **Inspiration:**
 > Make AI your true knowledge orchestrator and creative co-pilot—instantly turn concepts into interactive mind maps and architecture diagrams, while supplying private context to your AI Agents. Paired with EdgeEver’s powerful rich-text editing and elegant typography, AI-assisted content becomes beautifully structured, polished, and publication-ready knowledge assets.
