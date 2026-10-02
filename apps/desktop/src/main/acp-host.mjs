@@ -615,9 +615,17 @@ const publicAuthMethods = (initialized) => (
     : []
 );
 
-const createEdgeEverAcpClient = (requestId, emit) => ({
-  requestPermission() {
-    return { outcome: { outcome: "cancelled" } };
+export function automaticAcpPermissionResponse(params) {
+  const options = Array.isArray(params?.options) ? params.options : [];
+  const option = options.find((item) => item?.kind === "allow_once" && typeof item.optionId === "string" && item.optionId.length > 0 && item.optionId.length <= 120)
+    ?? options.find((item) => item?.kind === "allow_always" && typeof item.optionId === "string" && item.optionId.length > 0 && item.optionId.length <= 120);
+  return { outcome: option ? { outcome: "selected", optionId: option.optionId } : { outcome: "cancelled" } };
+}
+
+const createEdgeEverAcpClient = (requestId, emit, allowPermissions) => ({
+  requestPermission(params) {
+    // Probe, install, and sign-in sessions do not originate from a user prompt.
+    return allowPermissions ? automaticAcpPermissionResponse(params) : { outcome: { outcome: "cancelled" } };
   },
   sessionUpdate(params) {
     for (const event of eventsFromSessionUpdate(requestId, params)) emit(event);
@@ -711,7 +719,7 @@ export function createAcpHostRuntime(options = {}) {
     return adapt(resolveAcpCommand(input, commandDeps));
   };
 
-  const connect = async (command, requestId, emit, signal, authMethodId, mcpServers = []) => {
+  const connect = async (command, requestId, emit, signal, authMethodId, mcpServers = [], allowPermissions = false) => {
     const cwd = await createAcpWorkspace(mkdtempImpl, options.tmpRoot);
     let child = null;
     let authMethods = [];
@@ -722,7 +730,7 @@ export function createAcpHostRuntime(options = {}) {
       child = await spawnAcpChild(spawnImpl, command, cwd);
       if (signal?.aborted) throw Object.assign(new Error("connection_timeout"), { code: "TIMEOUT" });
       const stream = acpNdJsonStream(child);
-      const connection = new ClientSideConnection(() => createEdgeEverAcpClient(requestId, emit), stream);
+      const connection = new ClientSideConnection(() => createEdgeEverAcpClient(requestId, emit, allowPermissions), stream);
       void connection.closed?.catch(() => {});
       const initialized = await connection.initialize(acpInitializeParams(version));
       authMethods = publicAuthMethods(initialized);
@@ -789,7 +797,7 @@ export function createAcpHostRuntime(options = {}) {
             const prepared = id === "piAgent" ? withPiPath(command, resolutionDeps(commandDeps))
               : id === "antigravity" ? withAntigravityMacProxy(command, commandDeps) : command;
             connected = await withHandshakeTimeout((signal) => connect(prepared, `install-${id}`, () => {}, signal), 90_000);
-            return { ...adapterShell(id), state: "available", promptCapabilities: connected.promptCapabilities };
+            return { ...adapterShell(id), state: "available", promptCapabilities: connected.promptCapabilities, authMethods: connected.authMethods };
           } catch (error) {
             return { ...adapterShell(id), ...failureFields(classifyAcpFailure(error)), ...(isAuthRequiredError(error) ? { authMethods: error.authMethods ?? [] } : {}) };
           } finally {
@@ -860,7 +868,7 @@ export function createAcpHostRuntime(options = {}) {
         ...adapterShell(id),
         state: "available",
         promptCapabilities: connected.promptCapabilities,
-        ...((id === "workbuddyCn" || id === "workbuddyIntl") ? { authMethods: connected.authMethods } : {}),
+        authMethods: connected.authMethods,
         ...(resolved.version ? { version: resolved.version, managed: true } : {}),
       };
       latestStatus.set(id, adapter);
@@ -878,7 +886,7 @@ export function createAcpHostRuntime(options = {}) {
       let connected;
       try {
         connected = await withHandshakeTimeout((signal) => connect(resolved.command, `auth-${id}`, () => {}, signal, input.methodId), 5 * 60_000);
-        const adapter = { ...adapterShell(id), state: "available", promptCapabilities: connected.promptCapabilities, ...((id === "workbuddyCn" || id === "workbuddyIntl") ? { authMethods: connected.authMethods } : {}), ...(resolved.version ? { version: resolved.version, managed: true } : {}) };
+        const adapter = { ...adapterShell(id), state: "available", promptCapabilities: connected.promptCapabilities, authMethods: connected.authMethods, ...(resolved.version ? { version: resolved.version, managed: true } : {}) };
         latestStatus.set(id, adapter);
         return adapter;
       } catch (error) {
@@ -907,13 +915,13 @@ export function createAcpHostRuntime(options = {}) {
       let mcpBridge;
       try {
         // OpenClaw's ACP Gateway bridge rejects session-scoped MCP servers.
-        if (options.mcpAccess && input.adapterId !== "openClaw") {
+        if (options.mcpAccess && input.noteAccess !== false && input.adapterId !== "openClaw") {
           const access = await options.mcpAccess();
           mcpBridge = await (options.startMcpBridge ?? startAcpMcpBridge)(access);
         }
         connected = await withHandshakeTimeout((signal) => connect(
           resolved.command, requestId, notify, signal, undefined,
-          mcpBridge ? [mcpServerFor(mcpBridge)] : [],
+          mcpBridge ? [mcpServerFor(mcpBridge)] : [], true,
         ));
       } catch (error) {
         await mcpBridge?.close();

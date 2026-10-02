@@ -51,6 +51,7 @@ const statusKey = (adapter: DesktopAcpAdapter | undefined, probing: boolean) => 
   if (adapter.id === "deepseekHarness" && adapter.state === "not_installed") return "aiAssistant.agentSource.deepseekHarnessNotFound";
   if (adapter.id === "piAgent" && adapter.state === "not_installed") return adapter.detail === "adapter_missing" ? "aiAssistant.agentSource.piAgentAdapterMissing" : "aiAssistant.agentSource.piAgentNotFound";
   if ((adapter.id === "workbuddyCn" || adapter.id === "workbuddyIntl") && adapter.state === "not_installed") return "aiAssistant.agentSource.workbuddyNotFound";
+  if ((adapter.id === "workbuddyCn" || adapter.id === "workbuddyIntl") && adapter.state === "available") return "aiAssistant.agentSource.workbuddyConnectionReady";
   return `aiAssistant.agentSource.states.${adapter.state}`;
 };
 
@@ -58,15 +59,18 @@ const getStatusTone = ({
   probing,
   installing,
   installError,
+  handshakeOnly,
   state,
 }: {
   probing: boolean;
   installing: boolean;
   installError: boolean;
+  handshakeOnly: boolean;
   state?: DesktopAcpAdapter["state"];
 }) => {
   if (installing || probing) return "loading";
   if (installError || state === "failed") return "error";
+  if (handshakeOnly) return "neutral";
   if (state === "available") return "success";
   if (state === "needs_login" || state === "not_installed") return "warning";
   return "neutral";
@@ -124,17 +128,18 @@ const DesktopAcpAgentCardBody = ({ bridge }: { bridge: boolean }) => {
     probing,
     installing,
     installError,
+    handshakeOnly: isWorkBuddy && shown?.state === "available",
     state: shown?.state,
   });
-  const hasDetails = Boolean(
-    shown?.state === "not_installed" ||
-    shown?.state === "needs_login" ||
-    (isWorkBuddy && shown?.state === "available" && Boolean(shown.authMethods?.length)) ||
-    shown?.updateError
-  );
   const authMethods = shown?.authMethods?.filter((method) => (
     adapterId === "workbuddyCn" ? method.id !== "external" : adapterId === "workbuddyIntl" ? method.id !== "internal" : true
   )) ?? [];
+  const hasDetails = Boolean(
+    shown?.state === "not_installed" ||
+    shown?.state === "needs_login" ||
+    (shown?.state === "available" && authMethods.length > 0) ||
+    shown?.updateError
+  );
 
   const selectAdapter = (id: DesktopAcpAdapterId) => {
     setAdapterId(id);
@@ -369,7 +374,10 @@ const DesktopAcpAgentCardBody = ({ bridge }: { bridge: boolean }) => {
                   {(shown?.state === "needs_login" || shown?.state === "available") && isWorkBuddy ? (
                     <p className="text-xs leading-relaxed text-slate-600">{t(adapterId === "workbuddyCn" ? "aiAssistant.agentSource.workbuddyCnLoginHint" : "aiAssistant.agentSource.workbuddyIntlLoginHint")}</p>
                   ) : null}
-                  {(shown?.state === "needs_login" || (isWorkBuddy && shown?.state === "available")) && authMethods.length ? (
+                  {shown?.state === "available" && !isWorkBuddy && authMethods.length ? (
+                    <p className="text-xs leading-relaxed text-slate-600">{t("aiAssistant.agentSource.authAvailableHint")}</p>
+                  ) : null}
+                  {(shown?.state === "needs_login" || shown?.state === "available") && authMethods.length ? (
                     <div className="flex flex-wrap gap-2 pt-0.5">
                       {authMethods.map((method) => (
                         <Button key={method.id} type="button" variant="outline" size="sm" className="h-8 bg-card text-xs font-normal" disabled={authenticating} onClick={() => void authenticate(method.id)}>
