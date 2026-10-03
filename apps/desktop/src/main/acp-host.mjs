@@ -462,7 +462,8 @@ export function eventsFromSessionUpdate(requestId, params) {
   }
   if (update.sessionUpdate === "agent_message_chunk") {
     if (update.content?.type === "text" && typeof update.content.text === "string" && update.content.text.length > 0) {
-      return [{ requestId, type: "text-delta", text: update.content.text }];
+      return [{ requestId, type: "text-delta", text: update.content.text,
+        ...(typeof update.messageId === "string" && update.messageId ? { messageId: update.messageId } : {}) }];
     }
     const image = imageEventFromBlock(requestId, update.content, "");
     if (!image) return [];

@@ -503,6 +503,9 @@ describe("ACP spawn and failure mapping", () => {
       update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "hello" } },
     })).toEqual([{ requestId: "r1", type: "text-delta", text: "hello" }]);
     expect(eventsFromSessionUpdate("r1", {
+      update: { sessionUpdate: "agent_message_chunk", messageId: "message-1", content: { type: "text", text: "hello" } },
+    })).toEqual([{ requestId: "r1", type: "text-delta", text: "hello", messageId: "message-1" }]);
+    expect(eventsFromSessionUpdate("r1", {
       update: { sessionUpdate: "agent_thought_chunk", content: { type: "text", text: "hmm" } },
     })).toEqual([{ requestId: "r1", type: "reasoning", text: "hmm" }]);
     const tool = eventsFromSessionUpdate("r1", {

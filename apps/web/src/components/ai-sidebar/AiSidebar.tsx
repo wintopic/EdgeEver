@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent,
 import { AnimatePresence } from "motion/react";
 import * as m from "motion/react-m";
 import { useTranslation } from "react-i18next";
-import { Check, ChevronDown, Download, FileText, Loader2, PanelRightClose, Paperclip, Plus, Search, Sparkles, X } from "lucide-react";
+import { ArrowUp, Check, ChevronDown, Download, FileText, Loader2, PanelRightClose, Plus, Search, Sparkles, X } from "lucide-react";
 import type { CompanionAction, CompanionAnswer, CompanionEvent, CompanionTurn, CompanionTurnInput } from "@edgeever/shared";
 import { buildRevisionDiffRows, createMemoLinkHref } from "@edgeever/shared";
 import { Button } from "@/components/ui/button";
@@ -69,6 +69,7 @@ import {
   type ChatThreadSummary,
 } from "@/lib/local-agent-threads";
 import { LocalAgentImageStore } from "@/lib/local-agent-images";
+import { appendLocalAgentText } from "@/lib/local-agent-response";
 import { sidebarRevealTransition } from "@/lib/motion";
 import {
   SELECTION_AI_LANGUAGES,
@@ -132,6 +133,8 @@ type LocalTurn = {
   threadId: string;
   message: string;
   response: string;
+  responseMessageId?: string;
+  adapterId?: string;
   reasoning: string;
   tools: LocalToolRow[];
   images: LocalImage[];
@@ -631,6 +634,7 @@ function SidebarComposer({
       ) : null}
       <PromptInput
         accept={AI_ATTACHMENT_ACCEPT}
+        inputGroupClassName="rounded-[22px] border-slate-200 bg-card shadow-sm has-[[data-slot=input-group-control]:focus-visible]:ring-0"
         multiple
         onSubmit={async ({ text }) => {
           const raw = text.trim();
@@ -654,24 +658,31 @@ function SidebarComposer({
           </PromptInputHeader>
         ) : null}
         <PromptInputTextarea
-          className="text-[13px] leading-5 md:text-[13px]"
+          className="min-h-20 px-4 pb-2 pt-4 text-[13px] leading-5 placeholder:text-zinc-400/80 dark:placeholder:text-zinc-500 md:text-[13px]"
           disabled={busy || locked}
           placeholder={placeholder}
           onPaste={onPaste}
         />
-        <PromptInputFooter>
+        <PromptInputFooter className="px-2.5 pb-2.5 pt-0">
           <PromptInputTools>
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              title={t("aiAssistant.addAttachment")}
-              aria-label={t("aiAssistant.addAttachment")}
-              disabled={busy || locked}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Paperclip className="h-4 w-4" />
-            </Button>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    className="rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                    aria-label={t("aiAssistant.addAttachment")}
+                    disabled={busy || locked}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("aiAssistant.addAttachment")}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             {currentNoteAvailable ? (
               <Button
                 type="button"
@@ -694,10 +705,12 @@ function SidebarComposer({
           ) : (
             <PromptInputSubmit
               aria-label={t("companion.send")}
-              className="border-slate-900 bg-slate-900 text-slate-50 hover:border-slate-800 hover:bg-slate-800"
+              className="rounded-full border-slate-900 bg-slate-900 text-slate-50 hover:border-slate-800 hover:bg-slate-800 disabled:border-slate-100 disabled:bg-slate-100 disabled:text-slate-300"
               disabled={locked || !draft.trim()}
               variant="solid"
-            />
+            >
+              <ArrowUp className="size-4" />
+            </PromptInputSubmit>
           )}
         </PromptInputFooter>
       </PromptInput>
@@ -911,7 +924,7 @@ function AiSidebarSession({
     if (!turnId || !alive.current) return;
     if (event.type === "text-delta") {
       setLocalTurns((previous) => previous.map((turn) => turn.id === turnId && turn.status !== "cancelled"
-        ? { ...turn, response: turn.response + event.text }
+        ? appendLocalAgentText(turn, event.text, event.messageId, turn.adapterId === "codex")
         : turn));
       return;
     }
@@ -1123,13 +1136,20 @@ function AiSidebarSession({
         }));
         const activeLocalThreadId = localThreadIdRef.current;
         const transcript = localAgentTranscript(localTurnsRef.current, activeLocalThreadId);
-        const noteContext = sidebarLocalContextText(focusAtSend, useCurrentNote);
+        const recentUserMessages = localTurnsRef.current
+          .filter((turn) => turn.threadId === activeLocalThreadId && turn.status === "completed")
+          .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+          .slice(0, 6).map((turn) => turn.message);
+        const noteContext = sidebarLocalContextText(focusAtSend, useCurrentNote, {
+          message: text, recentUserMessages, fallbackLocale: companionLocale(i18n.resolvedLanguage),
+        });
         writeStorage(AI_SIDEBAR_LOCAL_THREAD_KEY, activeLocalThreadId);
         setLocalTurns((previous) => [...previous, {
           id,
           threadId: activeLocalThreadId,
           message: text,
           response: "",
+          adapterId: adapter.id,
           reasoning: "",
           tools: [],
           images: [],
@@ -1542,7 +1562,6 @@ function AiSidebarSession({
             <ConversationEmptyState
               icon={<Sparkles className="h-6 w-6" />}
               title={t("aiAssistant.sidebar.emptyTitle")}
-              description={t("aiAssistant.sidebar.emptyDescription")}
             />
           ) : null}
           {visibleCompanion ? threadTurns.map((turn) => (
@@ -1642,7 +1661,7 @@ function AiSidebarSession({
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>
-      <div className="shrink-0 space-y-2 border-t border-slate-200 p-3">
+      <div className="shrink-0 space-y-2 p-3">
         {selectionPin ? (
           <div className="flex items-start gap-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2" data-selection-pin="">
             <div className="min-w-0 flex-1">
