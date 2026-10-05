@@ -1,5 +1,6 @@
-# EdgeEver 最佳实践示例
+# EdgeEver 场景与最佳实践
 
+收集与整理 EdgeEver 在日常工作、学习和知识管理中的核心场景与高效实操案例，持续更新。
 ## 目录
 
 - [1. 微信聊天记录一键归档与整理](#1-微信聊天记录一键归档与整理)
@@ -10,6 +11,10 @@
 - [6. 一键复制笔记到微信公众号排版](#6-一键复制笔记到微信公众号排版)
 - [7. AI RSS 智能订阅日报与精美长图分享](#7-ai-rss-智能订阅日报与精美长图分享)
 - [8. GitHub 开源仓库信息一键剪藏](#8-github-开源仓库信息一键剪藏)
+- [9. 移动端社媒图片一键转存笔记](#9-移动端社媒图片一键转存笔记)
+- [10. 手机端一键剪藏微信公众号文章](#10-手机端一键剪藏微信公众号文章)
+- [11. AI 对话一键生成思维导图、流程图与架构图](#11-ai-对话一键生成思维导图流程图与架构图)
+- [12. AI 智能生成专业信息图（时间线、对比图、架构图等）](#12-ai-智能生成专业信息图时间线对比图架构图等)
 
 ---
 
@@ -106,5 +111,53 @@ EdgeEver 内置的 AI RSS 订阅能力可自动聚合行业前沿资讯，智能
 | 1. 仓库页面右键「保存仓库信息到 EdgeEver」 | 2. 自动生成包含技术标签与元数据的仓库卡片 |
 | :---: | :---: |
 | ![右键保存 GitHub 仓库信息到 EdgeEver](assets/best-practices/github-clip-menu.png) | ![EdgeEver 剪藏后的 GitHub 仓库卡片笔记](assets/best-practices/github-clipped-note.png) |
+
+---
+
+## 9. 移动端社媒图片一键转存笔记
+
+在手机浏览各大社交媒体与内容平台（如 X / Twitter、Reddit、Instagram、Pixiv，以及知乎、B站、微博等）看到想要收藏的图片时，直接点击分享按钮即可直达笔记。
+
+在系统分享面板中选择 **EdgeEver**，应用会自动拉起并静默上传原图，一键生成以「分享的图片」为标题的独立笔记，随时补充文字批注或打上标签分类。
+
+| 1. 点击社媒 App 图片分享按钮 | 2. 系统分享面板选择 EdgeEver | 3. 自动生成笔记并极速上传原图 |
+| :---: | :---: | :---: |
+| ![社媒App点击图片分享](assets/best-practices/mobile-share-image-trigger.jpg) | ![系统分享面板选择EdgeEver](assets/best-practices/mobile-share-image-sheet.jpg) | ![自动生成笔记并上传图片](assets/best-practices/mobile-share-image-note.jpg) |
+
+---
+
+## 10. 手机端一键剪藏微信公众号文章
+
+在手机微信中阅读公众号文章时，点击右上角菜单并选择「用 EdgeEver 打开」，即可一键完成全文章节剪藏。
+
+应用会自动提取完整标题、正文结构与配图链接，去除页面多余噪点与排版干扰，转换为纯净优美的 Markdown 笔记，自动打上 `#web-clip` 与 `#wechat` 标签。
+
+| 1. 文章分享菜单选择「用 EdgeEver 打开」 | 2. 自动拉起 App 提取标题与正文 | 3. 自动生成排版工整的纯净笔记 |
+| :---: | :---: | :---: |
+| ![微信文章分享菜单选择用EdgeEver打开](assets/best-practices/wechat-article-share-trigger.jpg) | ![EdgeEver正在剪藏文章提取中](assets/best-practices/wechat-article-clipping-modal.jpg) | ![生成排版工整的微信文章笔记](assets/best-practices/wechat-article-clipped-note.jpg) |
+
+---
+
+## 11. AI 对话一键生成思维导图、流程图与架构图
+
+在 EdgeEver 右侧伴随式 AI 助手（或连接的本地 Agent）中，只需通过自然语言对话下达指令（如“帮我生成一个关于 AI 大模型的思维导图 / 流程图 / 架构图”），即可原地创建可交互、可编辑的可视化图表笔记。
+
+生成的内容深度集成 EdgeEver 原生图谱引擎，支持节点自由增删拖拽、智能自动布局、中英双脑图、流程图条件分支与系统架构拓扑，无需安装外部绘图软件即可随心沉淀技术与业务全景。
+
+| 1. 对话生成可交互思维导图 | 2. 对话生成标准化流程图 | 3. 对话生成高可用系统架构图 |
+| :---: | :---: | :---: |
+| ![AI对话生成可编辑思维导图](assets/best-practices/ai-diagram-mindmap.png) | ![AI对话生成可编辑流程图](assets/best-practices/ai-diagram-flowchart.png) | ![AI对话生成可编辑系统架构图](assets/best-practices/ai-diagram-architecture.png) |
+
+---
+
+## 12. AI 智能生成专业信息图（时间线、对比图、架构图等）
+
+利用 EdgeEver 内置的专业信息图库（涵盖顺序型时间线、对比型、列表型、四象限、层级型、关系型及图表型模板），可在右侧 AI 助手对话中直接描述想要呈现的内容与重点。
+
+AI 会自动检索并校对关键时间与信息事实，一键原地生成具备专业级排版与配色美感的可视化信息图笔记，并支持自然语言多轮微调或一键导出为矢量图。
+
+| 1. 丰富的信息图示例与模板库 | 2. AI 对话快速生成专业时间线信息图 |
+| :---: | :---: |
+| ![EdgeEver信息图示例与模板库](assets/best-practices/ai-infographic-templates.png) | ![AI生成字节跳动发展历程时间线信息图](assets/best-practices/ai-infographic-generated.png) |
 
 ---
