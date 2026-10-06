@@ -76,7 +76,12 @@ export const edgeEverRequest = async <T>(settings: ExtensionSettings, path: stri
   return response.json() as Promise<T>;
 };
 
-export const edgeEverFormRequest = async <T>(settings: ExtensionSettings, path: string, form: FormData): Promise<T> => {
+export const edgeEverFormRequest = async <T>(
+  settings: ExtensionSettings,
+  path: string,
+  form: FormData,
+  signal?: AbortSignal,
+): Promise<T> => {
   const instanceUrl = normalizeInstanceUrl(settings.instanceUrl);
   if (!instanceUrl || !settings.token) {
     throw new Error(t("missingSettingsDetails"));
@@ -86,6 +91,7 @@ export const edgeEverFormRequest = async <T>(settings: ExtensionSettings, path: 
     method: "POST",
     headers: { Authorization: `Bearer ${settings.token}` },
     body: form,
+    signal,
   });
 
   if (!response.ok) {
@@ -100,6 +106,7 @@ export const uploadMemoImage = async (
   settings: ExtensionSettings,
   memoId: string,
   file: { bytes: Uint8Array; mimeType: string; filename: string },
+  signal?: AbortSignal,
 ) => {
   const buffer = new ArrayBuffer(file.bytes.byteLength);
   new Uint8Array(buffer).set(file.bytes);
@@ -109,6 +116,7 @@ export const uploadMemoImage = async (
     settings,
     `/api/v1/memos/${encodeURIComponent(memoId)}/resources`,
     form,
+    signal,
   );
 };
 

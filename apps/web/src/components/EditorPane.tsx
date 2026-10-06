@@ -221,6 +221,7 @@ import {
   AI_SELECTION_MENU_CHANGED_EVENT,
   readAiSelectionMenuPreference,
 } from "@/lib/ai-selection-menu-preference";
+import { useEditorSpellcheckPreference } from "@/lib/editor-spellcheck-preference";
 import {
   clipSelectionForSend,
   translationReplacement,
@@ -473,6 +474,7 @@ const RichEditorPane = ({
     writeAiSidebarOpen(open);
   }, []);
   const aiBubbleMenu = useAiBubbleMenu();
+  const spellcheckEnabled = useEditorSpellcheckPreference();
   const [selectionPin, setSelectionPin] = useState<SelectionAiPin | null>(null);
   const [selectionRequest, setSelectionRequest] = useState<SelectionAiRequest | null>(null);
   const selectionPinRef = useRef<SelectionAiPin | null>(null);
@@ -1209,6 +1211,7 @@ const RichEditorPane = ({
     editorProps: {
       attributes: {
         class: "edgeever-note-rich-editor prose prose-slate max-w-none focus:outline-none min-h-[240px] lg:min-h-[180px]",
+        spellcheck: spellcheckEnabled ? "true" : "false",
       },
       handleKeyDown: (view, event) => {
         const { selection } = view.state;
@@ -4193,7 +4196,7 @@ const RichEditorPane = ({
                   enterKeyHint="enter"
                   inputMode="text"
                   name="memo-body"
-                  spellCheck
+                  spellCheck={spellcheckEnabled}
                   data-edgeever-mobile-editor="plain-textarea"
                   aria-label={t("editor.noteBodyAria")}
                   className="block min-h-[60dvh] w-full resize-none border border-slate-200 bg-card px-4 py-3 pr-32 text-base leading-7 text-slate-950 outline-none placeholder:text-slate-400 sm:px-7"

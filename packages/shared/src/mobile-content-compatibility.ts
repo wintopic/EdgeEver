@@ -70,15 +70,16 @@ const isTextNode = (node: TiptapNode | TiptapTextNode): node is TiptapTextNode =
 const getOriginalType = (attrs: Record<string, unknown> | undefined) =>
   typeof attrs?.originalType === "string" ? attrs.originalType : "unknown";
 
-const getFallbackLabel = (type: string, locale?: "zh-CN" | "en-US" | "ja") => {
+const getFallbackLabel = (type: string, locale?: "zh-CN" | "en-US" | "ja" | "pl") => {
   if (locale === "zh-CN") return `暂不支持的内容：${type}`;
   if (locale === "ja") return `未対応のコンテンツ: ${type}`;
+  if (locale === "pl") return `Nieobsługiwana zawartość: ${type}`;
   return `Unsupported content: ${type}`;
 };
 
 const fallbackAttrs = (
   node: TiptapNode | TiptapTextNode,
-  locale?: "zh-CN" | "en-US" | "ja",
+  locale?: "zh-CN" | "en-US" | "ja" | "pl",
 ) => ({
   originalType: node.type,
   originalJson: JSON.stringify(node),
@@ -226,7 +227,7 @@ const prepareTextNode = (node: TiptapTextNode): TiptapTextNode => {
  */
 export const prepareNativeEditorContent = (
   doc: TiptapDoc,
-  locale?: "zh-CN" | "en-US" | "ja",
+  locale?: "zh-CN" | "en-US" | "ja" | "pl",
 ): TiptapDoc => {
   const visit = (
     node: TiptapNode | TiptapTextNode,

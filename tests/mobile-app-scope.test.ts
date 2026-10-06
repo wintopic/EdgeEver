@@ -158,7 +158,7 @@ describe("mobile app scope", () => {
     expect(workspaceSource).toContain("onOpenTagFilter={() => setTagFilterPickerOpen(true)}");
 
     expect(iosWorkspaceViewSource).toContain("store.showTagFilterPicker = true");
-    expect(iosWorkspaceViewSource).toContain('env.preferences.t("按标签筛选", en: "Filter by tag")');
+    expect(iosWorkspaceViewSource).toContain('env.preferences.t("按标签筛选", en: "Filter by tag"');
     expect(iosWorkspaceViewSource).not.toContain('env.preferences.t("有标签", en: "Tagged")');
     expect(iosWorkspaceViewSource).not.toContain('env.preferences.t("无标签", en: "Untagged")');
   });

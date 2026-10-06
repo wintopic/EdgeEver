@@ -11,11 +11,15 @@ describe("mobile locale translation", () => {
     expect(translateMobileText("从相册选择", "en-US")).toBe("Choose from library");
     expect(translateMobileText("正在同步笔记", "ja")).toBe("ノートを同期しています");
     expect(translateMobileText("从相册选择", "ja")).toBe("ライブラリから選ぶ");
+    expect(translateMobileText("正在同步笔记", "pl")).toBe("Synchronizowanie notatek");
+    expect(translateMobileText("从相册选择", "pl")).toBe("Wybierz z galerii");
   });
 
   test("prefers specific mobile-only templates over broader templates", () => {
     expect(translateMobileText("已加载 12 / 40 条笔记", "en-US")).toBe("Loaded 12 of 40 notes");
     expect(translateMobileText("筛选：Pinned · 3 条", "en-US")).toBe("Filter: Pinned · 3 notes");
+    expect(translateMobileText("已加载 12 / 40 条笔记", "pl")).toBe("Wczytane notatki: 12 z 40");
+    expect(translateMobileText("筛选：Przypięte · 3 条", "pl")).toBe("Filtr: Przypięte · notatki: 3");
   });
 
   test("uses shared translations for the descendant preference", () => {
@@ -30,6 +34,8 @@ describe("mobile locale translation", () => {
       .toBe("Its sub-notebooks still contain 5 notes. Open a sub-notebook to see them, or turn on \"Show notes from sub-notebooks\" in Settings.");
     expect(translateMobileText(hint, "ja"))
       .toBe("サブノートブックにはまだ 5 件のノートがあります。サブノートブックを開くか、設定で「サブノートブックのノートを表示」をオンにしてください。");
+    expect(translateMobileText(hint, "pl"))
+      .toBe("Notatki w podnotatnikach: 5. Otwórz podnotatnik, aby je zobaczyć, lub włącz w ustawieniach opcję „Pokazuj notatki z podnotatników”.");
     expect(translateMobileText("本级暂无笔记", "en-US")).toBe("No notes directly in this notebook");
     expect(translateMobileText("无法保存“父笔记本中显示子笔记本笔记”设置，请稍后重试", "en-US"))
       .toBe("Could not save the \"Show notes from sub-notebooks\" setting. Please try again.");
@@ -55,6 +61,10 @@ describe("mobile locale translation", () => {
     expect(translateMobileText("正文剪藏失败", "en-US")).toBe("Article extraction failed");
     expect(translateMobileText("微信文章请求失败（HTTP 404）。", "en-US")).toBe("The WeChat article request failed (HTTP 404).");
     expect(translateMobileText("分享的图片（2 张）", "ja")).toBe("共有された画像（2 枚）");
+    expect(translateMobileText("分享的图片（2 张）", "pl")).toBe("Udostępnione obrazy (2)");
+    expect(translateMobileText("剪藏失败", "pl")).toBe("Nie udało się zapisać strony");
+    expect(translateMobileText("修改后会保留当前设备登录，并退出其他设备上的登录会话。", "pl"))
+      .toBe("To urządzenie pozostanie zalogowane, a pozostałe sesje zostaną wylogowane.");
     expect(translateMobileText("来源：https://example.com", "en-US")).toBe("来源：https://example.com");
   });
 
@@ -66,6 +76,7 @@ describe("mobile locale translation", () => {
     expect(localizeUntitledMemoTitle("会议记录", "en-US")).toBe("会议记录");
     expect(localizeMissingNotebookName("en-US")).toBe("Uncategorized");
     expect(localizeMissingNotebookName("ja")).toBe("未分類");
+    expect(localizeMissingNotebookName("pl")).toBe("Nieprzypisane");
     expect(localizeMissingNotebookName("zh-CN")).toBe("未分类");
   });
 });
