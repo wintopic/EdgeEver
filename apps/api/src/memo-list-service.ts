@@ -6,9 +6,10 @@ import {
   getDiagramSummary,
   getInfographicSummary,
   getTableSummary,
+  getVideoNoteSummary,
   type MemoSummary,
 } from "@edgeever/shared";
-import { parseJsonArray } from "./entity-utils";
+import { clampNumber, parseJsonArray } from "./entity-utils";
 import type { DatabaseAdapter } from "./storage-contract";
 
 export type MemoSummaryRow = {
@@ -74,6 +75,7 @@ export const mapMemoSummary = (row: MemoSummaryRow): MemoSummary => ({
   ...getDiagramSummary(row.content_markdown),
   ...getInfographicSummary(row.content_markdown),
   ...getTableSummary(row.content_markdown),
+  ...getVideoNoteSummary(row.content_markdown),
   tags: parseJsonArray(row.tags_json),
   isPinned: Boolean(row.is_pinned),
   isArchived: Boolean(row.is_archived),
@@ -95,10 +97,6 @@ const normalizeMemoListSort = (value: string | undefined): MemoListSortMode =>
 const normalizeMemoListFilter = (value: string | undefined): MemoListFilterMode =>
   value === "tagged" || value === "untagged" || value === "pinned" ? value : "all";
 
-const clampNumber = (value: number, min: number, max: number) => {
-  if (Number.isNaN(value)) return min;
-  return Math.min(Math.max(value, min), max);
-};
 
 const encodeMemoListCursor = (
   memo: MemoSummaryRow,

@@ -98,7 +98,7 @@ Cloudflare が、サーバーを持たない導入の推奨です。VPS、NAS、
 
 Cloudflare のオンライン導入は、次のいずれかです。
 
-### 方法 A: AI Agent で導入（推奨）
+### 方法 A: AI Agent に任せて導入（推奨）
 
 次のプロンプトを AI Agent（Codex、Claude、Cursor、WorkBuddy、Antigravity、OpenClaw、Hermes Agent など）へそのまま送ってください。実行中に GitHub や Cloudflare へのアクセスが求められたら、権限を確認して認可してください。
 

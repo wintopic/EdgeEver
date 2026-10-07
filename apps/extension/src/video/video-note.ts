@@ -27,6 +27,35 @@ export type VideoNoteLabels = {
 
 const COVER_PLACEHOLDER = "EDGEVERRESOURCEID";
 
+export type VideoTranscriptRequest = {
+  platform: "youtube" | "bilibili";
+  videoId: string;
+  sourceUrl: string;
+  durationSeconds: number;
+  placeholderText: string;
+  transcriptLabel: string;
+};
+
+export const videoNoteIdentity = (
+  capture: VideoCapture,
+  labels: VideoNoteLabels,
+): VideoTranscriptRequest => ({
+  platform: capture.platform,
+  videoId: capture.videoId,
+  sourceUrl: capture.sourceUrl,
+  durationSeconds: Math.max(0, Math.floor(capture.duration || 0)),
+  placeholderText: labels.noCaptions,
+  transcriptLabel: labels.transcript,
+});
+
+const videoNoteMarker = (identity: VideoTranscriptRequest) => {
+  const bytes = new TextEncoder().encode(JSON.stringify(identity));
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  const encoded = btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
+  return `<!-- edgeever-video-v1:${encoded} -->`;
+};
+
 export const videoNoteTitle = (title: string, fallback: string) => {
   const clean = title.replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
   const value = clean || fallback;
@@ -121,6 +150,7 @@ export const buildVideoNote = (input: {
       "",
     );
   }
+  lines.push(videoNoteMarker(videoNoteIdentity(input.capture, input.labels)));
   return { title, markdown: lines.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n" };
 };
 
@@ -230,7 +260,13 @@ export const persistVideoNote = async (input: {
   labels: VideoNoteLabels;
   capturedOn: string;
   attempt: OutlineAttempt | null;
-  createMemo: (body: { notebookId: string; title: string; contentMarkdown: string; tags: string[] }) => Promise<unknown>;
+  createMemo: (body: {
+    notebookId: string;
+    title: string;
+    contentMarkdown: string;
+    tags: string[];
+    videoTranscript?: VideoTranscriptRequest;
+  }) => Promise<unknown>;
   createWithImage?: (body: {
     notebookId: string;
     title: string;
@@ -239,9 +275,16 @@ export const persistVideoNote = async (input: {
     filename: string;
     mimeType: string;
     bytes: Uint8Array;
+    videoTranscript?: VideoTranscriptRequest;
   }) => Promise<unknown>;
 }) => {
   const withCover = Boolean(input.capture.thumbnail && input.createWithImage);
+  const noteFields = (title: string, contentMarkdown: string) => ({
+    notebookId: input.notebookId,
+    title,
+    contentMarkdown,
+    tags: ["web-clip"] as string[],
+  });
   const note = videoNoteFromCapture({
     capture: input.capture,
     attempt: input.attempt,
@@ -252,10 +295,7 @@ export const persistVideoNote = async (input: {
   if (withCover && input.capture.thumbnail && input.createWithImage) {
     try {
       await input.createWithImage({
-        notebookId: input.notebookId,
-        title: note.title,
-        contentMarkdown: note.markdown,
-        tags: ["web-clip"],
+        ...noteFields(note.title, note.markdown),
         filename: filenameForCover(input.capture.thumbnail.mimeType),
         mimeType: input.capture.thumbnail.mimeType,
         bytes: input.capture.thumbnail.bytes,
@@ -274,11 +314,6 @@ export const persistVideoNote = async (input: {
       cover: "none",
     })
     : note;
-  await input.createMemo({
-    notebookId: input.notebookId,
-    title: plainNote.title,
-    contentMarkdown: plainNote.markdown,
-    tags: ["web-clip"],
-  });
+  await input.createMemo(noteFields(plainNote.title, plainNote.markdown));
   return plainNote;
 };

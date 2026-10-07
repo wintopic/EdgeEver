@@ -71,6 +71,8 @@ https://github.com/owner/edgeever-plugin
 
 插件市场是一个经过校验的 Registry，不接管插件所有权。Registry 为每个版本固定插件 ID、GitHub 仓库、版本号及 `manifest.json`/`main.js`/`styles.css` 的 SHA-256；安装时仍从开发者的 GitHub Release 或登记的公开地址下载，并再次核对校验和。可选的 `"publisher": "edgeever"` 标记仅保留给 EdgeEver 项目维护的 Registry 条目；它会启用自动更新，社区投稿不得使用。
 
+官方条目随应用内置在 `extensions/registry.json`。实例设置 `EDGE_EVER_COMMUNITY_REGISTRY_URL` 后，客户端才会把另一份验签通过的社区目录追加进来。这份目录不能改官方插件的仓库地址，也不能把条目标成官方。社区标记和许可证只说明收录检查通过，不代表 EdgeEver 保证插件安全。自建实例不设置该变量时，市场只显示内置官方插件。提交插件请按 [tianma-if/edgeever-plugins](https://github.com/tianma-if/edgeever-plugins) 的说明操作。
+
 Registry 格式：
 
 ```json

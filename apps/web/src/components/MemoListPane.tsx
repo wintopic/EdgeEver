@@ -50,6 +50,7 @@ import {
   Printer,
   Pencil,
   Copy,
+  Captions,
 } from "lucide-react";
 import { WeChatIcon } from "./WeChatIcon";
 import { Button } from "@/components/ui/button";
@@ -82,6 +83,7 @@ import type {
 } from "@/lib/app-helpers";
 import { contentEnterMotion, paneEnterMotion } from "@/lib/motion";
 import type { SyncQueueSummary } from "@/lib/sync-queue";
+import { api } from "@/lib/api";
 import { isLocalMemoId } from "@/lib/local-mirror";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import {
@@ -521,9 +523,11 @@ export const MemoListPane = ({
   const [moveTargetNotebookId, setMoveTargetNotebookId] = useState("");
   const [memoIdCopyNotice, setMemoIdCopyNotice] = useState<{ status: "copied" | "error"; id: string } | null>(null);
   const [wechatCopyNotice, setWechatCopyNotice] = useState<"copied" | "error" | null>(null);
+  const [extractNotice, setExtractNotice] = useState<"started" | "running" | "error" | null>(null);
   const [wechatCopyPending, setWechatCopyPending] = useState(false);
   const wechatCopyPendingRef = useRef(false);
   const wechatCopyNoticeTimerRef = useRef<number | null>(null);
+  const extractNoticeTimerRef = useRef<number | null>(null);
   const [fileDragActive, setFileDragActive] = useState(false);
 
   const filterOptions = useMemo(() => getMemoFilterOptions(t), [t]);
@@ -541,6 +545,9 @@ export const MemoListPane = ({
   useEffect(() => () => {
     if (wechatCopyNoticeTimerRef.current !== null) {
       window.clearTimeout(wechatCopyNoticeTimerRef.current);
+    }
+    if (extractNoticeTimerRef.current !== null) {
+      window.clearTimeout(extractNoticeTimerRef.current);
     }
   }, []);
   const listScrollRef = useRef<HTMLDivElement | null>(null);
@@ -659,6 +666,24 @@ export const MemoListPane = ({
     const printWindow = action === "export-pdf" ? window.open("about:blank", "_blank") : undefined;
     setMemoContextMenu(null);
     onRequestDocumentAction(memo.id, action, printWindow);
+  };
+
+  const showExtractNotice = (status: "started" | "running" | "error") => {
+    if (extractNoticeTimerRef.current !== null) window.clearTimeout(extractNoticeTimerRef.current);
+    setExtractNotice(status);
+    extractNoticeTimerRef.current = window.setTimeout(() => setExtractNotice(null), status === "error" ? 2600 : 2200);
+  };
+
+  const handleExtractTranscript = async () => {
+    const memo = memoContextMenu?.memo;
+    if (!memo || !memo.videoNote || isLocalMemoId(memo.id)) return;
+    setMemoContextMenu(null);
+    try {
+      const result = await api.extractVideoTranscript(memo.id);
+      showExtractNotice(result.status === "running" ? "running" : "started");
+    } catch {
+      showExtractNotice("error");
+    }
   };
 
   const handleCopyContextMemoId = async () => {
@@ -1573,6 +1598,16 @@ export const MemoListPane = ({
                 <FileIcon className="h-4 w-4" />
                 {t("memoList.openMemo")}
               </DropdownMenuItem>
+              {view !== "trash" && memoContextMenu.memo.videoNote && (
+                <DropdownMenuItem
+                  className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer outline-none"
+                  disabled={isLocalMemoId(memoContextMenu.memo.id)}
+                  onClick={() => void handleExtractTranscript()}
+                >
+                  <Captions className="h-4 w-4 text-slate-500" />
+                  {t("memoList.extractTranscript")}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs text-slate-700 hover:bg-slate-50 cursor-pointer outline-none"
                 onClick={() => {
@@ -1748,6 +1783,16 @@ export const MemoListPane = ({
       {wechatCopyNotice && (
         <ClipboardCopyNotice status={wechatCopyNotice}>
           {t(wechatCopyNotice === "copied" ? "editor.copiedToWeChat" : "editor.copyToWeChatFailed")}
+        </ClipboardCopyNotice>
+      )}
+
+      {extractNotice && (
+        <ClipboardCopyNotice status={extractNotice === "error" ? "error" : "copied"}>
+          {t(extractNotice === "started"
+            ? "memoList.extractTranscriptStarted"
+            : extractNotice === "running"
+              ? "memoList.extractTranscriptRunning"
+              : "memoList.extractTranscriptFailed")}
         </ClipboardCopyNotice>
       )}
 

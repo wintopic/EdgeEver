@@ -58,6 +58,7 @@ import {
   apiError,
   authNotConfigured,
   databaseNotReady,
+  httpExceptionError,
   unauthorized,
 } from "./http-errors";
 import { audit } from "./audit";
@@ -89,6 +90,7 @@ import {
 import { registerPluginDistributionRoutes } from "./plugin-distribution-routes";
 import { registerSyncRoutes } from "./sync-routes";
 import { registerMemoRoutes } from "./memo-routes";
+import { registerVideoTranscriptRoutes } from "./video-transcript-routes";
 import { registerScheduledTaskRoutes } from "./scheduled-task-routes";
 import { registerWorkspaceExtensionRoutes } from "./workspace-extension-routes";
 import { registerBackupRoutes } from "./backup-routes";
@@ -340,6 +342,7 @@ registerTemplateRoutes(app, {
   getMemoDetail: (...args) => getMemoDetail(...args),
 });
 
+registerVideoTranscriptRoutes(app, { isDemoMode: (...args) => isDemoMode(...args) });
 registerMemoRoutes(app, {
   clampNumber: (...args) => clampNumber(...args),
   createImageResource: (...args) => createImageResource(...args),
@@ -477,6 +480,9 @@ app.onError((error, c) => {
   if (error instanceof AppError) {
     return apiError(c, error.code, error.message, error.status);
   }
+
+  const requestError = httpExceptionError(c, error);
+  if (requestError) return requestError;
 
   if (isDatabaseNotReadyError(error)) {
     console.error("EdgeEver database readiness check failed", error);

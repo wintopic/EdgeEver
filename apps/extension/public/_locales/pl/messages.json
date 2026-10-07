@@ -108,7 +108,7 @@
     "message": "Domyślny notatnik"
   },
   "autoFirstNotebook": {
-    "message": "Po połączeniu automatycznie użyj pierwszego notatnika"
+    "message": "Skrzynka"
   },
   "testConnection": {
     "message": "Testuj połączenie"
@@ -485,5 +485,80 @@
   },
   "redditLinkLabel": {
     "message": "Strona z linku"
+  },
+  "saveVideoNoteToEdgeEver": {
+    "message": "Zapisz notatkę z wideo w EdgeEver"
+  },
+  "savingVideoNote": {
+    "message": "Zapisywanie notatki z wideo…"
+  },
+  "videoNoteSaved": {
+    "message": "Zapisano notatkę z wideo."
+  },
+  "videoTranscriptSaved": {
+    "message": "Zapisano napisy. Nie utworzono podsumowania."
+  },
+  "videoTranscriptNeedScope": {
+    "message": "Zapisano napisy. Nie utworzono podsumowania. W ustawieniach dodaj do tokena zakres ai:generate i wybierz domyślny model."
+  },
+  "videoTranscriptNeedModel": {
+    "message": "Zapisano napisy. Nie utworzono podsumowania. Najpierw wybierz domyślny model."
+  },
+  "videoTranscriptTooLong": {
+    "message": "Zapisano napisy. To wideo jest za długie, aby je podsumować."
+  },
+  "videoInfoSaved": {
+    "message": "Zapisano informacje o wideo."
+  },
+  "videoPageUnsupported": {
+    "message": "Ta strona nie jest jeszcze obsługiwana."
+  },
+  "videoNotRead": {
+    "message": "Nie udało się odczytać tego wideo."
+  },
+  "videoSourceLabel": {
+    "message": "Źródło"
+  },
+  "videoPlatformLabel": {
+    "message": "Platforma"
+  },
+  "videoCaptionsLabel": {
+    "message": "Napisy"
+  },
+  "videoCapturedAtLabel": {
+    "message": "Zapisano"
+  },
+  "videoSummaryHeading": {
+    "message": "Podsumowanie"
+  },
+  "videoOutlineHeading": {
+    "message": "Konspekt"
+  },
+  "videoTakeawaysHeading": {
+    "message": "Najważniejsze wnioski"
+  },
+  "videoTranscriptHeading": {
+    "message": "Transkrypcja"
+  },
+  "videoCoverAlt": {
+    "message": "Okładka"
+  },
+  "videoPlatformYouTube": {
+    "message": "YouTube"
+  },
+  "videoPlatformBilibili": {
+    "message": "Bilibili"
+  },
+  "videoCaptionsAuto": {
+    "message": "Napisy automatyczne"
+  },
+  "videoCaptionsCreator": {
+    "message": "Napisy autora"
+  },
+  "videoNoCaptions": {
+    "message": "To wideo nie ma napisów."
+  },
+  "videoNoteFallbackTitle": {
+    "message": "Notatka z wideo"
   }
 }

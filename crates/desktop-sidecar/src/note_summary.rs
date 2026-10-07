@@ -49,6 +49,7 @@ pub(crate) fn note_list_metadata(markdown: &str) -> Value {
         }
     }
     metadata.insert("infographic".to_owned(), json!(is_infographic(markdown)));
+    metadata.insert("videoNote".to_owned(), json!(is_video_note(markdown)));
     match table_preview(markdown) {
         Some(preview) => {
             metadata.insert("structuredTable".to_owned(), json!(true));
@@ -66,6 +67,10 @@ pub(crate) fn note_list_metadata(markdown: &str) -> Value {
         }
     }
     Value::Object(metadata)
+}
+
+fn is_video_note(markdown: &str) -> bool {
+    markdown.contains("<!-- edgeever-video-v1:")
 }
 
 fn is_infographic(markdown: &str) -> bool {
@@ -578,8 +583,18 @@ mod tests {
             assert!(metadata.get("diagramPreview").is_none(), "{markdown}");
             assert_eq!(metadata["infographic"], false, "{markdown}");
             assert_eq!(metadata["structuredTable"], false, "{markdown}");
+            assert_eq!(metadata["videoNote"], false, "{markdown}");
             assert!(metadata.get("tablePreview").is_none(), "{markdown}");
         }
+    }
+
+    #[test]
+    fn video_note_marker_is_recognized_without_reading_the_prose() {
+        assert_eq!(
+            note_list_metadata("这一集没有可用字幕\n\n<!-- edgeever-video-v1:abc -->")["videoNote"],
+            true
+        );
+        assert_eq!(note_list_metadata("ordinary note")["videoNote"], false);
     }
 
     #[test]

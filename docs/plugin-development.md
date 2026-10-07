@@ -71,6 +71,8 @@ The official marketplace only lists free and open-source plugins. Complete human
 
 The marketplace is a verified Registry and does not take ownership of plugin files. For each version, the Registry pins the plugin ID, GitHub repository, version, and SHA-256 hashes for `manifest.json`, `main.js`, and optional `styles.css`. Installation still downloads from the developer's GitHub Release or registered public URL and verifies those hashes again. The optional `"publisher": "edgeever"` marker is reserved for Registry entries maintained by the EdgeEver project; it enables automatic updates and must not be used for community submissions.
 
+Official entries ship inside the app as `extensions/registry.json`. Community entries are appended from a separate signed catalog when the instance sets `EDGE_EVER_COMMUNITY_REGISTRY_URL`. That catalog cannot change an official repository URL or mark an entry as official. A community badge and license mean the listing passed the admission check. They do not mean EdgeEver guarantees the plugin is safe. Self-hosted instances leave the variable unset and show only the built-in official plugins. To submit a plugin, follow [tianma-if/edgeever-plugins](https://github.com/tianma-if/edgeever-plugins).
+
 Registry format:
 
 ```json

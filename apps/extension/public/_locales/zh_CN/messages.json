@@ -108,7 +108,7 @@
     "message": "默认笔记本"
   },
   "autoFirstNotebook": {
-    "message": "连接后自动使用第一个笔记本"
+    "message": "等待分类"
   },
   "testConnection": {
     "message": "测试连接"

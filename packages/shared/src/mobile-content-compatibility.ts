@@ -39,6 +39,7 @@ export const NATIVE_EDITOR_NODE_TYPES = new Set<string>([
   "tableHeader",
   "tableCell",
   "edgeeverMergeDivider",
+  "edgeeverVideoNote",
   EMPTY_EXTERNAL_LINK_NODE_TYPE,
   "inlineMath",
   "blockMath",

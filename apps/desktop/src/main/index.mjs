@@ -48,6 +48,13 @@ import {
 } from "./windows-update-trust.mjs";
 import electronUpdater from "electron-updater";
 import { createPluginPublicNetworkRuntime } from "./plugin-public-network.mjs";
+import { createYtDlpManager, startYtDlpMaintenance } from "./yt-dlp-tool.mjs";
+import {
+  createSpeechTranscriptionRunner,
+  readCookieBrowserPreference,
+  startSpeechTranscription,
+  writeCookieBrowserPreference,
+} from "./speech-transcription.mjs";
 import { createAiDirectRuntime } from "./ai-direct.mjs";
 import { createAcpHostRuntime, registerAcpIpc } from "./acp-host.mjs";
 import { shouldQuitAfterAllWindowsClosed } from "./window-lifecycle.mjs";
@@ -127,6 +134,10 @@ let updateState = "idle";
 let updateCheckInFlight = null;
 let updateDownloadInFlight = null;
 let updateCheckTimer = null;
+let stopYtDlpMaintenance = null;
+let stopSpeechTranscription = null;
+let ytDlpMaintenanceTimer = null;
+let ytDlpManager = null;
 let lastUpdateCheckAt = 0;
 let downloadedUpdateVersion = null;
 let promptedUpdateVersion = null;
@@ -174,6 +185,7 @@ const sessionTokenPath = () => join(app.getPath("userData"), "session-token");
 const crashMarkerPath = () => join(app.getPath("userData"), "last-session-active");
 const installationMarkerPath = () => join(app.getPath("userData"), "installation-confirmed");
 const logPath = () => join(app.getPath("userData"), "logs", "desktop.log");
+const videoCookieBrowserPath = () => join(app.getPath("userData"), "video-cookie-browser.json");
 let desktopSessionToken = "";
 const sidecarDataDirectory = (accountId = null) => {
   return accountId
@@ -1518,6 +1530,15 @@ const startApplication = async () => {
     app.quit();
     return;
   }
+  ytDlpManager = createYtDlpManager({
+    directory: join(app.getPath("userData"), "tools"),
+    platform: process.platform,
+    arch: process.arch,
+    fetch: net.fetch.bind(net),
+    onDiagnostic: (event, details) => {
+      void writeDiagnostic(event, details);
+    },
+  });
   await loadConfiguredApiBaseUrl();
   await loadDesktopSessionToken();
   app.setAsDefaultProtocolClient("edgeever");
@@ -1551,6 +1572,17 @@ const startApplication = async () => {
   });
   ipcMain.handle("desktop:sidecar-status", () => ({ available: Boolean(sidecar), path: sidecarPath, scope: sidecarScopeKey }));
   ipcMain.handle("desktop:system-info", () => desktopRuntimeSystemInfo());
+  ipcMain.handle("desktop:yt-dlp-status", () => ytDlpManager?.status() ?? {
+    state: "idle",
+    version: null,
+    path: "",
+    errorCode: null,
+    httpStatus: null,
+  });
+  ipcMain.handle("desktop:video-cookie-browser-get", () => readCookieBrowserPreference(videoCookieBrowserPath()));
+  ipcMain.handle("desktop:video-cookie-browser-set", (_event, browser) => (
+    writeCookieBrowserPreference(videoCookieBrowserPath(), browser)
+  ));
   ipcMain.handle("desktop:set-account-scope", async (_event, accountId) => {
     const normalizedAccountId = typeof accountId === "string" && accountId.trim() ? accountId.trim() : null;
     const nextScopeKey = accountScopeKey(configuredApiBaseUrl, normalizedAccountId);
@@ -1915,6 +1947,22 @@ const startApplication = async () => {
   // user-visible critical path so the first installed launch opens promptly.
   await ejectMountedMacInstallers();
   await confirmMacInstallation();
+  // The standalone binary is about 35 MB. Start only after the window and the
+  // first-run installer dialog, and never await it: the workspace must stay usable.
+  ytDlpMaintenanceTimer = setTimeout(() => {
+    ytDlpMaintenanceTimer = null;
+    if (!ytDlpManager || stopYtDlpMaintenance) return;
+    stopYtDlpMaintenance = startYtDlpMaintenance(ytDlpManager, { intervalMs: updateCheckIntervalMs });
+    // Transcription waits on this same timer and is not awaited. A pass that
+    // finds nothing, or a download that fails, must not block the window.
+    stopSpeechTranscription = startSpeechTranscription(createSpeechTranscriptionRunner({
+      getSession: () => ({ baseUrl: configuredApiBaseUrl, token: desktopSessionToken }),
+      ytDlpStatus: () => ytDlpManager.status(),
+      cookieBrowser: () => readCookieBrowserPreference(videoCookieBrowserPath()),
+      audioDirectory: () => join(app.getPath("userData"), "tools", "transcript-audio"),
+    }));
+  }, 3_000);
+  ytDlpMaintenanceTimer.unref?.();
   void enableMacShareExtension({
     platform: process.platform,
     packaged: app.isPackaged,
@@ -2004,6 +2052,14 @@ app.on("before-quit", (event) => {
     clearInterval(updateCheckTimer);
     updateCheckTimer = null;
   }
+  if (ytDlpMaintenanceTimer) {
+    clearTimeout(ytDlpMaintenanceTimer);
+    ytDlpMaintenanceTimer = null;
+  }
+  stopYtDlpMaintenance?.();
+  stopYtDlpMaintenance = null;
+  stopSpeechTranscription?.();
+  stopSpeechTranscription = null;
   tray?.destroy();
   void (async () => {
     await stopSidecar();

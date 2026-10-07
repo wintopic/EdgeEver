@@ -60,6 +60,15 @@ interface EdgeEverDesktopBridge {
     chrome: string;
     dataDir: string;
   }>;
+  ytDlpStatus(): Promise<{
+    state: "idle" | "checking" | "downloading" | "ready" | "failed";
+    version: string | null;
+    path: string;
+    errorCode: string | null;
+    httpStatus: number | null;
+  }>;
+  videoCookieBrowser(): Promise<import("@edgeever/shared").VideoCookieBrowser>;
+  setVideoCookieBrowser(browser: import("@edgeever/shared").VideoCookieBrowser): Promise<{ browser: import("@edgeever/shared").VideoCookieBrowser }>;
   setAccountScope(accountId: string | null): Promise<{ ready: true; scope: string }>;
   updateStatus(): Promise<DesktopUpdateStatus>;
   checkUpdate(): Promise<DesktopUpdateStatus>;

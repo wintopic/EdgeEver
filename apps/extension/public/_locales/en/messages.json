@@ -108,7 +108,7 @@
     "message": "Default notebook"
   },
   "autoFirstNotebook": {
-    "message": "Use the first notebook automatically after connecting"
+    "message": "Inbox"
   },
   "testConnection": {
     "message": "Test connection"

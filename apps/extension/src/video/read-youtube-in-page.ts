@@ -18,17 +18,18 @@ export const isYouTubePageRead = (value: unknown): value is YouTubePageRead => {
   return record.ok === true && "playerResponse" in record;
 };
 
-const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
-
 // Runs in the page main world after the click. Chrome serializes this function
 // alone, so the helpers stay nested and the subtitle URL is fetched here.
+// A module-level binding would be erased by that serialization and every watch
+// page would fail as "not read".
 export async function readYouTubeVideoInPage(uiLanguage: string): Promise<YouTubePageRead> {
+  const videoIdPattern = /^[A-Za-z0-9_-]{11}$/;
   const asRecord = (value: unknown): Record<string, unknown> | null =>
     value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
 
   const videoIdOf = (response: unknown) => {
     const id = asRecord(asRecord(response)?.videoDetails)?.videoId;
-    return typeof id === "string" && VIDEO_ID.test(id) ? id : "";
+    return typeof id === "string" && videoIdPattern.test(id) ? id : "";
   };
 
   const videoIdFromLocation = (href: string) => {
@@ -38,13 +39,13 @@ export async function readYouTubeVideoInPage(uiLanguage: string): Promise<YouTub
       if (host === "music.youtube.com" || host === "www.youtube-nocookie.com") return "";
       if (host === "youtu.be" || host === "www.youtu.be") {
         const id = url.pathname.split("/").filter(Boolean)[0] ?? "";
-        return VIDEO_ID.test(id) ? id : "";
+        return videoIdPattern.test(id) ? id : "";
       }
       const parts = url.pathname.split("/").filter(Boolean);
-      if (parts[0] === "shorts" && VIDEO_ID.test(parts[1] ?? "")) return parts[1] ?? "";
+      if (parts[0] === "shorts" && videoIdPattern.test(parts[1] ?? "")) return parts[1] ?? "";
       if (parts[0] === "watch") {
         const id = url.searchParams.get("v") ?? "";
-        return VIDEO_ID.test(id) ? id : "";
+        return videoIdPattern.test(id) ? id : "";
       }
       return "";
     } catch {
@@ -137,29 +138,28 @@ export async function readYouTubeVideoInPage(uiLanguage: string): Promise<YouTub
   const thumbnailOf = async (response: unknown) => {
     const thumbs = asRecord(asRecord(asRecord(response)?.videoDetails)?.thumbnail)?.thumbnails;
     if (!Array.isArray(thumbs)) return undefined;
-    let best = "";
-    let width = -1;
-    for (const item of thumbs) {
+    const ordered = thumbs.flatMap((item) => {
       const thumb = asRecord(item);
       const url = typeof thumb?.url === "string" ? thumb.url : "";
-      const size = typeof thumb?.width === "number" ? thumb.width : 0;
-      if (!url || size < width) continue;
-      best = url;
-      width = size;
+      const width = typeof thumb?.width === "number" ? thumb.width : 0;
+      return url ? [{ url, width }] : [];
+    }).sort((left, right) => right.width - left.width);
+    // ytimg rejects a credentialed fetch. Try the next size when one URL fails.
+    for (const thumb of ordered) {
+      try {
+        const absolute = thumb.url.startsWith("//") ? `https:${thumb.url}` : thumb.url;
+        const image = await fetch(absolute, { credentials: "omit", signal: AbortSignal.timeout(8000) });
+        if (!image.ok) continue;
+        const mimeType = (image.headers.get("content-type") || "").split(";")[0]?.trim().toLowerCase() ?? "";
+        if (!mimeType.startsWith("image/")) continue;
+        const bytes = new Uint8Array(await image.arrayBuffer());
+        if (!bytes.byteLength || bytes.byteLength > 2 * 1024 * 1024) continue;
+        return { base64: bytesToBase64(bytes), mimeType: mimeType === "image/jpg" ? "image/jpeg" : mimeType };
+      } catch {
+        // The next candidate may still be readable.
+      }
     }
-    if (!best) return undefined;
-    try {
-      const absolute = best.startsWith("//") ? `https:${best}` : best;
-      const response = await fetch(absolute, { credentials: "include", signal: AbortSignal.timeout(8000) });
-      if (!response.ok) return undefined;
-      const mimeType = (response.headers.get("content-type") || "").split(";")[0]?.trim().toLowerCase() ?? "";
-      if (!mimeType.startsWith("image/")) return undefined;
-      const bytes = new Uint8Array(await response.arrayBuffer());
-      if (!bytes.byteLength || bytes.byteLength > 2 * 1024 * 1024) return undefined;
-      return { base64: bytesToBase64(bytes), mimeType: mimeType === "image/jpg" ? "image/jpeg" : mimeType };
-    } catch {
-      return undefined;
-    }
+    return undefined;
   };
 
   const slim = (response: unknown) => {

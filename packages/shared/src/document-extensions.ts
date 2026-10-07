@@ -8,6 +8,7 @@ import { createEdgeEverDetailsExtensions } from "./details";
 import { FileAttachment } from "./file-attachment";
 import { ImageGallery } from "./image-gallery";
 import { MergeDivider } from "./merge-divider";
+import { VideoNoteMarker } from "./video-note";
 import { PdfAttachment } from "./pdf-attachment";
 import { PluginEmbed } from "./plugin-embed";
 import { EmptyExternalLink } from "./empty-external-link";
@@ -52,6 +53,7 @@ export const createEdgeEverDocumentExtensions = (
   ...withOptional(options.pdf, PdfAttachment),
   ...withOptional(options.file, FileAttachment),
   MergeDivider,
+  VideoNoteMarker,
   ...createEdgeEverDetailsExtensions(),
   ...withOptional(options.pluginEmbed, PluginEmbed),
   ...options.mathematics,

@@ -98,7 +98,7 @@ Cloudflare 是建議的零伺服器部署方式；希望使用 VPS、NAS 或家�
 
 Cloudflare 線上部署可以選擇以下兩種方式之一：
 
-### 方案一：AI Agent 一鍵部署（建議）
+### 方案一：交給 AI Agent 部署（建議）
 
 將下方提示詞直接複製傳送給 AI Agent（如 Codex、Claude、Cursor、WorkBuddy、Antigravity、OpenClaw、Hermes Agent 等）。執行過程中，如需存取 GitHub 或 Cloudflare，請確認權限範圍並依提示完成授權。
 

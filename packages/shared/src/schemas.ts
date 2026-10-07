@@ -29,6 +29,70 @@ export const NotebookUpdateSchema = z.object({
   sortOrder: z.number().int().optional(),
 });
 
+const PUBLIC_VIDEO_HOSTS = new Set([
+  "youtube.com",
+  "www.youtube.com",
+  "m.youtube.com",
+  "youtu.be",
+  "bilibili.com",
+  "www.bilibili.com",
+  "m.bilibili.com",
+]);
+
+export const isPublicVideoSourceUrl = (value: string) => {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:"
+      && !url.username
+      && !url.password
+      && PUBLIC_VIDEO_HOSTS.has(url.hostname);
+  } catch {
+    return false;
+  }
+};
+
+export const VIDEO_TRANSCRIPT_ERROR_CODES = [
+  "duration_limit",
+  "unsupported_source",
+  "audio_too_large",
+  "download_failed",
+  "transcribe_failed",
+  "empty_transcript",
+  "note_changed",
+  "note_write_failed",
+  "credentials_unavailable",
+  "disabled",
+] as const;
+
+export const VideoTranscriptJobInputSchema = z.object({
+  platform: z.enum(["youtube", "bilibili"]),
+  videoId: z.string().trim().min(1).max(64),
+  sourceUrl: z.string().trim().max(2048).refine(isPublicVideoSourceUrl, {
+    message: "sourceUrl must be an https YouTube or Bilibili address.",
+  }),
+  durationSeconds: z.number().int().min(0).max(24 * 60 * 60).default(0),
+  placeholderText: z.string().trim().min(1).max(200),
+  transcriptLabel: z.string().trim().min(1).max(80),
+});
+
+export const parseVideoTranscriptJob = (value: unknown) => {
+  const parsed = VideoTranscriptJobInputSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
+};
+
+export const VideoTranscriptFinishSchema = z.object({
+  status: z.enum(["ready", "failed"]),
+  errorCode: z.enum(VIDEO_TRANSCRIPT_ERROR_CODES).nullable().optional(),
+  claimedAt: z.string().datetime(),
+}).superRefine((input, context) => {
+  if (input.status === "failed" && !input.errorCode) {
+    context.addIssue({ code: "custom", path: ["errorCode"], message: "A failure needs an error code." });
+  }
+  if (input.status === "ready" && input.errorCode) {
+    context.addIssue({ code: "custom", path: ["errorCode"], message: "A finished transcript has no error code." });
+  }
+});
+
 export const MemoCreateSchema = z.object({
   notebookId: z.string().trim().min(1),
   title: z.string().trim().max(160).optional(),
@@ -37,6 +101,8 @@ export const MemoCreateSchema = z.object({
   tags: z.array(z.string()).optional(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
+  // An unusable job must not reject the note. The desktop simply has nothing to claim.
+  videoTranscript: z.unknown().optional().transform((value) => parseVideoTranscriptJob(value)),
 });
 
 export const MemoUpdateSchema = z.object({
@@ -250,11 +316,14 @@ export const ObjectStorageConnectionTestSchema = z.object({
 
 export const AiProviderSchema = z.enum(["openai-compatible", "anthropic", "google"]);
 
-const AiBaseUrlSchema = z.string().trim().url().max(500).superRefine((value, context) => {
+export const AiTranscriptionStandardSchema = z.enum(["openai-compatible"]);
+
+const rejectUnsafeAiBaseUrl = (value: string, context: z.RefinementCtx) => {
   let url: URL;
   try {
     url = new URL(value);
   } catch {
+    context.addIssue({ code: "custom", message: "AI Base URL must be a valid URL." });
     return;
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") {
@@ -263,6 +332,42 @@ const AiBaseUrlSchema = z.string().trim().url().max(500).superRefine((value, con
   if (url.username || url.password) {
     context.addIssue({ code: "custom", message: "AI Base URL must not contain credentials." });
   }
+};
+
+const AiBaseUrlSchema = z.string().trim().url().max(500).superRefine(rejectUnsafeAiBaseUrl);
+
+const AiTranscriptionProviderBaseUrlSchema = z.string().trim().min(1).max(500).superRefine((value, context) => {
+  if (!z.string().url().safeParse(value).success) {
+    context.addIssue({ code: "custom", message: "AI Base URL must be a valid URL." });
+    return;
+  }
+  rejectUnsafeAiBaseUrl(value, context);
+});
+
+export const AiTranscriptionProviderCreateSchema = z.object({
+  provider: AiTranscriptionStandardSchema.default("openai-compatible"),
+  displayName: z.string().trim().min(1).max(80),
+  baseUrl: AiTranscriptionProviderBaseUrlSchema,
+  apiKey: z.string().trim().min(1).max(4096),
+  isEnabled: z.boolean().default(true),
+  initialModelId: z.string().trim().min(1).max(200).optional(),
+});
+
+export const AiTranscriptionProviderUpdateSchema = z.object({
+  provider: AiTranscriptionStandardSchema.default("openai-compatible"),
+  displayName: z.string().trim().min(1).max(80),
+  baseUrl: AiTranscriptionProviderBaseUrlSchema,
+  apiKey: z.string().trim().min(1).max(4096).optional(),
+  isEnabled: z.boolean().default(true),
+});
+
+export const AiTranscriptionModelCreateSchema = z.object({
+  modelId: z.string().trim().min(1).max(200),
+  displayName: z.string().trim().min(1).max(80).optional(),
+});
+
+export const AiTranscriptionDefaultModelUpdateSchema = z.object({
+  modelConfigId: z.string().trim().min(1).nullable(),
 });
 
 const AiProviderConfigFieldsSchema = z.object({
@@ -470,6 +575,7 @@ export type PublicTableForm = {
 
 export type NotebookCreateInput = z.infer<typeof NotebookCreateSchema>;
 export type NotebookUpdateInput = z.infer<typeof NotebookUpdateSchema>;
+export type VideoTranscriptJobInput = z.infer<typeof VideoTranscriptJobInputSchema>;
 export type MemoCreateInput = z.infer<typeof MemoCreateSchema>;
 export type MemoUpdateInput = z.infer<typeof MemoUpdateSchema>;
 export type TemplateCreateInput = z.infer<typeof TemplateCreateSchema>;

@@ -742,3 +742,370 @@ describe("video outline", () => {
     expect(await invalid.json()).toMatchObject({ error: { code: "video_outline_invalid" } });
   });
 });
+
+const transcriptionToken = "asr-token-should-not-leak-9f3c";
+const otherTranscriptionToken = "speech-test-token-b";
+
+const transcriptionRequest = (app, databaseEnvironment, path, method, body) => app.request(
+  path,
+  {
+    method,
+    headers: { "content-type": "application/json" },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  },
+  databaseEnvironment,
+);
+
+const createTranscriptionProvider = (app, databaseEnvironment, body) => transcriptionRequest(
+  app,
+  databaseEnvironment,
+  "/api/v1/ai/transcription-providers",
+  "POST",
+  body,
+);
+
+describe("speech transcription settings", () => {
+  test("stores several encrypted services and never returns their tokens", async () => {
+    const app = createApp();
+    const { sqlite, environment: databaseEnvironment } = createDatabaseEnvironment();
+    try {
+      const empty = await app.request("/api/v1/ai/transcription-settings", {}, databaseEnvironment);
+      expect(empty.status).toBe(200);
+      expect(await empty.json()).toEqual({
+        providers: [],
+        defaultModelId: null,
+        enabled: false,
+        encryptionConfigured: true,
+        readOnly: false,
+      });
+
+      const saved = await createTranscriptionProvider(app, databaseEnvironment, {
+        displayName: " Groq ",
+        baseUrl: "https://api.groq.com/openai/v1/",
+        apiKey: `  ${transcriptionToken}  `,
+        initialModelId: " whisper-large-v3-turbo ",
+      });
+      expect(saved.status).toBe(201);
+      const first = await saved.json();
+      expect(first.providers).toHaveLength(1);
+      expect(first.providers[0]).toMatchObject({
+        provider: "openai-compatible",
+        displayName: "Groq",
+        baseUrl: "https://api.groq.com/openai/v1",
+        isEnabled: true,
+        hasApiKey: true,
+      });
+      expect(first.providers[0].models).toEqual([
+        expect.objectContaining({
+          modelId: "whisper-large-v3-turbo",
+          displayName: "whisper-large-v3-turbo",
+        }),
+      ]);
+      expect(first.defaultModelId).toBe(first.providers[0].models[0].id);
+      expect(first.enabled).toBe(true);
+      expect(JSON.stringify(first)).not.toContain(transcriptionToken);
+      const chatSettings = await app.request("/api/v1/ai/settings", {}, databaseEnvironment);
+      expect((await chatSettings.json()).providers).toEqual([]);
+      expect(JSON.stringify(await app.request("/api/v1/ai/settings", {}, databaseEnvironment).then((response) => response.json()))).not.toContain(transcriptionToken);
+
+      const stored = sqlite.query(
+        "SELECT base_url, api_key_encrypted FROM ai_transcription_providers WHERE id = ?",
+      ).get(first.providers[0].id);
+      expect(stored.base_url).toBe("https://api.groq.com/openai/v1");
+      expect(stored.api_key_encrypted.startsWith("v1.")).toBe(true);
+      expect(stored.api_key_encrypted).not.toContain(transcriptionToken);
+      const audits = sqlite.query(
+        "SELECT metadata_json FROM audit_events WHERE action = ?",
+      ).all("workspace.ai_transcription_provider.create");
+      expect(audits).toHaveLength(1);
+      expect(audits[0].metadata_json).not.toContain(transcriptionToken);
+      expect(JSON.parse(audits[0].metadata_json)).toEqual({
+        isEnabled: true,
+        provider: "openai-compatible",
+        modelId: "whisper-large-v3-turbo",
+      });
+
+      const second = await createTranscriptionProvider(app, databaseEnvironment, {
+        displayName: "Local",
+        baseUrl: "http://127.0.0.1:8080/v1",
+        apiKey: otherTranscriptionToken,
+        initialModelId: "local-whisper",
+      });
+      expect(second.status).toBe(201);
+      const both = await second.json();
+      expect(both.providers.map((provider) => provider.displayName).sort()).toEqual(["Groq", "Local"]);
+      expect(both.defaultModelId).toBe(first.defaultModelId);
+      expect(both.enabled).toBe(true);
+      expect(JSON.stringify(both)).not.toContain(transcriptionToken);
+      expect(JSON.stringify(both)).not.toContain(otherTranscriptionToken);
+
+      const kept = await transcriptionRequest(
+        app,
+        databaseEnvironment,
+        `/api/v1/ai/transcription-providers/${first.providers[0].id}`,
+        "PUT",
+        {
+          displayName: "Groq",
+          baseUrl: "https://api.groq.com/openai/v1",
+          isEnabled: false,
+        },
+      );
+      expect(kept.status).toBe(200);
+      const disabled = await kept.json();
+      expect(disabled.providers.find((provider) => provider.id === first.providers[0].id)).toMatchObject({
+        isEnabled: false,
+        hasApiKey: true,
+      });
+      expect(disabled.defaultModelId).toBe(first.defaultModelId);
+      expect(disabled.enabled).toBe(false);
+      expect(sqlite.query(
+        "SELECT api_key_encrypted FROM ai_transcription_providers WHERE id = ?",
+      ).get(first.providers[0].id).api_key_encrypted).toBe(stored.api_key_encrypted);
+      expect(sqlite.query("SELECT COUNT(*) AS count FROM ai_provider_configs").get().count).toBe(0);
+    } finally {
+      sqlite.close();
+    }
+  });
+
+  test("rejects a service without a token, with a blank model, or with an embedded credential", async () => {
+    const app = createApp();
+    const { sqlite, environment: databaseEnvironment } = createDatabaseEnvironment();
+    try {
+      const missingToken = await createTranscriptionProvider(app, databaseEnvironment, {
+        displayName: "Example",
+        baseUrl: "https://api.example.com/v1",
+        initialModelId: "whisper-1",
+      });
+      expect(missingToken.status).toBe(400);
+      expect(await missingToken.json()).toMatchObject({
+        error: { code: "ai_transcription_request_invalid" },
+      });
+      const blankModel = await createTranscriptionProvider(app, databaseEnvironment, {
+        displayName: "Example",
+        baseUrl: "https://api.example.com/v1",
+        apiKey: transcriptionToken,
+        initialModelId: "   ",
+      });
+      expect(blankModel.status).toBe(400);
+      expect(JSON.stringify(await blankModel.json())).not.toContain(transcriptionToken);
+
+      const embedded = await createTranscriptionProvider(app, databaseEnvironment, {
+        displayName: "Example",
+        baseUrl: "https://user:pass@api.example.com/v1",
+        apiKey: transcriptionToken,
+        initialModelId: "whisper-1",
+      });
+      expect(embedded.status).toBe(400);
+      expect(await embedded.json()).toMatchObject({
+        error: { code: "ai_transcription_request_invalid" },
+      });
+      const ftp = await createTranscriptionProvider(app, databaseEnvironment, {
+        displayName: "Example",
+        baseUrl: "ftp://files.example.com/v1",
+        apiKey: transcriptionToken,
+        initialModelId: "whisper-1",
+      });
+      expect(ftp.status).toBe(400);
+      expect(JSON.stringify(await ftp.json())).not.toContain(transcriptionToken);
+      const otherStandard = await createTranscriptionProvider(app, databaseEnvironment, {
+        provider: "anthropic",
+        displayName: "Example",
+        baseUrl: "https://api.example.com/v1",
+        apiKey: transcriptionToken,
+        initialModelId: "whisper-1",
+      });
+      expect(otherStandard.status).toBe(400);
+      const otherStandardBody = await otherStandard.json();
+      expect(otherStandardBody).toMatchObject({
+        error: { code: "ai_transcription_request_invalid" },
+      });
+      expect(JSON.stringify(otherStandardBody)).not.toContain(transcriptionToken);
+      expect(sqlite.query("SELECT COUNT(*) AS count FROM ai_transcription_providers").get().count).toBe(0);
+    } finally {
+      sqlite.close();
+    }
+  });
+
+  test("keeps a saved token when the encryption key is later unavailable, and still refuses a replacement", async () => {
+    const app = createApp();
+    const { sqlite, environment: databaseEnvironment } = createDatabaseEnvironment();
+    const withoutKey = { ...databaseEnvironment, EDGE_EVER_AUTH_PASSWORD: undefined };
+    try {
+      const created = await createTranscriptionProvider(app, databaseEnvironment, {
+        displayName: "OpenAI",
+        baseUrl: "https://api.openai.com/v1",
+        apiKey: transcriptionToken,
+        initialModelId: "whisper-1",
+      });
+      expect(created.status).toBe(201);
+      const providerId = (await created.json()).providers[0].id;
+      const stored = sqlite.query(
+        "SELECT api_key_encrypted FROM ai_transcription_providers WHERE id = ?",
+      ).get(providerId).api_key_encrypted;
+
+      const renamed = await transcriptionRequest(app, withoutKey, `/api/v1/ai/transcription-providers/${providerId}`, "PUT", {
+        displayName: "OpenAI renamed",
+        baseUrl: "https://api.openai.com/v1",
+        isEnabled: true,
+      });
+      expect(renamed.status).toBe(200);
+      expect(await renamed.json()).toMatchObject({
+        encryptionConfigured: false,
+        enabled: false,
+        providers: [expect.objectContaining({ displayName: "OpenAI renamed", hasApiKey: true })],
+      });
+      expect(sqlite.query(
+        "SELECT api_key_encrypted FROM ai_transcription_providers WHERE id = ?",
+      ).get(providerId).api_key_encrypted).toBe(stored);
+
+      const replaced = await transcriptionRequest(app, withoutKey, `/api/v1/ai/transcription-providers/${providerId}`, "PUT", {
+        displayName: "OpenAI renamed",
+        baseUrl: "https://api.openai.com/v1",
+        isEnabled: true,
+        apiKey: "replacement-token",
+      });
+      expect(replaced.status).toBe(400);
+      const replacedBody = await replaced.json();
+      expect(replacedBody).toMatchObject({ error: { code: "ai_encryption_key_missing" } });
+      expect(JSON.stringify(replacedBody)).not.toContain("replacement-token");
+      expect(sqlite.query(
+        "SELECT api_key_encrypted FROM ai_transcription_providers WHERE id = ?",
+      ).get(providerId).api_key_encrypted).toBe(stored);
+    } finally {
+      sqlite.close();
+    }
+  });
+
+  test("refuses demo mode and API tokens", async () => {
+    const { sqlite, environment: databaseEnvironment } = createDatabaseEnvironment();
+    try {
+      const demo = await createTranscriptionProvider(createApp({ demoMode: true }), databaseEnvironment, {
+        displayName: "Example",
+        baseUrl: "https://api.example.com/v1",
+        apiKey: transcriptionToken,
+        initialModelId: "whisper-1",
+      });
+      expect(demo.status).toBe(403);
+      const demoRead = await createApp({ demoMode: true }).request(
+        "/api/v1/ai/transcription-settings",
+        {},
+        databaseEnvironment,
+      );
+      expect(demoRead.status).toBe(200);
+      expect(await demoRead.json()).toMatchObject({ readOnly: true, providers: [], enabled: false });
+
+      const tokenApp = createApp({ currentAuth: { ...auth, kind: "agent", actorType: "agent", scopes: ["ai:generate"] } });
+      const deniedRead = await tokenApp.request("/api/v1/ai/transcription-settings", {}, environment);
+      const deniedWrite = await createTranscriptionProvider(tokenApp, environment, {
+        displayName: "Example",
+        baseUrl: "https://api.example.com/v1",
+        apiKey: transcriptionToken,
+        initialModelId: "whisper-1",
+      });
+      expect(deniedRead.status).toBe(403);
+      expect(deniedWrite.status).toBe(403);
+      expect(sqlite.query("SELECT COUNT(*) AS count FROM ai_transcription_providers").get().count).toBe(0);
+      expect(JSON.stringify(await deniedWrite.json())).not.toContain(transcriptionToken);
+    } finally {
+      sqlite.close();
+    }
+  });
+
+  test("prepares only the selected enabled service for an interactive session", async () => {
+    const app = createApp();
+    const { sqlite, environment: databaseEnvironment } = createDatabaseEnvironment();
+    const prepare = () => app.request(
+      "/api/v1/ai/transcription-settings/prepare",
+      { method: "POST" },
+      databaseEnvironment,
+    );
+    try {
+      const disabled = await prepare();
+      expect(disabled.status).toBe(200);
+      expect(await disabled.json()).toEqual({ enabled: false });
+
+      const firstResponse = await createTranscriptionProvider(app, databaseEnvironment, {
+        displayName: "Groq",
+        baseUrl: "https://api.groq.com/openai/v1/",
+        apiKey: transcriptionToken,
+        initialModelId: "whisper-large-v3-turbo",
+      });
+      const first = await firstResponse.json();
+      const secondResponse = await createTranscriptionProvider(app, databaseEnvironment, {
+        displayName: "Local",
+        baseUrl: "http://127.0.0.1:8080/v1",
+        apiKey: otherTranscriptionToken,
+        initialModelId: "local-whisper",
+      });
+      const second = await secondResponse.json();
+      const localModelId = second.providers.find((provider) => provider.displayName === "Local").models[0].id;
+      const prepared = await prepare();
+      expect(prepared.status).toBe(200);
+      expect(await prepared.json()).toEqual({
+        enabled: true,
+        provider: "openai-compatible",
+        baseUrl: "https://api.groq.com/openai/v1",
+        modelId: "whisper-large-v3-turbo",
+        apiKey: transcriptionToken,
+      });
+      const listed = await app.request("/api/v1/ai/transcription-settings", {}, databaseEnvironment);
+      const listedBody = JSON.stringify(await listed.json());
+      expect(listedBody).not.toContain(transcriptionToken);
+      expect(listedBody).not.toContain(otherTranscriptionToken);
+
+      const switched = await transcriptionRequest(
+        app,
+        databaseEnvironment,
+        "/api/v1/ai/transcription-default-model",
+        "PUT",
+        { modelConfigId: localModelId },
+      );
+      expect(switched.status).toBe(200);
+      expect((await switched.json()).defaultModelId).toBe(localModelId);
+      expect(await (await prepare()).json()).toEqual({
+        enabled: true,
+        provider: "openai-compatible",
+        baseUrl: "http://127.0.0.1:8080/v1",
+        modelId: "local-whisper",
+        apiKey: otherTranscriptionToken,
+      });
+
+      const cleared = await transcriptionRequest(
+        app,
+        databaseEnvironment,
+        "/api/v1/ai/transcription-default-model",
+        "PUT",
+        { modelConfigId: null },
+      );
+      expect(cleared.status).toBe(200);
+      const turnedOff = await prepare();
+      const turnedOffBody = await turnedOff.json();
+      expect(turnedOffBody).toEqual({ enabled: false });
+      expect(JSON.stringify(turnedOffBody)).not.toContain(transcriptionToken);
+      expect(JSON.stringify(turnedOffBody)).not.toContain(otherTranscriptionToken);
+      expect(sqlite.query("SELECT COUNT(*) AS count FROM ai_transcription_providers").get().count).toBe(2);
+
+      const demo = await createApp({ demoMode: true }).request(
+        "/api/v1/ai/transcription-settings/prepare",
+        { method: "POST" },
+        databaseEnvironment,
+      );
+      expect(demo.status).toBe(403);
+      expect(JSON.stringify(await demo.json())).not.toContain(transcriptionToken);
+
+      const tokenApp = createApp({
+        currentAuth: { ...auth, kind: "agent", actorType: "agent", scopes: ["ai:generate", "write:memos"] },
+      });
+      const denied = await tokenApp.request(
+        "/api/v1/ai/transcription-settings/prepare",
+        { method: "POST" },
+        databaseEnvironment,
+      );
+      expect(denied.status).toBe(403);
+      expect(JSON.stringify(await denied.json())).not.toContain(transcriptionToken);
+      expect(first.providers[0].id).not.toBe(localModelId);
+    } finally {
+      sqlite.close();
+    }
+  });
+});
