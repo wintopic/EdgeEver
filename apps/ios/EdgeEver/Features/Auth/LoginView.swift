@@ -118,7 +118,7 @@ struct LoginView: View {
                         .background(canSubmit ? AppTheme.title : AppTheme.disabledFill)
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
-                    .buttonStyle(CreateButtonPressStyle())
+                    .buttonStyle(.plain)
                     .disabled(!canSubmit)
                     .changeEffect(.shake, value: loginShake)
                 }

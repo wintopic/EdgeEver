@@ -32,7 +32,7 @@ struct MemoEditView: View {
     /// When set (edit-from-detail), close by popping to the list under the cover first —
     /// never `dismiss()` onto a still-pushed detail page.
     var onLeaveToList: (() -> Void)? = nil
-    /// Create path: called with the committed memo id so the list can bounce that card.
+    /// Create path: called after commit so the workspace can refresh its list.
     var onCreateFinished: ((String) -> Void)? = nil
 
     @State private var viewModel = MemoEditViewModel()

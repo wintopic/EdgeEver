@@ -13,7 +13,6 @@ import { VIDEO_DOCUMENT_PATTERNS } from "./src/video/patterns.ts";
 import { readBilibiliVideoInPage } from "./src/video/read-bilibili-in-page.ts";
 import { readYouTubeVideoInPage } from "./src/video/read-youtube-in-page.ts";
 import { chunkTranscript, cleanCueText, sectionsFromOutline } from "./src/video/transcript.ts";
-import { parseVideoNoteMarker } from "../../packages/shared/src/video-note.ts";
 import {
   buildVideoNote,
   persistVideoNote,
@@ -534,8 +533,6 @@ test("assembles the Chinese note from chapters and keeps the transcript outside 
 - [00:25](https://www.bilibili.com/video/BV1xx411c7xx?p=1&t=25) 很多人收藏之后就没有再打开。
 
 </details>
-
-<!-- edgeever-video-v1:eyJwbGF0Zm9ybSI6ImJpbGliaWxpIiwidmlkZW9JZCI6IkJWMXh4NDExYzd4eCIsInNvdXJjZVVybCI6Imh0dHBzOi8vd3d3LmJpbGliaWxpLmNvbS92aWRlby9CVjF4eDQxMWM3eHg_cD0xIiwiZHVyYXRpb25TZWNvbmRzIjoxNDU1LCJwbGFjZWhvbGRlclRleHQiOiLov5nkuIDpm4bmsqHmnInlj6_nlKjlrZfluZUiLCJ0cmFuc2NyaXB0TGFiZWwiOiLlrZfluZXlrp7lvZUifQ -->
 `);
   expect(note.markdown).not.toContain("模型不该重写大纲");
   expect(note.markdown).not.toContain("hdslb.com");
@@ -660,14 +657,10 @@ test("omits the cover when the image upload fails and never hotlinks the thumbna
   expect(memos[0].contentMarkdown).toContain("caption");
   expect(memos[0].videoTranscript).toBeUndefined();
   expect(uploaded[0].videoTranscript).toBeUndefined();
-  expect(parseVideoNoteMarker(memos[0].contentMarkdown)).toMatchObject({
-    platform: "youtube",
-    videoId: CURRENT_ID,
-    sourceUrl: `https://www.youtube.com/watch?v=${CURRENT_ID}`,
-  });
+  expect(memos[0].contentMarkdown).not.toContain("edgeever-video-v1");
 });
 
-test("marks every video note and leaves transcription for a later click", async () => {
+test("saves a video without captions as a source note without queuing transcription", async () => {
   const capture = {
     platform: "youtube",
     videoId: CURRENT_ID,
@@ -693,14 +686,8 @@ test("marks every video note and leaves transcription for a later click", async 
   expect(uploaded[0].videoTranscript).toBeUndefined();
   expect(memos[0].videoTranscript).toBeUndefined();
   expect(memos[0].contentMarkdown).toContain("这一集没有可用字幕");
-  expect(parseVideoNoteMarker(memos[0].contentMarkdown)).toEqual({
-    platform: "youtube",
-    videoId: CURRENT_ID,
-    sourceUrl: `https://www.youtube.com/watch?v=${CURRENT_ID}`,
-    durationSeconds: 95,
-    placeholderText: "这一集没有可用字幕",
-    transcriptLabel: "字幕实录",
-  });
+  expect(memos[0].contentMarkdown).toContain(`https://www.youtube.com/watch?v=${CURRENT_ID}`);
+  expect(memos[0].contentMarkdown).not.toContain("edgeever-video-v1");
 });
 
 test("keeps the video menu hosts away from the other page commands", () => {

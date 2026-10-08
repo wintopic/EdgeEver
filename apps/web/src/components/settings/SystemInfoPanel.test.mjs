@@ -37,19 +37,6 @@ describe("system information diagnostic fields", () => {
     expect(feedbackSource).toContain("clientRuntime: clientRuntimeQuery.data");
   });
 
-  test("leaves the yt-dlp version and path on the speech settings page", () => {
-    const speech = readFileSync(new URL("./SpeechTranscriptionCard.tsx", import.meta.url), "utf8");
-    expect(source).not.toContain("ytDlpStatus");
-    expect(source).not.toContain('t("systemInfo.ytDlpVersion")');
-    expect(speech).toContain('t("systemInfo.ytDlpVersion")');
-    expect(speech).toContain('t("systemInfo.ytDlpPath")');
-    expect(speech).toContain("ytDlpStatus()");
-    expect(speech).toContain("ytDlpVersionValue");
-    expect(speech).toContain('t("systemInfo.ytDlpMissing")');
-    expect(speech).toContain("refetchInterval: 30_000");
-    expect(speech).not.toContain('ytDlpStatus?.state === "downloading"');
-  });
-
   test("includes current screen resolution", () => {
     expect(source).toContain('t("systemInfo.screenResolution")');
     expect(source).toContain('t("systemInfo.screenResolutionValue", parts)');

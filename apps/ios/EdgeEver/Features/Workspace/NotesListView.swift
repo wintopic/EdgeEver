@@ -1,5 +1,4 @@
 import SwiftUI
-import Pow
 
 struct NotesListView: View {
     @Environment(AppEnvironment.self) private var env
@@ -8,13 +7,6 @@ struct NotesListView: View {
     var onCreateNote: (() -> Void)? = nil
     var onCreateFromTemplate: (() -> Void)? = nil
     var onCreateNotebook: (() -> Void)? = nil
-
-    /// Whole-list settle + Pow jump once when data first becomes available this session.
-    @State private var listEntranceSettled = false
-    @State private var listEntrancePulse = 0
-    @State private var didScheduleListEntrance = false
-    /// First-paint cascade: cards insert with Pow boing (cleared after entrance finishes).
-    @State private var listEntranceCascade = false
 
     /// First-login / first-mirror bootstrap (Android `initialSyncProgress`).
     private var hasBootstrapProgress: Bool {
@@ -80,86 +72,44 @@ struct NotesListView: View {
                 )
                     .transition(Motion.softFade)
             } else {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        // Android FlatList `list`: paddingTop 12, paddingHorizontal 12, paddingBottom 18
-                        LazyVStack(spacing: 0) {
-                            if hasBootstrapProgress {
-                                bootstrapProgressBanner
-                                    // memoSyncBanner marginBottom: 10
-                                    .padding(.bottom, 10)
-                            } else if env.lastSyncError != nil, !store.memos.isEmpty {
-                                syncPausedBanner
-                                    .padding(.bottom, 10)
-                            }
+                ScrollView {
+                    // Android FlatList `list`: paddingTop 12, paddingHorizontal 12, paddingBottom 18
+                    LazyVStack(spacing: 0) {
+                        if hasBootstrapProgress {
+                            bootstrapProgressBanner
+                                // memoSyncBanner marginBottom: 10
+                                .padding(.bottom, 10)
+                        } else if env.lastSyncError != nil, !store.memos.isEmpty {
+                            syncPausedBanner
+                                .padding(.bottom, 10)
+                        }
 
-                            ForEach(Array(store.memos.enumerated()), id: \.element.id) { index, memo in
-                                memoCard(for: memo)
-                                    .padding(.bottom, env.preferences.listDensity.cardBottomMargin)
-                                    .id(memo.id)
-                                    // First open: elastic boing cascade. Later reshuffles: quiet opacity.
-                                    .transition(listEntranceCascade ? Motion.listCardEntrance : Motion.cardAppear)
-                                    .animation(
-                                        listEntranceCascade
-                                            ? Motion.listEntrance.delay(Double(min(index, 12)) * Motion.listEntranceStagger)
-                                            : Motion.listContent,
-                                        value: listEntranceCascade
-                                    )
-                                    .onAppear {
-                                        if memo.id == store.memos.last?.id {
-                                            store.loadMore(env: env)
-                                        }
+                        ForEach(store.memos, id: \.id) { memo in
+                            memoCard(for: memo)
+                                .padding(.bottom, env.preferences.listDensity.cardBottomMargin)
+                                .onAppear {
+                                    if memo.id == store.memos.last?.id {
+                                        store.loadMore(env: env)
                                     }
-                            }
-                            if store.isLoadingMore {
-                                ProgressView()
-                                    .tint(AppTheme.title)
-                                    .padding(.vertical, 18)
-                            }
+                                }
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.top, 12)
-                        .padding(.bottom, 18)
-                        .animation(Motion.listContent, value: store.memos.map(\.id))
-                        .animation(Motion.listContent, value: store.filter)
-                        .animation(Motion.listContent, value: store.selectedTag)
-                        .animation(Motion.listContent, value: store.searchText)
-                        .animation(Motion.search, value: hasBootstrapProgress)
-                    }
-                    .contentMargins(.bottom, 0, for: .scrollContent)
-                    .background(AppTheme.background)
-                    .edgeEverNotesListEntrance(settled: listEntranceSettled, entrancePulse: listEntrancePulse)
-                    .onChange(of: store.bounceMemoId) { _, memoId in
-                        guard let memoId else { return }
-                        // Scroll immediately (no delayed animation beat) so the settling card is on-screen.
-                        if store.memos.contains(where: { $0.id == memoId }) {
-                            proxy.scrollTo(memoId, anchor: .top)
-                        }
-                        // Clear bounce marker after settle completes (~0.42s spring).
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            if store.bounceMemoId == memoId {
-                                store.clearMemoBounce()
-                            }
+                        if store.isLoadingMore {
+                            ProgressView()
+                                .tint(AppTheme.title)
+                                .padding(.vertical, 18)
                         }
                     }
-                    .onChange(of: store.bouncePulse) { _, _ in
-                        // If id remapped after create sync, ensure the new row is visible.
-                        if let memoId = store.bounceMemoId,
-                           store.memos.contains(where: { $0.id == memoId }) {
-                            proxy.scrollTo(memoId, anchor: .top)
-                        }
-                    }
+                    .padding(.horizontal, 12)
+                    .padding(.top, 12)
+                    .padding(.bottom, 18)
+                    .animation(Motion.search, value: hasBootstrapProgress)
                 }
+                .contentMargins(.bottom, 0, for: .scrollContent)
+                .background(AppTheme.background)
             }
         }
         .animation(Motion.listContent, value: store.memos.isEmpty)
         .animation(Motion.search, value: hasBootstrapProgress)
-        .onChange(of: store.memos.count) { _, count in
-            scheduleListEntranceIfNeeded(hasMemos: count > 0)
-        }
-        .onAppear {
-            scheduleListEntranceIfNeeded(hasMemos: !store.memos.isEmpty)
-        }
         .overlay(alignment: .bottom) {
             if let err = store.listError {
                 Text(err)
@@ -384,23 +334,6 @@ struct NotesListView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
-    private func scheduleListEntranceIfNeeded(hasMemos: Bool) {
-        guard hasMemos, !didScheduleListEntrance else { return }
-        didScheduleListEntrance = true
-        listEntranceSettled = false
-        listEntranceCascade = true
-        // Next frame: settle in (stagger lives on per-card delay, not a late global jump).
-        DispatchQueue.main.async {
-            withAnimation(Motion.listEntrance) {
-                listEntranceSettled = true
-            }
-            listEntrancePulse &+= 1
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.85) {
-            listEntranceCascade = false
-        }
-    }
-
     /// With sub-notebooks hidden, an empty parent must not look like its notes are gone.
     private var hiddenDescendantMemoCount: Int {
         guard !env.preferences.showDescendantNotes,
@@ -536,7 +469,6 @@ struct NotesListView: View {
     private func memoCard(for memo: MemoSummary) -> some View {
         let selected = store.selectedMemoIds.contains(memo.id)
         let density = env.preferences.listDensity
-        let bouncePulse = store.bounceMemoId == memo.id ? store.bouncePulse : 0
 
         Button {
             if store.selectionMode {
@@ -564,9 +496,7 @@ struct NotesListView: View {
                     }
                 }
         }
-        .buttonStyle(MemoCardPressStyle())
-        // Return-from-create/edit rebound on this card only.
-        .edgeEverMemoReturnBounce(pulse: bouncePulse)
+        .buttonStyle(.plain)
         .edgeEverSelectionFeedback(selected)
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.52).onEnded { _ in

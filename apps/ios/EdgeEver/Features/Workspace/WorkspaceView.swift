@@ -1,11 +1,20 @@
 import SwiftUI
 import UIKit
-import Pow
 
 /// Wrapper so `fullScreenCover(item:)` can present edit for a memo id.
 struct EditingMemoRoute: Identifiable, Hashable {
     let id: String
     let initialFocus: MemoEditInitialFocus
+}
+
+private struct ShareImageMemoRoute: Hashable {
+    let memoId: String
+}
+
+private struct SelectionSharePayload: Identifiable {
+    let id = UUID()
+    let message: String
+    let url: URL
 }
 
 struct WorkspaceView: View {
@@ -21,13 +30,12 @@ struct WorkspaceView: View {
     @State private var createLongPressConsumed = false
     @State private var showMoveSheet = false
     @State private var showSelectionMore = false
+    @State private var pendingMemoShare: MemoSummary?
+    @State private var pendingImageShareMemoId: String?
+    @State private var selectionSharePayload: SelectionSharePayload?
     @State private var conflictItem: OutboxItem?
-    @State private var createTapCount = 0
-    @State private var syncPulse = 0
     /// Edit is presented from the workspace root — more reliable than cover on a pushed detail page.
     @State private var editingMemo: EditingMemoRoute?
-    /// Create finished id, applied as list bounce after cover dismiss + reload.
-    @State private var pendingCreateBounceId: String?
     @State private var incomingClipURL: URL?
     @State private var isImportingShare = false
     @State private var shareImportAlert: ShareImportAlert?
@@ -78,19 +86,10 @@ struct WorkspaceView: View {
             .ignoresSafeArea(.container, edges: .bottom)
             .navigationBarHidden(true)
             .navigationDestination(for: String.self) { memoId in
-                MemoDetailView(memoId: memoId) { editId, initialFocus in
-                    // 1) Show edit cover over detail.
-                    editingMemo = EditingMemoRoute(id: editId, initialFocus: initialFocus)
-                    // 2) After the cover is up, silently drop detail so the underlay is the list.
-                    //    Dismissing edit then reveals list only — no detail flash.
-                    DispatchQueue.main.async {
-                        var t = Transaction()
-                        t.disablesAnimations = true
-                        withTransaction(t) {
-                            path = NavigationPath()
-                        }
-                    }
-                }
+                memoDetail(for: memoId)
+            }
+            .navigationDestination(for: ShareImageMemoRoute.self) { route in
+                memoDetail(for: route.memoId, shareImage: true)
             }
             // Android CreateMemoModal is fullScreen — not a half sheet / Form.
             .fullScreenCover(isPresented: $showNewNote) {
@@ -100,12 +99,8 @@ struct WorkspaceView: View {
                         seed: createSeed
                     ),
                     initialSharedImages: createSharedImages,
-                    onCreateFinished: { memoId in
-                        // Prime list + bounce **before** dismiss so settle runs under/with the cover,
-                        // not half a second after the list is already static.
+                    onCreateFinished: { _ in
                         store.reload(env: env)
-                        store.requestMemoBounce(memoId: memoId)
-                        pendingCreateBounceId = nil
                     }
                 )
                 .onDisappear {
@@ -135,11 +130,7 @@ struct WorkspaceView: View {
                     onLeaveToList: {
                         // Pop detail first (no animation) while cover still covers the stack,
                         // then dismiss the cover so the user only ever sees the list.
-                        let bounceId = route.id
-                        // Reload + start settle **before** clearing the cover so the spring
-                        // is already in motion when the list is revealed (no post-dismiss pause).
                         store.reload(env: env)
-                        store.requestMemoBounce(memoId: bounceId)
                         var t = Transaction()
                         t.disablesAnimations = true
                         withTransaction(t) {
@@ -178,10 +169,35 @@ struct WorkspaceView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showSelectionMore) {
-                SelectionMoreSheet(store: store)
-                    .presentationDetents([.height(290), .medium])
+            .sheet(isPresented: $showSelectionMore, onDismiss: {
+                if let memo = pendingMemoShare {
+                    pendingMemoShare = nil
+                    Task { await shareSelectedMemo(memo) }
+                    return
+                }
+                guard let memoId = pendingImageShareMemoId else { return }
+                pendingImageShareMemoId = nil
+                store.clearSelection()
+                path.append(ShareImageMemoRoute(memoId: memoId))
+            }) {
+                SelectionMoreSheet(
+                    store: store,
+                    onShare: { memo in pendingMemoShare = memo },
+                    onShareImage: { memo in pendingImageShareMemoId = memo.id }
+                )
+                    .presentationDetents([.height(390), .medium])
                     .presentationDragIndicator(.hidden)
+            }
+            .sheet(item: $selectionSharePayload) { payload in
+                ActivityShareView(items: [payload.message, payload.url]) { _, _, error in
+                    if let error {
+                        shareImportAlert = ShareImportAlert(
+                            title: env.preferences.t("分享失败", en: "Share failed", pl: "Udostępnianie nie powiodło się"),
+                            message: error.localizedDescription
+                        )
+                    }
+                    selectionSharePayload = nil
+                }
             }
             .sheet(item: $conflictItem) { item in
                 ConflictResolutionView(item: item) {
@@ -204,7 +220,6 @@ struct WorkspaceView: View {
                 // Refresh list when a background/bootstrap sync finishes.
                 if wasSyncing && !isSyncing {
                     store.reload(env: env)
-                    syncPulse += 1
                 }
             }
             // Android invalidates the memo list on each bootstrap batch so the UI
@@ -348,7 +363,6 @@ struct WorkspaceView: View {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(searchActive ? AppTheme.accent : AppTheme.secondary)
-                        .symbolEffect(.bounce, value: searchActive)
                     TextField(env.preferences.t("搜索笔记", en: "Search notes", pl: "Szukaj notatek"), text: $store.searchText)
                         .font(AppTheme.searchFont)
                         .foregroundStyle(AppTheme.title)
@@ -529,14 +543,8 @@ struct WorkspaceView: View {
                 .clipShape(Circle())
                 .overlay(Circle().stroke(active ? AppTheme.filterActive : AppTheme.border, lineWidth: 1))
                 .accessibilityLabel(label)
-                // Quiet ring when filter turns on (lower opacity than before — less "showy" than Android)
-                .changeEffect(
-                    .ping(shape: Circle(), style: AppTheme.filterActive.opacity(0.22), count: 1),
-                    value: active,
-                    isEnabled: active
-                )
         }
-        .buttonStyle(FilterChipButtonStyle(active: active))
+        .buttonStyle(.plain)
     }
 
     /// Bottom tab chrome:
@@ -576,7 +584,6 @@ struct WorkspaceView: View {
                         createLongPressConsumed = false
                         return
                     }
-                    createTapCount += 1
                     openCreateNote()
                 } label: {
                     Image(systemName: "plus")
@@ -593,7 +600,7 @@ struct WorkspaceView: View {
                         )
                         .contentShape(Circle())
                 }
-                .buttonStyle(CreateButtonPressStyle())
+                .buttonStyle(.plain)
                 .simultaneousGesture(
                     LongPressGesture(minimumDuration: 0.45)
                         .onEnded { _ in
@@ -603,7 +610,6 @@ struct WorkspaceView: View {
                             showCreateChoice = true
                         }
                 )
-                .edgeEverCreatePing(count: createTapCount)
                 .disabled(!canCreate)
                 .accessibilityLabel(env.preferences.t("新建笔记", en: "New note", pl: "Nowa notatka"))
                 .accessibilityHint(env.preferences.t("长按可从模板新建", en: "Long-press to create from a template", pl: "Przytrzymaj, aby utworzyć z szablonu"))
@@ -657,6 +663,38 @@ struct WorkspaceView: View {
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
+    }
+
+    private func memoDetail(for memoId: String, shareImage: Bool = false) -> some View {
+        MemoDetailView(memoId: memoId, initialShareImage: shareImage) { editId, initialFocus in
+            editingMemo = EditingMemoRoute(id: editId, initialFocus: initialFocus)
+            // Keep the list under the editor so dismissing it does not flash the detail page.
+            DispatchQueue.main.async {
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    path = NavigationPath()
+                }
+            }
+        }
+    }
+
+    private func shareSelectedMemo(_ memo: MemoSummary) async {
+        do {
+            let share = try await env.session.client.createMemoShare(memoId: memo.id)
+            let base = env.session.session?.baseUrl.trimmingCharacters(in: CharacterSet(charactersIn: "/")) ?? ""
+            guard let url = URL(string: "\(base)/share/\(share.token)") else { return }
+            let title = memo.title?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let displayTitle = title?.isEmpty == false
+                ? title!
+                : env.preferences.t("无标题笔记", en: "Untitled note", pl: "Notatka bez tytułu")
+            selectionSharePayload = SelectionSharePayload(message: "\(displayTitle)\n\(url.absoluteString)", url: url)
+        } catch {
+            shareImportAlert = ShareImportAlert(
+                title: env.preferences.t("分享失败", en: "Share failed", pl: "Udostępnianie nie powiodło się"),
+                message: error.localizedDescription
+            )
+        }
     }
 
     private var selectionBar: some View {
@@ -891,6 +929,15 @@ struct SelectionMoreSheet: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.dismiss) private var dismiss
     @Bindable var store: WorkspaceStore
+    let onShare: (MemoSummary) -> Void
+    let onShareImage: (MemoSummary) -> Void
+
+    private var shareableMemo: MemoSummary? {
+        guard store.selectedMemoIds.count == 1,
+              let memo = store.memos.first(where: { store.selectedMemoIds.contains($0.id) }),
+              !memo.isDeleted else { return nil }
+        return memo
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -945,6 +992,26 @@ struct SelectionMoreSheet: View {
                 let target = store.nextSelectionPinValue
                 dismiss()
                 Task { await store.pinSelection(env: env, isPinned: target) }
+            }
+
+            selectionAction(
+                icon: "square.and.arrow.up",
+                label: env.preferences.t("分享笔记", en: "Share note", pl: "Udostępnij notatkę"),
+                disabled: shareableMemo == nil
+            ) {
+                guard let memo = shareableMemo else { return }
+                dismiss()
+                onShare(memo)
+            }
+
+            selectionAction(
+                icon: "photo",
+                label: env.preferences.t("分享为图片", en: "Share as image", pl: "Udostępnij jako obraz"),
+                disabled: shareableMemo == nil
+            ) {
+                guard let memo = shareableMemo else { return }
+                onShareImage(memo)
+                dismiss()
             }
 
             selectionAction(

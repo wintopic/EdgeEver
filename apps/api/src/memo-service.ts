@@ -946,6 +946,12 @@ export const createMemoRecord = async (
   actor: { actorType: "user" | "agent"; actorId: string | null },
   actorLabel: string
 ): Promise<MemoDetail> => {
+  // Reject a missing notebook before the batch. The memo insert is a SELECT
+  // from notebooks, so a bad id used to write orphan content and then fail
+  // the read-back as a generic 500.
+  if (!(await getNotebook(db, workspaceId, input.notebookId))) {
+    throw new AppError("not_found", "Notebook not found", 404);
+  }
   const tags = normalizeTags(input.tags);
   const contentMarkdown = input.contentMarkdown ?? "";
   const contentJson = input.contentJson && typeof input.contentJson === "object"

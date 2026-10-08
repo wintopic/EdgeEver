@@ -19,7 +19,7 @@ import { api, ApiRequestError } from "@/lib/api";
 import { isDesktopResourceRuntime, mapMarkdownResourceUrls, mapTiptapResourceUrls, toApiResourceUrl } from "@/lib/desktop-resources";
 import { readEmergencyDraft } from "@/lib/emergency-draft";
 import { notebookDeleteIdsFromPayload } from "@/lib/notebook-delete";
-import { notifyMemoIdRemapped, notifyMemoSyncAcknowledged, notifySyncQueueChanged } from "@/lib/sync-events";
+import { notifyMemoIdRemapped, notifyMemoSyncAcknowledged, notifyNotebookIdRemapped, notifySyncQueueChanged } from "@/lib/sync-events";
 
 type StagedResourceRewrite = { memoId: string; placeholder: string; url: string };
 
@@ -476,7 +476,7 @@ const syncOutboxItem = async (item: DesktopOutboxItem, stagedRewrites: StagedRes
   if (item.kind === "notebook.create") {
     const data = await api.createNotebook({ name: String(payload.name ?? ""), parentId: typeof payload.parentId === "string" ? payload.parentId : null });
     await acknowledge(item, undefined, data.notebook);
-    return null;
+    return data.notebook;
   }
 
   if (item.kind === "notebook.update") {
@@ -580,6 +580,9 @@ const syncOutbox = async (stagedRewrites: StagedResourceRewrite[], onlyKinds?: S
         // create is acknowledged. Waiting for the workspace-wide sync to end
         // leaves a window where the next autosave still sends revision 0.
         notifyMemoIdRemapped(new Map([[item.entityId, result.id]]));
+      }
+      if (item.kind === "notebook.create" && result && typeof result === "object" && "id" in result && typeof result.id === "string") {
+        notifyNotebookIdRemapped(item.entityId, result.id);
       }
       if (result && typeof result === "object" && "id" in result && typeof result.id === "string" && "contentJson" in result) {
         const syncedMemo = result as DesktopRpcResponses["memo.get"]["memo"];
@@ -959,9 +962,19 @@ export const discardDesktopConflicts = async () => {
   for (const item of conflicts) {
     if (item.kind === "memo.update") {
       // Replace the local conflicted draft with the authoritative remote memo
-      // before removing the queue item. If the remote read fails, keep the
-      // conflict so the user's local changes remain recoverable.
-      const remote = await api.getMemo(item.entityId, { includeDeleted: true });
+      // before removing the queue item. Keep the conflict on read failures
+      // unless the server confirms that the note no longer exists.
+      let remote: Awaited<ReturnType<typeof api.getMemo>>;
+      try {
+        remote = await api.getMemo(item.entityId, { includeDeleted: true });
+      } catch (error) {
+        if (!(error instanceof ApiRequestError) || error.status !== 404) throw error;
+        // Explicit discard can resolve a conflict left behind after the note
+        // was permanently deleted and no cloud version exists to adopt.
+        await request("sync.outbox.discard", { id: item.id, version: item.version });
+        discarded += 1;
+        continue;
+      }
       await request("sync.apply", {
         changes: [{ entityType: "memo", operation: "upsert", entityId: remote.memo.id, memo: remote.memo, notebook: null }],
       });

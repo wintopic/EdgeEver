@@ -151,12 +151,10 @@ export const registerMemoRoutes = (
 
     try {
       const input = context.req.valid("json");
-      const { videoTranscript, ...memoInput } = input;
-      void videoTranscript;
       const memo = await dependencies.createMemo(
         context.env.storage.db,
         getWorkspaceId(context),
-        memoInput,
+        input,
         getAuditActor(context),
         getActorLabel(context),
       );

@@ -75,7 +75,7 @@ const SettingsGroup = ({ children }: { children: ReactNode }) => (
   </div>
 );
 
-type TabKey = "general" | "shortcuts" | "users" | "data" | "ai" | "speech" | "mcp" | "advanced" | "account" | "system";
+type TabKey = "general" | "shortcuts" | "users" | "data" | "ai" | "mcp" | "speech" | "advanced" | "account" | "system";
 
 interface TabItem {
   key: TabKey;

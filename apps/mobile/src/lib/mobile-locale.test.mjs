@@ -15,6 +15,29 @@ describe("mobile locale translation", () => {
     expect(translateMobileText("从相册选择", "pl")).toBe("Wybierz z galerii");
   });
 
+  test("translates the buttons, statuses and errors that were shown in Chinese for every locale", () => {
+    // These literals reach users through LocalizedText, Alert and Pressable,
+    // which only translate copy that has a dictionary entry.
+    const copy = [
+      "确定", "好的", "登录", "删除失败", "删除中", "恢复中", "恢复失败", "创建失败", "请重试",
+      "请检查网络后重试", "当前无法连接实例，请稍后重试", "换个关键词再试", "没有找到匹配笔记", "重试加载",
+      "请先创建一个笔记本", "附件上传失败", "保存中", "准备中", "本地草稿", "未保存",
+      "缺少笔记数据，无法打开富文本编辑器", "笔记加载失败", "进入编辑并聚焦标题", "编辑笔记标题",
+      "更改笔记所属笔记本", "选择历史记录后可预览并恢复。", "当前无法读取附件。", "当前无法读取资源。",
+      "请等待笔记同步完成。", "资源读取失败", "已取消下载", "当前设备无法打开系统分享面板",
+      "登录成功但服务端没有返回移动端会话。请确认服务端已更新到支持 App 登录的版本。",
+    ];
+    // Japanese writes "unsaved" with the same characters as Chinese.
+    const sameInJapanese = new Set(["未保存"]);
+    for (const locale of ["en-US", "ja", "pl"]) {
+      const untranslated = copy.filter((value) => translateMobileText(value, locale) === value
+        && !(locale === "ja" && sameInJapanese.has(value)));
+      expect({ locale, untranslated }).toEqual({ locale, untranslated: [] });
+    }
+    expect(translateMobileText("登录", "pl")).toBe("Zaloguj się");
+    expect(translateMobileText("确定", "zh-CN")).toBe("确定");
+  });
+
   test("prefers specific mobile-only templates over broader templates", () => {
     expect(translateMobileText("已加载 12 / 40 条笔记", "en-US")).toBe("Loaded 12 of 40 notes");
     expect(translateMobileText("筛选：Pinned · 3 条", "en-US")).toBe("Filter: Pinned · 3 notes");

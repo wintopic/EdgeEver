@@ -35,6 +35,7 @@ import {
   type ThemeTokens,
 } from "@edgeever/plugin-api";
 import { markdownToDoc } from "@edgeever/shared";
+import { api } from "@/lib/api";
 import type { EdgeEverRepository } from "@/lib/repository";
 import { WebPluginSecretStore, type PluginSecretStorage } from "@/lib/plugins/plugin-secret-store";
 import { WebPluginPackageStore, type CachedPluginPackage, type PluginPackageStorage } from "@/lib/plugins/plugin-package-store";
@@ -199,7 +200,7 @@ export interface PluginHostSnapshot {
 interface PluginHostOptions {
   repository: EdgeEverRepository;
   scope: string;
-  aiAdapter?: PluginContext['ai'];
+  aiAdapter?: Pick<PluginContext['ai'], 'status' | 'generate'>;
   publicNetworkAdapter?: {
     fetchPublic(input: { url: string; method: 'GET' | 'HEAD'; headers: Record<string, string> }, options?: { signal?: AbortSignal }): Promise<{ status: number; statusText: string; url: string; headers: Record<string, string>; body: ArrayBuffer }>;
   };
@@ -1080,6 +1081,24 @@ export class EdgeEverPluginHost {
           if (!this.aiAdapter) throw new Error('AI generation is unavailable in this host.');
           const signal = AbortSignal.any([lifetime.signal, ...(input.signal ? [input.signal] : [])]);
           const result = await this.aiAdapter.generate({ ...input, signal }); signal.throwIfAborted(); return result;
+        },
+        transcribeResource: async (noteId, resourceId) => {
+          assertPermission(manifest, 'ai:generate');
+          assertPermission(manifest, 'resources:read');
+          lifetime.signal.throwIfAborted();
+          const { transcribeNoteResource } = await import("@/lib/transcribe-note-resource");
+          const result = await transcribeNoteResource(noteId, resourceId, lifetime.signal);
+          lifetime.signal.throwIfAborted();
+          return result;
+        },
+        transcribeMedia: async (media, options) => {
+          assertPermission(manifest, 'ai:generate');
+          lifetime.signal.throwIfAborted();
+          const signal = AbortSignal.any([lifetime.signal, ...(options?.signal ? [options.signal] : [])]);
+          const { transcribeMediaBlob } = await import("@/lib/transcribe-note-resource");
+          const result = await transcribeMediaBlob(media, signal);
+          signal.throwIfAborted();
+          return result;
         },
       },
       notes: {

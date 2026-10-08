@@ -90,7 +90,6 @@ import {
 import { registerPluginDistributionRoutes } from "./plugin-distribution-routes";
 import { registerSyncRoutes } from "./sync-routes";
 import { registerMemoRoutes } from "./memo-routes";
-import { registerVideoTranscriptRoutes } from "./video-transcript-routes";
 import { registerScheduledTaskRoutes } from "./scheduled-task-routes";
 import { registerWorkspaceExtensionRoutes } from "./workspace-extension-routes";
 import { registerBackupRoutes } from "./backup-routes";
@@ -342,7 +341,6 @@ registerTemplateRoutes(app, {
   getMemoDetail: (...args) => getMemoDetail(...args),
 });
 
-registerVideoTranscriptRoutes(app, { isDemoMode: (...args) => isDemoMode(...args) });
 registerMemoRoutes(app, {
   clampNumber: (...args) => clampNumber(...args),
   createImageResource: (...args) => createImageResource(...args),

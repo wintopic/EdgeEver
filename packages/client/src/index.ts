@@ -75,7 +75,7 @@ import type {
   PluginPublicFetchResponse,
 } from "@edgeever/shared";
 
-const MAX_SINGLE_REQUEST_UPLOAD_BYTES = 5 * 1024 * 1024;
+export const MAX_SINGLE_REQUEST_UPLOAD_BYTES = 5 * 1024 * 1024;
 
 async function consumeEventStream<T>(body: ReadableStream<Uint8Array>, onEvent: (event: T) => void) {
   const reader = body.getReader();
@@ -125,7 +125,7 @@ export type MultipartResourceUploadSource = {
   filename: string;
   mimeType: string;
   byteSize: number;
-  readPart: (start: number, end: number) => Promise<Blob>;
+  readPart: (start: number, end: number) => Promise<Blob | Uint8Array<ArrayBuffer>>;
 };
 
 export type InstanceHealth = {
@@ -952,10 +952,16 @@ export const createEdgeEverClient = (options: EdgeEverClientOptions = {}) => {
         body: JSON.stringify({ modelConfigId }),
       }),
 
-    extractVideoTranscript: (memoId: string) =>
-      request<{ status: "queued" | "running" }>(
-        `/api/v1/video-transcript-jobs/${encodeURIComponent(memoId)}/extract`,
-        { method: "POST" },
+    prepareNoteResourceTranscription: (memoId: string, resourceId: string, signal?: AbortSignal) =>
+      request<{ baseUrl: string; modelId: string; apiKey: string; resourceId: string; filename: string }>(
+        `/api/v1/memos/${encodeURIComponent(memoId)}/resources/${encodeURIComponent(resourceId)}/transcription-target`,
+        { method: "POST", signal },
+      ),
+
+    getAiTranscriptionDirectCredential: (providerId: string, signal?: AbortSignal) =>
+      request<{ apiKey: string }>(
+        `/api/v1/ai/transcription-providers/${encodeURIComponent(providerId)}/direct-credential`,
+        { method: "POST", signal },
       ),
 
     createAiProvider: (payload: AiProviderCreatePayload) =>

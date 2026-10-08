@@ -7,7 +7,6 @@ import { join } from "node:path";
 import { createDefaultDiagramDocument, getDiagramSummary, serializeDiagramDocument } from "../packages/shared/src/diagram.ts";
 import { createDefaultInfographicDocument, getInfographicSummary, serializeInfographicDocument } from "../packages/shared/src/infographic.ts";
 import { createDefaultTableDocument, getTableSummary, serializeTableDocument } from "../packages/shared/src/table.ts";
-import { getVideoNoteSummary, serializeVideoNoteMarker } from "../packages/shared/src/video-note.ts";
 
 const sidecarPath = process.env.EDGE_EVER_SIDECAR_PATH ?? join(process.cwd(), "crates/desktop-sidecar/target/debug/edgeever-sidecar");
 const migrationsPath = process.env.EDGE_EVER_MIGRATIONS_PATH ?? join(process.cwd(), "migrations");
@@ -187,7 +186,6 @@ assert.deepEqual(search.memos.map((memo) => memo.id), [first.memo.id]);
 assert.equal(search.memos[0].diagramKind, null, "an ordinary note has no diagram kind");
 assert.equal(search.memos[0].infographic, false, "an ordinary note is not an infographic");
 assert.equal(search.memos[0].structuredTable, false, "an ordinary note is not a table");
-assert.equal(search.memos[0].videoNote, false, "an ordinary note is not a video note");
 assert.equal(Object.hasOwn(search.memos[0], "diagramPreview"), false);
 assert.equal(Object.hasOwn(search.memos[0], "tablePreview"), false);
 assert.equal(Object.hasOwn(search.memos[0], "contentMarkdown"), false, "list rows must not include the document payload");
@@ -195,12 +193,11 @@ const assertListMetadata = async (title, markdown) => {
   const created = await request("memo.create", { notebookId: inbox.id, title, contentMarkdown: markdown, tags: [] });
   const listed = (await request("memo.list", { q: title, limit: 20 })).memos.find((memo) => memo.id === created.memo.id);
   assert.ok(listed, `${title} should appear in the desktop list`);
-  const expected = { ...getDiagramSummary(markdown), ...getInfographicSummary(markdown), ...getTableSummary(markdown), ...getVideoNoteSummary(markdown) };
+  const expected = { ...getDiagramSummary(markdown), ...getInfographicSummary(markdown), ...getTableSummary(markdown) };
   assert.equal(listed.diagramKind, expected.diagramKind, title);
   assert.deepEqual(listed.diagramPreview, expected.diagramPreview, title);
   assert.equal(listed.infographic, expected.infographic, title);
   assert.equal(listed.structuredTable, expected.structuredTable, title);
-  assert.equal(listed.videoNote, expected.videoNote, title);
   assert.deepEqual(listed.tablePreview, expected.tablePreview, title);
   assert.equal(Object.hasOwn(listed, "contentMarkdown"), false, `${title} list row must not include the document payload`);
 };
@@ -215,14 +212,6 @@ await assertListMetadata("Flowchart list icon", serializeDiagramDocument(createD
 await assertListMetadata("Architecture list icon", serializeDiagramDocument(createDefaultDiagramDocument("architecture")));
 await assertListMetadata("Table list icon", serializeTableDocument(createDefaultTableDocument()));
 await assertListMetadata("Broken infographic list icon", "<!-- edgeever-infographic-v1:broken -->");
-await assertListMetadata("Video note list flag", `标题\n\n${serializeVideoNoteMarker({
-  platform: "youtube",
-  videoId: "abcdefghijk",
-  sourceUrl: "https://www.youtube.com/watch?v=abcdefghijk",
-  durationSeconds: 12,
-  placeholderText: "这一集没有可用字幕",
-  transcriptLabel: "字幕实录",
-})}\n`);
 await request("memo.create", { notebookId: inbox.id, title: "Local daily", contentMarkdown: "prefix overlap", tags: ["local-daily"] });
 const tagged = await request("memo.list", { tag: "local", limit: 20 });
 assert.deepEqual(tagged.memos.map((memo) => memo.id), [first.memo.id], "tag filter should match an exact tag, not a prefix");

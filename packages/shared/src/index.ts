@@ -49,8 +49,6 @@ export * from "./file-attachment";
 export * from "./note-image-card";
 export * from "./pdf-attachment";
 export * from "./types";
-export * from "./video-note";
-export * from "./video-cookie-browser";
 export * from "./version";
 export * from './plugin-capabilities';
 

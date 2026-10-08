@@ -20,11 +20,6 @@ export const REQUIRED_TABLES = [
   "ai_provider_configs",
   "ai_models",
   "ai_workspace_settings",
-  "ai_transcription_settings",
-  "ai_transcription_providers",
-  "ai_transcription_models",
-  "ai_transcription_workspace_settings",
-  "video_transcript_jobs",
 ];
 
 export const buildSchemaVerificationSql = () =>

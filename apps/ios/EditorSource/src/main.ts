@@ -289,6 +289,13 @@ async function renderMermaidBlocks(root: HTMLElement, theme: "light" | "dark") {
       const wrap = document.createElement("div");
       wrap.className = "edgeever-mermaid";
       wrap.innerHTML = svg;
+      const renderedSvg = wrap.querySelector("svg");
+      const viewBox = renderedSvg?.viewBox.baseVal;
+      if (renderedSvg && viewBox && viewBox.width > 0 && viewBox.height > 0) {
+        renderedSvg.style.width = `${Math.ceil(viewBox.width)}px`;
+        renderedSvg.style.height = `${Math.ceil(viewBox.height)}px`;
+        renderedSvg.style.maxWidth = "none";
+      }
       pre.replaceWith(wrap);
     } catch {
       // leave code block as-is

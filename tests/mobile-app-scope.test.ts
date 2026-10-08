@@ -172,12 +172,12 @@ describe("mobile app scope", () => {
     expect(iosLocalMirrorSource).not.toContain("json_each(mobile_memos.data_json");
   });
 
-  test("keeps Android memo list motion and spring feedback", () => {
-    expect(notesViewSource).toContain("FadeInDown.duration(260).springify().damping(18)");
-    expect(notesViewSource).toContain("FadeOutUp.duration(220)");
-    expect(notesViewSource).toContain("LinearTransition.duration(220)");
-    expect(notesViewSource).toContain("pressScale.value = withTiming(0.985");
-    expect(notesViewSource).toContain("pressScale.value = withTiming(1");
+  test("keeps Android memo list interactions free of spring and press-scale motion", () => {
+    expect(notesViewSource).not.toContain("springify()");
+    expect(notesViewSource).not.toContain("FadeInDown");
+    expect(notesViewSource).not.toContain("FadeOutUp");
+    expect(notesViewSource).not.toContain("LinearTransition");
+    expect(notesViewSource).not.toContain("pressScale.value");
   });
 
   test("hardens DOM/WebView hosts against media capture probes during App Review", () => {

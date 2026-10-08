@@ -44,7 +44,6 @@ import {
   normalizeAiGenerationText,
   normalizeAiBaseUrl,
   prepareAiGeneration,
-  prepareAiTranscriptionCredentials,
   aiTranscriptionDefaultStatement,
   getAiTranscriptionModel,
   getAiTranscriptionProvider,
@@ -69,6 +68,7 @@ import {
 } from "./video-outline";
 import { encryptSecret } from "./secret-encryption";
 import { listTagSummaries } from "./tag-service";
+import { prepareNoteResourceTranscription } from "./resource-transcription";
 
 type AiRouteDependencies = {
   isDemoMode: (environment: Bindings) => boolean;
@@ -250,6 +250,47 @@ export const registerAiRoutes = (app: Hono<AppEnv>, dependencies: AiRouteDepende
     const denied = requireUser(context);
     if (denied) return denied;
     return context.json(await readTranscriptionSettings(context, dependencies));
+  });
+
+  app.post("/api/v1/memos/:memoId/resources/:resourceId/transcription-target", async (context) => {
+    const denied = requireUser(context);
+    if (denied) return denied;
+    if (dependencies.isDemoMode(context.env)) {
+      return forbidden(context, "Speech transcription is unavailable in demo mode.");
+    }
+    try {
+      const target = await prepareNoteResourceTranscription(
+        context.env,
+        getWorkspaceId(context),
+        context.req.param("memoId"),
+        context.req.param("resourceId"),
+      );
+      context.header("Cache-Control", "no-store");
+      return context.json(target);
+    } catch (error) {
+      return withAiError(context, error, "ai_transcription_failed");
+    }
+  });
+
+  app.post("/api/v1/ai/transcription-providers/:providerId/direct-credential", async (context) => {
+    const denied = requireUser(context);
+    if (denied) return denied;
+    if (dependencies.isDemoMode(context.env)) {
+      return forbidden(context, "Speech transcription is unavailable in demo mode.");
+    }
+    try {
+      const provider = await getAiTranscriptionProvider(
+        context.env.storage.db,
+        getWorkspaceId(context),
+        context.req.param("providerId"),
+      );
+      if (!provider) return notFound(context, "Speech service not found.");
+      const apiKey = await decryptAiCredential(provider.api_key_encrypted, context.env);
+      context.header("Cache-Control", "no-store");
+      return context.json({ apiKey });
+    } catch (error) {
+      return withAiError(context, error, "ai_transcription_failed");
+    }
   });
 
   app.post(
@@ -518,23 +559,6 @@ export const registerAiRoutes = (app: Hono<AppEnv>, dependencies: AiRouteDepende
       return context.json(await readTranscriptionSettings(context, dependencies));
     },
   );
-
-  app.post("/api/v1/ai/transcription-settings/prepare", async (context) => {
-    const denied = requireUser(context);
-    if (denied) return denied;
-    if (dependencies.isDemoMode(context.env)) {
-      return forbidden(context, "Speech transcription credentials are unavailable in demo mode.");
-    }
-    try {
-      return context.json(await prepareAiTranscriptionCredentials(
-        context.env.storage.db,
-        getWorkspaceId(context),
-        context.env,
-      ));
-    } catch (error) {
-      return withAiError(context, error, "ai_transcription_prepare_failed");
-    }
-  });
 
   app.post(
     "/api/v1/ai/providers",

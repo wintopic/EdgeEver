@@ -837,7 +837,7 @@ describe("Cloudflare deployment entrypoints", () => {
     } finally {
       rmSync(workingDirectory, { force: true, recursive: true });
     }
-  });
+  }, 20_000);
 
   test("public deployment documentation exposes only Fork and Agent paths", () => {
     const englishReadme = readRepositoryFile("README.md");

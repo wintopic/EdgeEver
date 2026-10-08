@@ -87,6 +87,7 @@ import {
   generateCardCss,
 } from "@edgeever/shared/note-image-card";
 import { useDOMImperativeHandle, type DOMImperativeFactory, type DOMProps } from "expo/dom";
+import { toCanvas } from "html-to-image";
 import { createImageInsertTransaction, createNativeImageGalleryView, groupUploadedImages, NATIVE_IMAGE_GALLERY_CSS } from "@edgeever/shared/native-image-gallery";
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type Ref, type SetStateAction } from "react";
 import {
@@ -108,6 +109,7 @@ import {
   createMobileNoteSearchHighlightPlugin,
   getMobileNoteSearchMatches,
 } from "../lib/mobile-note-search";
+import { planMobileNoteImageRender } from "../lib/mobile-note-image-export";
 import { toProtectedResourceLoadPath } from "../lib/mobile-protected-resources";
 
 type EditorDoc = TiptapDoc;
@@ -140,6 +142,7 @@ type LocalTiptapEditorSharedProps = {
   onResourcePress?: (targetJson: string) => Promise<void>;
   onReady?: (startupMs: number) => Promise<void>;
   onSearchResult?: (count: number, index: number, query: string) => Promise<void>;
+  onReaderScroll?: (scrollTop: number) => Promise<void>;
   onImageExportEvent?: (payloadJson: string) => Promise<void>;
   ref: Ref<LocalTiptapEditorRef>;
   locale: "zh-CN" | "en-US" | "ja" | "pl";
@@ -173,8 +176,7 @@ const TRANSIENT_IMAGE_UPLOAD_META = "edgeeverImageUploadPlaceholder";
 const ignoreSearchResult = async () => undefined;
 const ignoreAiRequest = async () => undefined;
 const AI_PROMPT_OPTION_PREFIX = "prompt:";
-const IMAGE_EXPORT_PIXEL_RATIO = 2;
-const IMAGE_EXPORT_CHUNK_SIZE = 256 * 1024;
+const IMAGE_EXPORT_CHUNK_BYTES = 192 * 1024;
 
 type ImageExportRequest = {
   requestId: string;
@@ -195,8 +197,6 @@ type ImageExportRequest = {
   showUpdatedAt?: boolean;
   branding?: boolean;
 };
-
-const blobToBytes = async (blob: Blob) => new Uint8Array(await blob.arrayBuffer());
 
 const bytesToBase64 = (bytes: Uint8Array) => {
   let binary = "";
@@ -675,6 +675,7 @@ function LocalTiptapEditorImpl(props: LocalTiptapEditorProps) {
   const onAiCancelRef = useRef(props.mode === "viewer" ? undefined : props.onAiCancel);
   const onReadyRef = useRef(props.onReady ?? (async () => undefined));
   const onSearchResultRef = useRef(props.onSearchResult ?? ignoreSearchResult);
+  const onReaderScrollRef = useRef(props.onReaderScroll);
   const onImageExportEventRef = useRef(props.onImageExportEvent);
   const searchStateRef = useRef({ activeIndex: -1, query: "" });
   const [aiPanel, setAiPanel] = useState<MobileAiPanelState | null>(null);
@@ -732,6 +733,7 @@ function LocalTiptapEditorImpl(props: LocalTiptapEditorProps) {
   onAiCancelRef.current = props.mode === "viewer" ? undefined : props.onAiCancel;
   onReadyRef.current = props.onReady ?? (async () => undefined);
   onSearchResultRef.current = props.onSearchResult ?? ignoreSearchResult;
+  onReaderScrollRef.current = props.onReaderScroll;
   onImageExportEventRef.current = props.onImageExportEvent;
   const protectedImageExtension = useMemo(
     () => createProtectedImageExtension(
@@ -1238,18 +1240,22 @@ function LocalTiptapEditorImpl(props: LocalTiptapEditorProps) {
   const exportImage = useCallback((requestJsonValue: DOMValue) => {
     if (typeof requestJsonValue !== "string" || !editor || editor.isDestroyed || !onImageExportEventRef.current) return;
 
+    let request: ImageExportRequest;
+    try {
+      request = JSON.parse(requestJsonValue) as ImageExportRequest;
+      if (!request.requestId || (request.format !== "png" && request.format !== "jpeg")) return;
+    } catch {
+      return;
+    }
+
+    const notify = (payload: Record<string, unknown>) =>
+      onImageExportEventRef.current?.(JSON.stringify({ requestId: request.requestId, ...payload }));
+    const reportProgress = (stage: "prepare" | "render" | "transfer") => {
+      void Promise.resolve(notify({ type: "progress", stage })).catch(() => {});
+    };
+
     void (async () => {
-      let request: ImageExportRequest;
-      try {
-        request = JSON.parse(requestJsonValue) as ImageExportRequest;
-        if (!request.requestId || (request.format !== "png" && request.format !== "jpeg")) return;
-      } catch {
-        return;
-      }
-
-      const notify = (payload: Record<string, unknown>) =>
-        onImageExportEventRef.current?.(JSON.stringify({ requestId: request.requestId, ...payload }));
-
+      reportProgress("prepare");
       const resolvedTheme = resolveTheme(request.background, request.theme);
       const fontStyle = request.fontStyle ?? "serif";
       const fontSize = request.fontSize ?? "lg";
@@ -1296,26 +1302,43 @@ function LocalTiptapEditorImpl(props: LocalTiptapEditorProps) {
       document.body.appendChild(host);
 
       try {
-        await document.fonts?.ready;
-        await Promise.all(Array.from(documentRoot.querySelectorAll("img")).map(async (image) => {
-          if (image.complete) return;
-          try { await image.decode(); } catch { /* Export the readable remainder. */ }
-        }));
+        const images = Array.from(documentRoot.querySelectorAll<HTMLImageElement>("img"));
+        await Promise.race([
+          Promise.all([
+            document.fonts?.ready,
+            ...images.map(async (image) => {
+              if (image.complete) return;
+              try { await image.decode(); } catch { /* Export the readable remainder. */ }
+            }),
+          ]),
+          new Promise<void>((resolve) => window.setTimeout(resolve, 8_000)),
+        ]);
         const exportedImages = Array.from(
           documentRoot.querySelectorAll<HTMLImageElement>(".edgeever-card-body img"),
         );
         const failedImages = exportedImages.filter((image) => !image.complete || image.naturalWidth === 0).length;
         const totalHeight = Math.max(1, Math.ceil(documentRoot.getBoundingClientRect().height));
+        const renderPlan = planMobileNoteImageRender(targetWidth, totalHeight);
+        let captureRoot = documentRoot;
+        if (renderPlan.sourceScale < 1) {
+          const wrapper = document.createElement("div");
+          wrapper.style.cssText = `position:relative;width:${renderPlan.sourceWidth}px;height:${renderPlan.sourceHeight}px;overflow:hidden;`;
+          documentRoot.replaceWith(wrapper);
+          wrapper.appendChild(documentRoot);
+          documentRoot.style.transform = `scale(${renderPlan.sourceScale})`;
+          documentRoot.style.transformOrigin = "top left";
+          captureRoot = wrapper;
+        }
         const backgroundColor = NOTE_IMAGE_BACKGROUND_COLORS[resolvedTheme] || themeCfg.canvasBg;
 
-        const { toCanvas } = await import("html-to-image");
-        const canvas = await toCanvas(documentRoot, {
+        reportProgress("render");
+        const canvas = await toCanvas(captureRoot, {
           backgroundColor,
           cacheBust: false,
-          height: totalHeight,
-          pixelRatio: IMAGE_EXPORT_PIXEL_RATIO,
+          height: renderPlan.sourceHeight,
+          pixelRatio: renderPlan.pixelRatio,
           skipFonts: true,
-          width: targetWidth,
+          width: renderPlan.sourceWidth,
         });
         const blob = await new Promise<Blob>((resolve, reject) => {
           canvas.toBlob(
@@ -1327,13 +1350,13 @@ function LocalTiptapEditorImpl(props: LocalTiptapEditorProps) {
 
         const extension = request.format === "jpeg" ? "jpg" : "png";
         const basename = buildImageExportBasename(request.title, request.fallbackTitle);
-        const bytes = await blobToBytes(blob);
         const filename = `${basename}.${extension}`;
         const mimeType = request.format === "jpeg" ? "image/jpeg" : "image/png";
 
-        const base64 = bytesToBase64(bytes);
-        for (let offset = 0; offset < base64.length; offset += IMAGE_EXPORT_CHUNK_SIZE) {
-          await notify({ type: "chunk", chunk: base64.slice(offset, offset + IMAGE_EXPORT_CHUNK_SIZE) });
+        reportProgress("transfer");
+        for (let offset = 0; offset < blob.size; offset += IMAGE_EXPORT_CHUNK_BYTES) {
+          const bytes = new Uint8Array(await blob.slice(offset, offset + IMAGE_EXPORT_CHUNK_BYTES).arrayBuffer());
+          await notify({ type: "chunk", chunk: bytesToBase64(bytes) });
         }
         await notify({
           type: "complete",
@@ -1349,7 +1372,9 @@ function LocalTiptapEditorImpl(props: LocalTiptapEditorProps) {
       } finally {
         host.remove();
       }
-    })();
+    })().catch((error: unknown) => {
+      void notify({ type: "error", message: error instanceof Error ? error.message : "Image export failed" });
+    });
   }, [editor]);
 
   useDOMImperativeHandle(
@@ -1557,6 +1582,25 @@ function LocalTiptapEditorImpl(props: LocalTiptapEditorProps) {
       editor.off("selectionUpdate", handleSelectionUpdate);
     };
   }, [editor, isViewer]);
+
+  useEffect(() => {
+    if (!editor || !isViewer) return;
+    const scrollContainer = document.querySelector<HTMLElement>(".edgeever-editor-scroll");
+    if (!scrollContainer) return;
+
+    let titleCollapsed = false;
+    const reportScroll = () => {
+      const nextCollapsed = titleCollapsed
+        ? scrollContainer.scrollTop > 4
+        : scrollContainer.scrollTop > 24;
+      if (nextCollapsed === titleCollapsed) return;
+      titleCollapsed = nextCollapsed;
+      void onReaderScrollRef.current?.(scrollContainer.scrollTop);
+    };
+    scrollContainer.addEventListener("scroll", reportScroll, { passive: true });
+    reportScroll();
+    return () => scrollContainer.removeEventListener("scroll", reportScroll);
+  }, [editor, isViewer, visualDiagram]);
 
   const toolbarState = useEditorState({
     editor,
@@ -2395,6 +2439,13 @@ const createMobileCodeBlockExtension = (
                 return;
               }
               svgContainer.innerHTML = svg;
+              const renderedSvg = svgContainer.querySelector("svg");
+              const viewBox = renderedSvg?.viewBox.baseVal;
+              if (renderedSvg && viewBox && viewBox.width > 0 && viewBox.height > 0) {
+                renderedSvg.style.width = `${Math.ceil(viewBox.width)}px`;
+                renderedSvg.style.height = `${Math.ceil(viewBox.height)}px`;
+                renderedSvg.style.maxWidth = "none";
+              }
               preview.replaceChildren(svgContainer);
             })
             .catch(() => {
@@ -3005,14 +3056,14 @@ const removeImageUploadPlaceholder = (editor: TiptapEditor, source: string) => {
 
 const getEditorStyles = (theme: "light" | "dark", options?: { viewer?: boolean }) => {
   const bodyFontSize = MEMO_CONTENT_STYLE.body.fontSize;
-  const bodyLineHeight = MEMO_CONTENT_STYLE.body.lineHeight / MEMO_CONTENT_STYLE.body.fontSize;
-  const paragraphSpacing = MEMO_CONTENT_STYLE.body.paragraphSpacing;
+  const bodyLineHeight = 24 / bodyFontSize;
+  const paragraphSpacing = 6;
   return `
   :root {
     color-scheme: ${theme};
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-feature-settings: "chws" 1;
-    /* Match PC/Web memo body (MEMO_CONTENT_STYLE) so notes don't feel oversized on phone. */
+    /* Keep the shared body font size while using tighter spacing on mobile. */
     --editor-body-font-size: ${bodyFontSize}px;
     --editor-body-line-height: ${bodyLineHeight};
     --editor-paragraph-spacing: ${paragraphSpacing}px;
@@ -3173,24 +3224,24 @@ const getEditorStyles = (theme: "light" | "dark", options?: { viewer?: boolean }
   .edgeever-editor-content ul[data-type="taskList"] li[data-checked] > div > p { margin-bottom: 0; }
   .edgeever-editor-content ul[data-type="taskList"] li[data-checked="true"] > div > p { color: #94a3b8; text-decoration: line-through; }
   .edgeever-editor-content ul[data-type="taskList"] ul[data-type="taskList"] { margin: 4px 0 0; padding-left: 24px; }
-  .edgeever-editor-content blockquote { margin-left: 0; max-width: 100%; padding: 6px 12px; border-left: 3px solid #16a06e; border-radius: 1px 4px 4px 1px; background: ${theme === "dark" ? "rgba(22, 160, 110, 0.08)" : "rgba(22, 160, 110, 0.04)"}; color: ${theme === "dark" ? "#cbd5e1" : "#334155"}; }
+  .edgeever-editor-content blockquote { margin-left: 0; margin-right: 0; max-width: 100%; padding: 6px 12px; border-left: 3px solid ${theme === "dark" ? "#475569" : "#cbd5e1"}; border-radius: 1px 4px 4px 1px; background: ${theme === "dark" ? "rgba(255, 255, 255, 0.05)" : "#f3f5f7"}; color: ${theme === "dark" ? "#f8fafc" : "#3d4450"}; }
   .edgeever-editor-content pre { max-width: 100%; overflow-x: auto; border-radius: 8px; border: 1px solid ${theme === "dark" ? "#334155" : "#e2e8f0"}; padding: 12px 90px 12px 14px; background: ${theme === "dark" ? "#1e293b" : "#f8fafc"}; color: ${theme === "dark" ? "#e2e8f0" : "#0f172a"}; font-size: 0.88rem; box-shadow: 0 1px 2px ${theme === "dark" ? "rgba(0, 0, 0, 0.2)" : "rgba(15, 23, 42, 0.03)"}; }
-  .edgeever-editor-content code { border-radius: 4px; padding: 2px 5px; border: 1px solid ${theme === "dark" ? "rgba(22, 160, 110, 0.28)" : "#d4ebdc"}; background: ${theme === "dark" ? "rgba(22, 160, 110, 0.12)" : "#f2f9f5"}; color: ${theme === "dark" ? "#6ee7b7" : "#0d5f3a"}; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.88em; font-weight: 550; }
+  .edgeever-editor-content code { border-radius: 4px; padding: 2px 5px; border: 1px solid ${theme === "dark" ? "rgba(255, 255, 255, 0.12)" : "#e1e5ea"}; background: ${theme === "dark" ? "rgba(255, 255, 255, 0.06)" : "#f3f5f7"}; color: ${theme === "dark" ? "#f8fafc" : "#3d4450"}; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.88em; font-weight: 550; }
   .edgeever-editor-content pre code { padding: 0; border: 0; background: transparent; font-size: inherit; font-weight: normal; color: inherit; }
   .edgeever-editor-content .tiptap-mathematics-render[data-type="block-math"] { max-width: 100%; margin: 16px 0; overflow-x: auto; overflow-y: hidden; padding: 4px 0; text-align: center; -webkit-overflow-scrolling: touch; }
   .edgeever-editor-content .inline-math-error, .edgeever-editor-content .block-math-error { color: ${theme === "dark" ? "#fda4af" : "#be123c"}; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   /* External hyperlinks (match Web default ProseMirror). Attachment chips override below. */
   .edgeever-editor-content a {
-    color: ${theme === "dark" ? "#86efac" : "#00751f"};
+    color: ${theme === "dark" ? "#cad4ce" : "#404040"};
     font-weight: 500;
     text-decoration: underline;
-    text-decoration-color: ${theme === "dark" ? "rgba(134, 239, 172, 0.45)" : "rgba(0, 117, 31, 0.45)"};
+    text-decoration-color: ${theme === "dark" ? "rgba(202, 212, 206, 0.45)" : "rgba(64, 64, 64, 0.45)"};
     text-underline-offset: 2px;
     cursor: pointer;
   }
   .edgeever-editor-content a:active {
-    color: ${theme === "dark" ? "#4ade80" : "#00a82d"};
-    text-decoration-color: ${theme === "dark" ? "#4ade80" : "#00a82d"};
+    color: ${theme === "dark" ? "#eef3f0" : "#0a0a0a"};
+    text-decoration-color: ${theme === "dark" ? "#eef3f0" : "#0a0a0a"};
   }
   /* Compact attachment chips: still ≥48px touch height, less vertical bulk than 58px. */
   .edgeever-editor-content a.edgeever-attachment-link, .edgeever-editor-content a[href*="/api/v1/resources/"] {
@@ -3284,10 +3335,10 @@ const getEditorStyles = (theme: "light" | "dark", options?: { viewer?: boolean }
   .edgeever-x6-diagram .x6-node { cursor: pointer; }
   .edgeever-mermaid-code-block > pre { display: none; margin: 8px 0 0; }
   .edgeever-mermaid-code-block.is-source-visible > pre { display: block; }
-  .edgeever-mermaid-preview { display: flex; min-height: 104px; align-items: center; justify-content: center; overflow-x: auto; padding: 16px 4px; background: transparent; }
+  .edgeever-mermaid-preview { display: flex; min-height: 104px; align-items: center; justify-content: flex-start; overflow-x: auto; padding: 16px 4px; background: transparent; }
   .edgeever-mermaid-preview[hidden] { display: none; }
-  .edgeever-mermaid-svg { width: 100%; text-align: center; }
-  .edgeever-mermaid-svg svg { display: block; width: auto; max-width: 100%; height: auto; max-height: 440px; margin: auto; }
+  .edgeever-mermaid-svg { display: flex; width: max-content; min-width: 100%; flex: none; justify-content: center; }
+  .edgeever-mermaid-svg svg { display: block; max-width: none; max-height: none; flex: none; }
   .edgeever-mermaid-message, .edgeever-mermaid-error { margin: 0; font-size: 14px; line-height: 1.5; text-align: center; }
   .edgeever-mermaid-message { color: ${theme === "dark" ? "#94a3b8" : "#64748b"}; }
   .edgeever-mermaid-error { color: ${theme === "dark" ? "#fda4af" : "#be123c"}; }
