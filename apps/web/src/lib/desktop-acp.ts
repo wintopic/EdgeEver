@@ -75,8 +75,14 @@ export const AI_SIDEBAR_LOCAL_THREADS_KEY = "edgeever.aiSidebar.localThreads";
 export const AI_SIDEBAR_SOURCE_KEY = "edgeever.aiSidebar.source";
 export const AI_SIDEBAR_ADAPTER_KEY = "edgeever.aiSidebar.adapterId";
 export const AI_SIDEBAR_ADAPTER_PATH_KEY = "edgeever.aiSidebar.adapterPath";
+export const AI_SIDEBAR_SELECTION_EVENT = "edgeever:ai-sidebar-selection";
 
 export type AiSidebarSource = "builtin" | "local";
+
+export const startsNewLocalAgentThread = (
+  previous: { source: AiSidebarSource; adapterId: DesktopAcpAdapterId | null },
+  next: { source: AiSidebarSource; adapterId: DesktopAcpAdapterId | null },
+) => next.source === "local" && (previous.source !== "local" || previous.adapterId !== next.adapterId);
 
 const AI_SIDEBAR_ADAPTER_IDS = new Set<string>([
   "codex", "claudeCode", "antigravity", "openClaw", "hermesAgent", "grokBuild", "deepseekHarness", "piAgent", "workbuddyCn", "workbuddyIntl",
@@ -110,6 +116,27 @@ export const readAiSidebarAdapter = () => aiSidebarAdapterFromStorage(
   readStorageItem(AI_SIDEBAR_ADAPTER_KEY),
   readStorageItem(AI_SIDEBAR_ADAPTER_PATH_KEY),
 );
+
+// Keep the settings page and sidebar on the same existing preference keys.
+export const selectAiSidebarAgent = (source: AiSidebarSource, adapterId?: DesktopAcpAdapterId) => {
+  const storage = window.localStorage;
+  const previousSource = storage.getItem(AI_SIDEBAR_SOURCE_KEY);
+  const previousAdapter = storage.getItem(AI_SIDEBAR_ADAPTER_KEY);
+  try {
+    if (adapterId) storage.setItem(AI_SIDEBAR_ADAPTER_KEY, adapterId);
+    storage.setItem(AI_SIDEBAR_SOURCE_KEY, source);
+  } catch (error) {
+    try {
+      const preferences: Array<[string, string | null]> = [[AI_SIDEBAR_SOURCE_KEY, previousSource], [AI_SIDEBAR_ADAPTER_KEY, previousAdapter]];
+      for (const [key, value] of preferences) {
+        if (value === null) storage.removeItem(key);
+        else storage.setItem(key, value);
+      }
+    } catch { /* Report the original preference-write failure. */ }
+    throw error;
+  }
+  window.dispatchEvent(new Event(AI_SIDEBAR_SELECTION_EVENT));
+};
 
 const bridge = () => (typeof window === "undefined" ? undefined : window.edgeeverDesktop);
 

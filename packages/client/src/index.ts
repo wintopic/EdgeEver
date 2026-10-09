@@ -34,6 +34,7 @@ import type {
   MemoRevision,
   MemoSummary,
   MemoShare,
+  ManagedMemoShare,
   PublicTableForm,
   TableFormSettings,
   TableFormUpdateInput,
@@ -251,6 +252,11 @@ export type ScheduledTaskRunHistoryResponse = {
 
 export type MemoShareResponse = {
   share: MemoShare | null;
+};
+
+export type ListMemoSharesResponse = {
+  shares: ManagedMemoShare[];
+  nextOffset: number | null;
 };
 
 export type PublicMemoShareResponse = {
@@ -1591,6 +1597,9 @@ export const createEdgeEverClient = (options: EdgeEverClientOptions = {}) => {
 
     getMemoShare: (memoId: string) =>
       request<MemoShareResponse>(`/api/v1/memos/${memoId}/share`),
+
+    listMemoShares: (offset = 0, limit = 50) =>
+      request<ListMemoSharesResponse>(`/api/v1/memo-shares?offset=${offset}&limit=${limit}`),
 
     createMemoShare: (memoId: string) =>
       request<{ share: MemoShare }>(`/api/v1/memos/${memoId}/share`, {

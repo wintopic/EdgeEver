@@ -1487,6 +1487,15 @@ export const pl = {
       imageSaveFailed: "Nie udało się zapisać obrazu lokalnie. Pobierz go teraz — może zostać utracony po zamknięciu tej strony.",
     },
     agentSource: {
+      configure: "Konfiguruj modele i agentów",
+      switchNoteAgentHint: "Wybrany agent obsłuży kolejne zmiany tej infografiki.",
+      optionUnavailable: "Niedostępny",
+
+      switch: "Zmień AI",
+      newAgentThread: "Zmiana na zewnętrznego agenta rozpoczyna nową rozmowę. Poprzednie rozmowy pozostają w historii.",
+      noModels: "Skonfiguruj modele AI w ustawieniach.",
+      switchUnavailable: "Agent jest niedostępny. Sprawdź połączenie w ustawieniach.",
+
       title: "Tryb agenta",
       description: "Użyj wbudowanego agenta lub połącz się z agentem (ACP) działającym na tym komputerze.",
       localDisabled: "Wymaga aplikacji desktopowej.",
@@ -1746,6 +1755,16 @@ export const pl = {
     confirmImport: "Importuj",
   },
   shortcuts: {
+    global: {
+      label: "Pokaż lub ukryj okno aplikacji",
+      description: "Działa także w innych aplikacjach. Skrót jest zapisany tylko na tym urządzeniu.",
+      disabled: "Nie ustawiono",
+      disable: "Wyłącz",
+      requireModifiers: "Użyj litery, cyfry lub F1–F12 z co najmniej dwoma klawiszami modyfikującymi.",
+      invalid: "Ta kombinacja klawiszy nie jest obsługiwana.",
+      unavailable: "System nie mógł zarejestrować skrótu. Wybierz inną kombinację lub sprawdź ustawienia systemowe.",
+      saveFailed: "Nie udało się zapisać skrótu. Spróbuj ponownie.",
+    },
     title: "Skróty klawiszowe",
     manage: "Zarządzaj",
     description: "Ustaw kombinacje klawiszy dla częstych działań na notatkach. Naciśnij Esc, aby przerwać nagrywanie.",
@@ -2005,6 +2024,12 @@ export const pl = {
     previous: "Poprzedni PDF",
     next: "Następny PDF",
   },
+  wordViewer: {
+    loading: "Wczytywanie podglądu Word…",
+    unavailable: "Nie można wyświetlić podglądu tego dokumentu Word. Nadal możesz go pobrać lub otworzyć w innej aplikacji.",
+    previewTooLarge: "Podgląd wyłączony powyżej 10 MiB",
+    previewLabel: "Podgląd Word: {{filename}}",
+  },
   audioPlayer: {
     label: "Odtwarzacz audio: {{filename}}",
     unavailable: "Tego formatu audio nie można odtworzyć na tym urządzeniu. Nadal możesz go pobrać lub otworzyć w innej aplikacji.",
@@ -2152,7 +2177,6 @@ export const pl = {
       theme: "Motyw",
       background: "Tło",
       themes: {
-        slate: "Klasyczny jasny",
         aurora: "Zorza",
         sunset: "Zachód słońca",
         midnight: "Północ",
@@ -2274,6 +2298,17 @@ export const pl = {
     expandOutlineHeading: "Rozwiń {{name}}",
   },
   sharing: {
+    managementTitle: "Zarządzanie udostępnianiem",
+    managementDescription: "Zobacz notatki dostępne przez publiczne linki i zarządzaj ich udostępnianiem.",
+    managementLoading: "Wczytywanie udostępnionych notatek",
+    managementLoadFailed: "Nie udało się pobrać aktualnej listy. Sprawdź połączenie i spróbuj ponownie.",
+    managementEmpty: "Żadna notatka nie jest obecnie udostępniana.",
+    viewAll: "Zobacz wszystkie udostępnienia",
+    retry: "Spróbuj ponownie",
+    loadMore: "Wczytaj więcej",
+    sharedOn: "Udostępniono {{date}}",
+    passwordProtected: "Chroniona hasłem",
+    unknownNotebook: "Nieznany notatnik",
     action: "Udostępnij notatkę",
     afterSync: "Udostępnij notatkę po synchronizacji",
     active: "Udostępniona",

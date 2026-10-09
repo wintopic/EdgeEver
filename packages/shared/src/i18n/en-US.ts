@@ -1487,6 +1487,15 @@ export const enUS = {
       imageSaveFailed: "The image could not be saved locally. Download it now; it may be lost when you close this page.",
     },
     agentSource: {
+      configure: "Configure models and agents",
+      switchNoteAgentHint: "The selected agent will handle subsequent edits to this infographic.",
+      optionUnavailable: "Unavailable",
+
+      switch: "Switch AI",
+      newAgentThread: "Switching to another agent starts a new chat. Previous chats remain in history.",
+      noModels: "Configure AI models in Settings.",
+      switchUnavailable: "Agent unavailable. Check its connection in Settings.",
+
       title: "Agent mode",
       description: "Use the built-in Agent, or connect to an Agent (ACP) running on this machine.",
       localDisabled: "Requires the desktop app.",
@@ -1746,6 +1755,16 @@ export const enUS = {
     confirmImport: "Import",
   },
   shortcuts: {
+    global: {
+      label: "Show or hide desktop window",
+      description: "Works from other apps. This shortcut is saved only on this device.",
+      disabled: "Not set",
+      disable: "Disable",
+      requireModifiers: "Use a letter, number, or F1–F12 with at least two modifier keys.",
+      invalid: "This key combination is not supported.",
+      unavailable: "The system could not register this shortcut. Choose another combination or check system shortcut settings.",
+      saveFailed: "The shortcut could not be saved. Try again.",
+    },
     title: "Keyboard shortcuts",
     manage: "Manage",
     description: "Set key combinations for common note actions. Press Esc to cancel recording.",
@@ -2005,6 +2024,12 @@ export const enUS = {
     previous: "Previous PDF",
     next: "Next PDF",
   },
+  wordViewer: {
+    loading: "Loading Word preview…",
+    unavailable: "This Word document cannot be previewed. You can still download it or open it externally.",
+    previewTooLarge: "Preview disabled over 10 MiB",
+    previewLabel: "Word preview: {{filename}}",
+  },
   audioPlayer: {
     label: "Audio player: {{filename}}",
     unavailable: "This audio format cannot be played on this device. You can still download it or open it externally.",
@@ -2152,7 +2177,6 @@ export const enUS = {
       theme: "Theme",
       background: "Background",
       themes: {
-        slate: "Classic Light",
         aurora: "Aurora",
         sunset: "Sunset",
         midnight: "Midnight",
@@ -2274,6 +2298,17 @@ export const enUS = {
     expandOutlineHeading: "Expand {{name}}",
   },
   sharing: {
+    managementTitle: "Share management",
+    managementDescription: "See notes currently accessible through public links and manage each share.",
+    managementLoading: "Loading shared notes",
+    managementLoadFailed: "Could not load the latest shares. Check your connection and try again.",
+    managementEmpty: "No notes are currently shared.",
+    viewAll: "View all shares",
+    retry: "Retry",
+    loadMore: "Load more",
+    sharedOn: "Shared {{date}}",
+    passwordProtected: "Password protected",
+    unknownNotebook: "Unknown notebook",
     action: "Share note",
     afterSync: "Share note after sync",
     active: "Shared",

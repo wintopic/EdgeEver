@@ -9,6 +9,7 @@ import {
   AI_SIDEBAR_ADAPTER_KEY,
   AI_SIDEBAR_ADAPTER_PATH_KEY,
   AI_SIDEBAR_SOURCE_KEY,
+  AI_SIDEBAR_SELECTION_EVENT,
   displayedDesktopAcpAdapter,
   listDesktopAcpAdapters,
   installDesktopAcpAdapter,
@@ -99,6 +100,17 @@ const DesktopAcpAgentCardBody = ({ bridge }: { bridge: boolean }) => {
     setAdapterId(readAdapterId());
     setAdapterPath(localStorage.getItem(AI_SIDEBAR_ADAPTER_PATH_KEY) ?? "");
     setReady(true);
+    const sync = () => {
+      setSource(bridge && readSource() === "local" ? "local" : "builtin");
+      setAdapterId(readAdapterId());
+      setAdapterPath(localStorage.getItem(AI_SIDEBAR_ADAPTER_PATH_KEY) ?? "");
+    };
+    window.addEventListener(AI_SIDEBAR_SELECTION_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(AI_SIDEBAR_SELECTION_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
   }, [bridge]);
 
   useEffect(() => {
@@ -106,6 +118,7 @@ const DesktopAcpAgentCardBody = ({ bridge }: { bridge: boolean }) => {
     localStorage.setItem(AI_SIDEBAR_SOURCE_KEY, source);
     localStorage.setItem(AI_SIDEBAR_ADAPTER_KEY, adapterId);
     localStorage.setItem(AI_SIDEBAR_ADAPTER_PATH_KEY, adapterPath);
+    window.dispatchEvent(new Event(AI_SIDEBAR_SELECTION_EVENT));
   }, [adapterId, adapterPath, ready, source]);
 
   useEffect(() => {

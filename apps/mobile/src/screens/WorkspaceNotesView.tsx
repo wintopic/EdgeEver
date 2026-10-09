@@ -2,7 +2,7 @@ import { memo, useRef, type ReactNode } from "react";
 import type { MemoFilterMode, MemoSortMode } from "@edgeever/client";
 import { DEFAULT_MEMO_TITLE, getMemoListTimestamp, getNotebookDescendantMemoCount, type MemoSummary, type Notebook } from "@edgeever/shared";
 import { MOBILE_UI_METRICS, toggleMobileMemoFilterMode } from "@edgeever/shared/mobile-ui";
-import { FlatList, Platform, RefreshControl, View } from "react-native";
+import { FlatList, Platform, RefreshControl, useWindowDimensions, View } from "react-native";
 import { Gesture, GestureDetector, MouseButton, PointerType } from "react-native-gesture-handler";
 import { ActivityIndicator, Check, ChevronDown, ChevronLeft, LayoutTemplate, MoreHorizontal, Plus, RotateCcw, Search, Sparkles, Tag, X } from "../components/icons";
 import { Pressable, Text, TextInput } from "../components/LocalizedText";
@@ -273,6 +273,8 @@ const MemoList = ({
   selectedMemoIds?: Set<string>;
 }) => {
   const { preference: localePreference, translate } = useMobileLocale();
+  const { width } = useWindowDimensions();
+  const columnCount = width >= 1000 ? 3 : width >= 600 ? 2 : 1;
   const hasInitialSyncProgress = initialSyncProgress !== null;
   const loadedCount = initialSyncProgress?.loadedCount ?? 0;
   const totalCount = initialSyncProgress?.totalCount ?? 0;
@@ -322,26 +324,30 @@ const MemoList = ({
 
   return (
     <FlatList
-      contentContainerStyle={memos.length === 0 ? styles.emptyList : styles.list}
+      contentContainerStyle={memos.length === 0 ? styles.emptyList : [styles.list, columnCount > 1 && styles.memoGridList]}
       data={memos}
       initialNumToRender={10}
+      key={`memo-list-${columnCount}`}
       keyExtractor={(memo) => memo.id}
       maxToRenderPerBatch={8}
+      numColumns={columnCount}
       onEndReached={onLoadMore}
       onEndReachedThreshold={0.35}
       removeClippedSubviews={Platform.OS === "android"}
       refreshControl={<RefreshControl onRefresh={onRefresh} refreshing={isRefreshing} tintColor="#0f172a" />}
       style={styles.memoList}
       renderItem={({ item }) => (
-        <MemoCard
-          memo={item}
-          listDensity={listDensity}
-          sortMode={sortMode}
-          onLongPress={!selectionMode && onMemoLongPress ? () => onMemoLongPress(item) : undefined}
-          onPress={() => onMemoPress(item.id)}
-          selected={selectedMemoIds.has(item.id)}
-          selectionMode={selectionMode}
-        />
+        <View style={columnCount === 1 ? undefined : columnCount === 2 ? styles.memoGridCellHalf : styles.memoGridCellThird}>
+          <MemoCard
+            memo={item}
+            listDensity={listDensity}
+            sortMode={sortMode}
+            onLongPress={!selectionMode && onMemoLongPress ? () => onMemoLongPress(item) : undefined}
+            onPress={() => onMemoPress(item.id)}
+            selected={selectedMemoIds.has(item.id)}
+            selectionMode={selectionMode}
+          />
+        </View>
       )}
       ListEmptyComponent={
         <View style={styles.memoListEmptyCard}>

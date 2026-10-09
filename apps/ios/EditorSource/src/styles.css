@@ -929,8 +929,8 @@ html[data-theme="dark"] .ProseMirror pre code {
 
 .edgeever-mermaid {
   overflow-x: auto;
-  margin: 12px 0;
-  padding: 8px;
+  margin: 10px 0;
+  padding: 4px;
   border-radius: 8px;
   background: var(--code-bg);
 }

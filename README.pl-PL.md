@@ -3,7 +3,7 @@
     <img src="assets/brand/edgeever-icon.svg" alt="Logo EdgeEver" width="48" align="absmiddle" /> EdgeEver
   </h1>
   <p>
-    <b>Otwartoźródłowa, natywnie wspierająca AI baza wiedzy i alternatywa dla Evernote, którą możesz hostować samodzielnie</b>
+    <b>Otwartoźródłowa, natywnie wspierająca AI baza wiedzy i przenośna alternatywa dla Evernote</b>
   </p>
   <p>
     <a href="https://github.com/tianma-if/edgeever/stargazers"><img src="https://img.shields.io/github/stars/tianma-if/edgeever?style=social" alt="Gwiazdki na GitHubie" /></a>
@@ -35,7 +35,7 @@ EdgeEver to nowoczesna, otwartoźródłowa przestrzeń do notatek i zarządzania
 
 Wielu wieloletnich użytkowników **Evernote** szuka po prostu **niezawodnej, otwartej i szybkiej** osobistej bazy wiedzy. Popularne rozwiązania mają jednak swoje ograniczenia:
 
-* **Evernote**: To aplikacja, z której korzystałem niemal dekadę i do której mam największy sentyment. Z czasem stała się rozbudowanym komercyjnym pakietem: przybyło reklam i dodatków, wzrosło zużycie zasobów, ograniczono darmowy plan, a zaawansowane funkcje AI są kosztowne. Trudno też połączyć ją z samodzielnie hostowanymi usługami i prywatnymi procesami AI.
+* **Evernote**: To aplikacja, która towarzyszyła autorowi przez niemal dekadę i do której ma największy sentyment. Z czasem stała się rozbudowanym komercyjnym pakietem: przybyło reklam i dodatków, wzrosło zużycie zasobów, ograniczono darmowy plan, a zaawansowane funkcje AI są kosztowne. Trudno też połączyć ją z samodzielnie hostowanymi usługami i prywatnymi procesami AI.
 * **Obsidian**: Pliki są otwarte, ale sam program ma zamknięty kod. Oficjalna synchronizacja jest płatna, a konfiguracja innych metod wymaga pracy. Przy tysiącach notatek lub wielu wtyczkach skanowanie lokalnych plików spowalnia uruchamianie i wyszukiwanie. Obrazy i załączniki powiększają magazyn, utrudniają synchronizację mobilną i mogą pozostawać po usunięciu notatek.
 * **Memos i notatki strumieniowe**: Są proste, ale interfejs przypominający oś czasu różni się od uporządkowanej pracy w trzech panelach.
 * **SiYuan i systemy oparte na blokach**: Oferują wiele funkcji i własny hosting, lecz szczegółowa struktura bloków utrudnia szybkie zapisywanie myśli i pisanie dłuższego tekstu. Brakuje im również bezpłatnego wdrożenia bezserwerowego, a synchronizacja między urządzeniami wymaga płatnej subskrypcji lub dodatkowo płatnego dostępu do S3/WebDAV.
@@ -66,7 +66,7 @@ Publiczne demo resetuje się codziennie o 3:00 czasu chińskiego (UTC+8) i przyw
 EdgeEver łączy zbieranie materiałów z różnych źródeł, tworzenie treści wizualnych i współpracę w jednym środowisku:
 
 ### Zapisywanie treści i przechowywanie plików
-- **Zapisywanie treści jednym kliknięciem na różnych platformach**: Rozszerzenie przeglądarki zapisuje [galerie Xiaohongshu](docs/best-practices.md#2-one-click-xiaohongshu-red-note-clipping), [wpisy i cytaty z X (Twittera)](docs/best-practices.md#3-one-click-x-twitter-post--quote-clipping), [pytania i odpowiedzi z Zhihu](docs/best-practices.md#4-one-click-zhihu-answer--column-article-clipping), [dyskusje na Reddicie](docs/best-practices.md#5-one-click-reddit-discussion-post-clipping) oraz [repozytoria GitHub](docs/best-practices.md#8-one-click-github-repository-metadata-clipping). Systemowe udostępnianie na urządzeniu mobilnym pozwala szybko zapisać [zdjęcia](docs/best-practices.md#9-one-click-mobile-image-sharing-to-notes) i [artykuły z WeChat](docs/best-practices.md#10-one-click-wechat-article-clipping-on-mobile). Obsługa kolejnych serwisów jest planowana.
+- **Zapisywanie treści jednym kliknięciem na różnych platformach**: Rozszerzenie przeglądarki zapisuje [galerie Xiaohongshu](docs/best-practices.md#2-one-click-xiaohongshu-red-note-clipping), [wpisy i cytaty z X (Twittera)](docs/best-practices.md#3-one-click-x-twitter-post--quote-clipping), [pytania i odpowiedzi z Zhihu](docs/best-practices.md#4-one-click-zhihu-answer--column-article-clipping), [dyskusje na Reddicie](docs/best-practices.md#5-one-click-reddit-discussion-post-clipping) oraz [repozytoria GitHub](docs/best-practices.md#8-one-click-github-repository-metadata-clipping). Udostępnianie systemowe na telefonie pozwala szybko zapisać [zdjęcia](docs/best-practices.md#9-one-click-mobile-image-sharing-to-notes) i [artykuły z WeChat](docs/best-practices.md#10-one-click-wechat-article-clipping-on-mobile). Obsługa kolejnych serwisów jest planowana.
 - **Archiwizacja rozmów WeChat**: Na macOS można zaimportować całą rozmowę przez „Forward to Other Apps → EdgeEver”, zachowując uczestników, znaczniki czasu, cytowane odpowiedzi i naklejki. Obrazy trafiają do notatki, a nagrania audio i wideo są zapisywane jako załączniki. Zobacz [przewodnik po archiwizacji rozmów](docs/best-practices.md#1-one-click-wechat-chat-history-archiving).
 - **Załączniki i kompresja obrazów po stronie klienta**: Dodawaj pliki PDF, dokumenty Office, archiwa i multimedia. Przesyłanie strumieniowe w częściach obsługuje załączniki do 1 GiB. Cicha kompresja obrazów w przeglądarce zmniejsza rozmiar zrzutów ekranu i dużych zdjęć o 50–90%, przyspieszając ładowanie i oszczędzając miejsce.
 
@@ -86,7 +86,7 @@ EdgeEver łączy zbieranie materiałów z różnych źródeł, tworzenie treści
 
 ### Otwarta architektura, wiele platform i bezpieczeństwo
 - **Elastyczne wdrożenie i kontrola nad danymi**: Korzystaj z darmowego planu Cloudflare (około 150 tys. krótkich notatek i 50 tys. obrazów) albo wdróż aplikację przez Dockera na VPS, NAS lub serwerze domowym, aby przechowywać miliony notatek. Standardowa baza SQLite, REST API, narzędzia CLI i bezstratny eksport oraz import pełnego archiwum ZIP pomagają zachować niezależność danych.
-- **Wiele platform i ochrona środowiska produkcyjnego**: Oficjalne aplikacje działają w [przeglądarce, na Androidzie](https://play.google.com/store/apps/details?id=org.edgeever.mobile&hl=pl), [macOS](https://github.com/tianma-if/edgeever/releases), [Windows](https://github.com/tianma-if/edgeever/releases/latest), [Linuksie](https://github.com/tianma-if/edgeever/releases/latest) i [iOS](https://apps.apple.com/pl/app/edgeever/id6792625631). Rozszerzenie Web Clipper jest dostępne dla [Chrome](https://chromewebstore.google.com/detail/edgeever-web-clipper/gjadpfmanienmlofajibkfkkpfdkclgo), [Edge](https://chromewebstore.google.com/detail/edgeever-web-clipper/gjadpfmanienmlofajibkfkkpfdkclgo) i [Firefox](https://addons.mozilla.org/firefox/addon/edgeever-web-clipper/). Synchronizacja we własnym środowisku nie ogranicza liczby urządzeń; dostępne są wersje robocze offline, kolejki synchronizacji, ochrona serwera przed atakami siłowymi i odizolowane przestrzenie użytkowników.
+- **Wiele platform i ochrona środowiska produkcyjnego**: Oficjalne aplikacje działają w [przeglądarce, na Androidzie](https://play.google.com/store/apps/details?id=org.edgeever.mobile&hl=pl), [macOS](https://github.com/tianma-if/edgeever/releases), [Windows](https://github.com/tianma-if/edgeever/releases/latest), [Linuksie](https://github.com/tianma-if/edgeever/releases/latest) i [iOS](https://apps.apple.com/pl/app/edgeever/id6792625631). Rozszerzenie Web Clipper jest dostępne dla [Chrome](https://chromewebstore.google.com/detail/edgeever-web-clipper/gjadpfmanienmlofajibkfkkpfdkclgo), [Edge](https://chromewebstore.google.com/detail/edgeever-web-clipper/gjadpfmanienmlofajibkfkkpfdkclgo) i [Firefox](https://addons.mozilla.org/firefox/addon/edgeever-web-clipper/). Synchronizacja we własnym środowisku nie ogranicza liczby urządzeń; aplikacja desktopowa ma niewielkie zużycie pamięci, a dostępne są wersje robocze offline, kolejki synchronizacji, ochrona serwera przed atakami siłowymi i odizolowane przestrzenie użytkowników.
 
 👉 Wszystkie 14 scenariuszy ze zrzutami ekranu opisuje [pełny przewodnik po funkcjach i zastosowaniach](docs/best-practices.md).
 
@@ -109,7 +109,7 @@ Wdróż EdgeEver przez GitHub i Cloudflare:
    Workers Builds i upewnij się, że token API może odczytywać i modyfikować D1.
    Wybierz Save and Deploy.
 4. Po utworzeniu Workera zapisz wybrane hasło jako sekret środowiska
-   `EDGE_EVER_AUTH_PASSWORD` (najlepiej co najmniej 32 znaki).
+   uruchomieniowego `EDGE_EVER_AUTH_PASSWORD` (najlepiej co najmniej 32 znaki).
    Domyślna nazwa użytkownika to `admin`. Aby ją zmienić, ustaw zmienną
    Workers Builds `EDGE_EVER_AUTH_USERNAME` przed kolejnym buildem.
 5. Ponów build, sprawdź `/api/health` i `/api/openapi.json`, a następnie
@@ -127,7 +127,7 @@ Konfiguracja obejmuje sześć kroków w interfejsie przeglądarkowym:
 1. **Utwórz Fork repozytorium**: Kliknij **Fork** w prawym górnym rogu strony GitHub, aby utworzyć kopię EdgeEver na swoim koncie.
 2. **Utwórz zasoby Cloudflare**: Utwórz bazę D1 `edgeever` i zasobnik R2 `edgeever-resources`.
 3. **Zaimportuj i skonfiguruj projekt**: W Cloudflare **Workers & Pages** utwórz Worker `edgeever` z gałęzi `main` swojego Forka. Użyj katalogu głównego repozytorium i zachowaj domyślne polecenie wdrożenia Workers Builds. Token API musi mieć prawo do odczytu i modyfikacji D1. Polecenie wdrożenia utworzy powiązania zasobów; nie edytuj plików Forka.
-4. **Wybierz hasło administratora**: Ustaw hasło, najlepiej o długości co najmniej 32 znaków. Po utworzeniu Workera zapisz je jako sekret środowiska `EDGE_EVER_AUTH_PASSWORD`.
+4. **Wybierz hasło administratora**: Ustaw hasło, najlepiej o długości co najmniej 32 znaków. Po utworzeniu Workera zapisz je jako sekret środowiska uruchomieniowego `EDGE_EVER_AUTH_PASSWORD`.
 5. **Zbuduj i sprawdź aplikację**: **Save and Deploy** tworzy Workera i uruchamia build. Jeśli zakończy się błędem z powodu braku sekretu administratora, dodaj sekret z kroku 4 i ponów próbę. Domyślna nazwa użytkownika to `admin`; aby ją zmienić, ustaw zmienną Workers Builds `EDGE_EVER_AUTH_USERNAME` przed ponownym buildem. Po wdrożeniu sprawdź, czy `/api/health` zwraca `200`, i zaloguj się.
 6. **Włącz automatyczne aktualizacje**: W zakładce **Actions** Forka kliknij **I understand my workflows, go ahead and enable them**, a następnie ręcznie uruchom raz workflow **Update deployed EdgeEver**.
 
@@ -183,7 +183,7 @@ Zapraszamy do rozmów o korzystaniu z EdgeEver, agentach AI, niedrogich lub darm
 
 ## Wtyczki i motywy
 
-Aplikacje Web i desktopowa obsługują wtyczki oraz własne motywy, instalowane z oficjalnego katalogu, GitHuba lub adresu manifestu i synchronizowane między urządzeniami. Programiści mogą rozszerzać aplikację przez `@edgeever/plugin-api`; zobacz [przewodnik tworzenia wtyczek](docs/plugin-development.md) i [zasady publikowania w katalogu](docs/plugin-marketplace-policy.md).
+Aplikacje Web i desktopowa obsługują wtyczki oraz własne motywy, instalowane z oficjalnego marketplace, GitHuba lub adresu manifestu i synchronizowane między urządzeniami. Programiści mogą rozszerzać aplikację przez `@edgeever/plugin-api`; zobacz [przewodnik tworzenia wtyczek](docs/plugin-development.md) i [zasady publikowania w marketplace](docs/plugin-marketplace-policy.md).
 
 ## Stos technologiczny
 
@@ -282,7 +282,7 @@ EdgeEver jest darmowym projektem o otwartym kodzie. Rozwijanie aplikacji na ró�
 
 ## Podziękowania
 
-- Przy projektowaniu EdgeEver korzystano z publicznie dostępnych doświadczeń dojrzałych aplikacji do notatek, takich jak [Evernote](https://evernote.com/) i [Notion](https://www.notion.com/). Powiązane funkcje zostały zaprojektowane i zaimplementowane niezależnie przez EdgeEver.
+- Przy projektowaniu EdgeEver wzorowano się na publicznie dostępnych rozwiązaniach dojrzałych aplikacji do notatek, takich jak [Evernote](https://evernote.com/) i [Notion](https://www.notion.com/). Powiązane funkcje zostały zaprojektowane i zaimplementowane niezależnie przez EdgeEver.
 - Inspiracją dla notatek z mapami myśli i diagramami były publicznie dostępne funkcje [XMind](https://xmind.com/) i [ProcessOn](https://www.processon.com/). Funkcje te zostały zaprojektowane i zaimplementowane niezależnie przez EdgeEver.
 
 ## Znak towarowy i użycie marki

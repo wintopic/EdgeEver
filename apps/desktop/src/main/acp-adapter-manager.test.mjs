@@ -315,11 +315,7 @@ describe("managed ACP adapters", () => {
       arch: "arm64",
       fetchImpl: async (url) => {
         if (url.endsWith(".zip")) {
-          return new Response(new ReadableStream({
-            start(controller) {
-              controller.error(new Error("aborted_after_header_check"));
-            },
-          }), {
+          return new Response(new Uint8Array([0]), {
             status: 200,
             headers: { "content-length": String(contentLength) },
           });
@@ -328,7 +324,7 @@ describe("managed ACP adapters", () => {
       },
     });
     try {
-      await expect(manager.install("antigravity", async () => ({ state: "available" }))).rejects.toThrow("aborted_after_header_check");
+      await expect(manager.install("antigravity", async () => ({ state: "available" }))).rejects.toThrow("invalid_adapter_archive");
       contentLength = 501 * 1024 * 1024;
       await expect(manager.install("antigravity", async () => ({ state: "available" }))).rejects.toThrow("adapter_too_large");
     } finally {
@@ -336,6 +332,4 @@ describe("managed ACP adapters", () => {
     }
   });
 });
-
-
 
