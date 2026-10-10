@@ -1,12 +1,35 @@
 import { expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createContext, runInContext } from "node:vm";
 import { fileURLToPath } from "node:url";
-import { build } from "esbuild";
 import { createWindow } from "@mixmark-io/domino";
 
-const bundle = async (name) => (await build({ entryPoints: [fileURLToPath(new URL(`./src/${name}.ts`, import.meta.url))], bundle: true, platform: "browser", format: "iife", write: false })).outputFiles[0].text;
-const [background, captureScript] = await Promise.all([bundle("background"), bundle("capture-platform")]);
+// Isolate esbuild from Bun's test process, as in the Worker build tests.
+const entryPoints = ["background", "capture-platform"].map((name) =>
+  fileURLToPath(new URL(`./src/${name}.ts`, import.meta.url)),
+);
+const bundleDirectory = mkdtempSync(join(tmpdir(), "edgeever-extension-test-"));
+const bundlePath = join(bundleDirectory, "scripts.json");
+let background, captureScript;
+try {
+  const bundled = spawnSync(process.execPath, ["--eval", `
+    import { writeFileSync } from "node:fs";
+    import { build } from "esbuild";
+    const scripts = await Promise.all(${JSON.stringify(entryPoints)}.map(async (entry) =>
+      (await build({ entryPoints: [entry], bundle: true, platform: "browser", format: "iife", write: false })).outputFiles[0].text
+    ));
+    writeFileSync(${JSON.stringify(bundlePath)}, JSON.stringify(scripts));
+  `], { cwd: import.meta.dir, encoding: "utf8" });
+  if (bundled.error || bundled.status !== 0) {
+    throw new Error(`Failed to bundle extension test scripts: ${bundled.error?.message || bundled.stderr}`);
+  }
+  [background, captureScript] = JSON.parse(readFileSync(bundlePath, "utf8"));
+} finally {
+  rmSync(bundleDirectory, { recursive: true, force: true });
+}
 const urls = {
   "hacker-news": "https://news.ycombinator.com/item?id=40380738",
 };

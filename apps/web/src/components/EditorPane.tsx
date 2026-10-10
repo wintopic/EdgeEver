@@ -120,14 +120,13 @@ import { api } from "@/lib/api";
 import { isDesktopResourceRuntime, stageDesktopResource, toDesktopResourceDownloadUrl, toDesktopResourceUrl } from "@/lib/desktop-resources";
 import { contentReferencesStagedResourceUrl, findMatchingMemoResource, repairMemoStagedResourceUrls, repairTiptapStagedResourceUrls } from "@/lib/staged-resource-repair";
 import { cn, parseTagsText } from "@/lib/utils";
-import { editorContentColumnMaxWidth, type EditorContentWidth } from "@/lib/editor-content-width";
 import {
   EDITOR_ARTICLE_ROW_GAP_PX,
   EDITOR_COMPACT_READING_GUTTER,
   EDITOR_PANE_TIGHT_PX,
   shouldCompactEditorReadingGutter,
 } from "@/lib/editor-reading-gutter";
-import { EDITOR_OUTLINE_WIDTH } from "@/lib/workspace-ui";
+import { EDITOR_CONTENT_MAX_WIDTH, EDITOR_OUTLINE_WIDTH } from "@/lib/workspace-ui";
 import {
   countMemoCharacters,
   createEdgeEverDocumentExtensions,
@@ -316,7 +315,6 @@ type EditorPaneProps = {
   repository: EdgeEverRepository;
   desktopFocusMode: boolean;
   onToggleDesktopFocusMode: () => void;
-  editorContentWidth: EditorContentWidth;
   noteProse: ResolvedNoteProse;
   mobileDefaultEditMemoId: string | null;
   pendingInsertFiles?: { memoId: string; files: File[] } | null;
@@ -395,7 +393,6 @@ const RichEditorPane = ({
   repository,
   desktopFocusMode,
   onToggleDesktopFocusMode,
-  editorContentWidth,
   noteProse,
   mobileDefaultEditMemoId,
   pendingInsertFiles = null,
@@ -3751,9 +3748,6 @@ const RichEditorPane = ({
       };
 
   const editorColumnMatchesArticle = !useMarkdownSourceEditor;
-  const contentColumnMode = desktopFocusMode ? "focus" : editorOutlineCollapsed ? "collapsed" : "reading";
-  const contentColumnMaxWidth = editorContentColumnMaxWidth(editorContentWidth, contentColumnMode);
-  const focusTitleMaxWidth = editorContentColumnMaxWidth(editorContentWidth, "focus");
   const editorPaneTight = editorColumnWidth > 0 && editorColumnWidth < EDITOR_PANE_TIGHT_PX;
   const outlineReservesSpace = !editorPaneTight
     && !isMobileViewport
@@ -3765,7 +3759,7 @@ const RichEditorPane = ({
     aiAssistantOpen,
     desktopColumn: isDesktopColumn,
     columnWidth: Math.max(0, editorColumnWidth - editorScrollbarGutter * 2),
-    articleMaxWidth: Number.parseInt(contentColumnMaxWidth, 10),
+    articleMaxWidth: Number.parseInt(EDITOR_CONTENT_MAX_WIDTH, 10),
     reservedBesideArticle: outlineReservesSpace
       ? Number.parseInt(EDITOR_OUTLINE_WIDTH, 10) + EDITOR_ARTICLE_ROW_GAP_PX
       : 0,
@@ -3846,7 +3840,7 @@ const RichEditorPane = ({
               isDesktopColumn && desktopFocusMode && "mx-auto",
             )}
             style={{
-              ...(isDesktopColumn && desktopFocusMode ? { maxWidth: focusTitleMaxWidth } : {}),
+              ...(isDesktopColumn && desktopFocusMode ? { maxWidth: EDITOR_CONTENT_MAX_WIDTH } : {}),
               ...(titleStatusClearancePx > 0 ? { paddingRight: titleStatusClearancePx } : {}),
             }}
           >
@@ -4309,7 +4303,7 @@ const RichEditorPane = ({
               useMarkdownSourceEditor && "flex h-full min-h-0 flex-col",
               isDesktopColumn && "mx-auto",
             )}
-            style={isDesktopColumn ? { maxWidth: contentColumnMaxWidth } : undefined}
+            style={isDesktopColumn ? { maxWidth: EDITOR_CONTENT_MAX_WIDTH } : undefined}
           >
             {useMobilePlainTextEditor ? (
               <>

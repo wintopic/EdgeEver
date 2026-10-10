@@ -1,5 +1,5 @@
 export type DesktopAcpAdapterId = "codex" | "claudeCode" | "antigravity" | "openClaw" | "hermesAgent" | "grokBuild" | "deepseekHarness" | "piAgent" | "workbuddyCn" | "workbuddyIntl";
-export type DesktopAcpAdapterState = "not_installed" | "installing" | "needs_login" | "available" | "failed";
+export type DesktopAcpAdapterState = "not_installed" | "not_probed" | "installing" | "needs_login" | "available" | "failed";
 
 export type DesktopAcpPromptCapabilities = {
   image?: boolean;
@@ -15,6 +15,7 @@ export type DesktopAcpAdapter = {
   version?: string;
   managed?: boolean;
   updateError?: string;
+  customPath?: string;
   authMethods?: Array<{ id: string; name: string }>;
 };
 
@@ -31,10 +32,24 @@ export const displayedDesktopAcpAdapter = ({
 }): DesktopAcpAdapter | undefined => {
   const current = listed.find((adapter) => adapter.id === id);
   const checked = probed?.id === id ? probed : undefined;
-  if (id === "antigravity" && path.trim()) return checked;
+  if (id === "antigravity" && path.trim()) {
+    return current?.customPath === path.trim() ? current : checked;
+  }
+  if (current?.customPath) return checked;
   if (current?.state === "installing" || (current?.managed && (!checked?.managed || current.version !== checked.version))) return current;
-  if (current?.state === "needs_login" && checked?.state === "available") return current;
+  if (checked?.state === "available" && (current?.state === "needs_login" || current?.state === "failed" || current?.state === "not_installed")) return current;
   return checked ?? current;
+};
+
+export const desktopAcpSelectorVisible = (adapter: DesktopAcpAdapter, customPath: string) => (
+  adapter.state !== "not_installed" || (adapter.id === "antigravity" && Boolean(customPath.trim()))
+);
+
+export const desktopAcpAutomaticProbeInput = (adapter: DesktopAcpAdapter, customPath: string) => {
+  if (adapter.state === "installing") return null;
+  if (adapter.id === "antigravity" && customPath.trim()) return { id: adapter.id, path: customPath.trim() };
+  if (adapter.state === "not_probed" || adapter.detail === "not_probed" || adapter.state === "failed") return { id: adapter.id };
+  return null;
 };
 
 export type DesktopAcpAttachment = {
@@ -145,7 +160,10 @@ export const desktopAcpAvailable = () => Boolean(bridge()?.listAcpAdapters);
 export const listDesktopAcpAdapters = async (): Promise<DesktopAcpAdapter[]> => {
   const desktop = bridge();
   if (!desktop?.listAcpAdapters) return [];
-  return desktop.listAcpAdapters();
+  const adapters = await desktop.listAcpAdapters();
+  // Older desktop hosts encoded an unchecked connector as a failed connection.
+  return adapters.map((adapter) => adapter.detail === "not_probed"
+    ? { ...adapter, state: "not_probed" as const } : adapter);
 };
 
 export const probeDesktopAcpAdapter = async (input: { id: DesktopAcpAdapterId; path?: string }): Promise<DesktopAcpAdapter> => {
@@ -156,7 +174,7 @@ export const probeDesktopAcpAdapter = async (input: { id: DesktopAcpAdapterId; p
   return desktop.probeAcpAdapter(input);
 };
 
-export const installDesktopAcpAdapter = async (id: Extract<DesktopAcpAdapterId, "codex" | "antigravity" | "piAgent">) => {
+export const installDesktopAcpAdapter = async (id: Extract<DesktopAcpAdapterId, "codex" | "claudeCode" | "antigravity" | "piAgent">) => {
   const desktop = bridge();
   if (!desktop?.installAcpAdapter) throw new Error("desktop_acp_unavailable");
   return desktop.installAcpAdapter(id);
