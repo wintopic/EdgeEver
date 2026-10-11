@@ -1,3 +1,5 @@
+import { applyPosterEdits, compilePosterMemo } from "./mcp-poster-tools";
+import { hasPosterDocumentMarker, parsePosterDocument, serializePosterDocument } from "@edgeever/shared";
 import {
   AiPromptTemplateCreateSchema,
   AiPromptTemplateUpdateSchema,
@@ -162,6 +164,7 @@ export type McpToolDependencies = {
       offset: number;
       includeContent: boolean;
       includeDeleted: boolean;
+      poster?: boolean | null;
     },
   ) => Promise<unknown>;
   mergeMemosRecord: (
@@ -198,6 +201,7 @@ export type McpToolDependencies = {
       updatedBefore?: string | null;
       isPinned?: boolean | null;
       hasResources?: boolean | null;
+      poster?: boolean | null;
       limit: number;
     },
   ) => Promise<MemoSummary[]>;
@@ -280,6 +284,7 @@ export const callMcpTool = async (
           updatedAfter: getOptionalString(args.updatedAfter),
           updatedBefore: getOptionalString(args.updatedBefore),
           isPinned: typeof args.isPinned === "boolean" ? args.isPinned : null,
+          poster: typeof args.poster === "boolean" ? args.poster : null,
           hasResources: typeof args.hasResources === "boolean" ? args.hasResources : null,
           limit: clampNumber(Number(args.limit ?? 20), 1, 50),
         }),
@@ -294,6 +299,7 @@ export const callMcpTool = async (
         offset: clampNumber(Number(args.offset ?? 0), 0, 100_000),
         includeContent: args.includeContent === true,
         includeDeleted: args.includeDeleted === true,
+        poster: typeof args.poster === "boolean" ? args.poster : null,
       });
     }
     case "get_memo": {
@@ -508,6 +514,39 @@ export const callMcpTool = async (
         diagram: diagramSemanticGraph(document),
       };
     }
+    case "create_poster_memo": {
+      assertScope(auth, "write:memos");
+      const { args: input, document } = compilePosterMemo(args);
+      const memo = await createMemoRecord(c.env.storage.db, auth.workspaceId, {
+        notebookId: input.notebookId, title: input.title,
+        contentMarkdown: serializePosterDocument(document), tags: input.tags,
+      }, getAuditActor(c), getActorLabel(c));
+      return { memo: { id: memo.id, title: memo.title, notebookId: memo.notebookId, revision: memo.revision }, poster: true, template: input.template, format: input.format };
+    }
+    case "get_poster": {
+      assertScope(auth, "read:memos");
+      const memo = await getMemoDetail(c.env.storage.db, auth.workspaceId, getRequiredString(args.memoId, "memoId"));
+      if (!memo) throw new AppError("not_found", "Memo not found", 404);
+      const poster = parsePosterDocument(memo.contentMarkdown);
+      if (!poster) throw new AppError("not_poster", "Memo is not an editable poster", 400);
+      return { memo: { id: memo.id, title: memo.title, notebookId: memo.notebookId, revision: memo.revision }, poster };
+    }
+    case "update_poster": {
+      assertScope(auth, "write:memos");
+      const memoId = getRequiredString(args.memoId, "memoId");
+      const memo = await getMemoDetail(c.env.storage.db, auth.workspaceId, memoId);
+      if (!memo) throw new AppError("not_found", "Memo not found", 404);
+      if (memo.revision !== args.expectedRevision) throw new AppError("revision_conflict", "Poster changed. Read it again before editing.", 409);
+      const current = parsePosterDocument(memo.contentMarkdown);
+      if (!current) throw new AppError("not_poster", "Memo is not an editable poster", 400);
+      const mutation = applyPosterEdits(args, current);
+      if (args.dryRun === true || !mutation.changed) return { dryRun: args.dryRun === true, memo, poster: mutation.document, changed: mutation.changed };
+      const result = await updateMemoRecord(c.env.storage.db, auth.workspaceId, memoId, {
+        expectedRevision: args.expectedRevision, contentMarkdown: serializePosterDocument(mutation.document),
+      }, getAuditActor(c), getActorLabel(c));
+      if (result.error !== undefined) throw new AppError(result.error, result.message, result.status ?? 400);
+      return { memo: result.memo, poster: mutation.document, changed: true };
+    }
     case "get_diagram": {
       assertScope(auth, "read:memos");
       const memoId = getRequiredString(args.memoId, "memoId");
@@ -584,6 +623,9 @@ export const callMcpTool = async (
             "Structured table content cannot be replaced through update_memo.",
             400,
           );
+        }
+        if (existing && hasPosterDocumentMarker(existing.contentMarkdown)) {
+          throw new AppError("poster_update_required", "Poster content cannot be replaced through update_memo. Use get_poster then update_poster.", 400);
         }
         if (existing && hasInfographicDocumentMarker(existing.contentMarkdown)) {
           throw new AppError(

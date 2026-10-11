@@ -15,7 +15,7 @@ import { AppError } from "./app-error";
 const AUTO_APPLY_WRITES = new Set(
   COMPANION_MCP_TOOLS.filter(tool => !tool.annotations.readOnlyHint).map(tool => tool.name),
 );
-const INBOX_DEFAULT_NOTEBOOK_TOOLS = new Set(["create_memo", "create_table_memo", "create_diagram_memo", "create_infographic_memo", "use_note_template"]);
+const INBOX_DEFAULT_NOTEBOOK_TOOLS = new Set(["create_memo", "create_table_memo", "create_diagram_memo", "create_infographic_memo", "create_poster_memo", "use_note_template"]);
 
 export async function resolveWorkspaceInboxId(db: DatabaseAdapter, workspaceId: string) {
   const preferred = workspaceInboxId(workspaceId);
@@ -118,12 +118,15 @@ const TOOL_HINTS: Record<string, string> = {
   list_memos: " To list a named notebook, call find_notebooks first and pass that id. Without notebookId this lists the whole workspace, newest updated first. For newly created notes in a time range, use search_memos with createdAfter. If hasMore is true, say the list is incomplete.",
   search_memos: " Searches note titles and bodies, not notebook names. query is optional. For recently created or added notes, pass createdAfter (YYYY-MM-DD or ISO date-time) and omit query; never put this week/最近/新增 in query. For recently edited notes, use updatedAfter. Do not pass notebookId unless find_notebooks or list_notebooks returned it. For notes in a named notebook, find_notebooks then list_memos. If hasMore is true, say the list is incomplete.",
   list_tags: " Use this when the user names a tag.",
-  create_memo: " For prose Markdown notes only. Never use this for structured tables/多维表格, 思维导图/mind maps, 流程图/flowcharts, 架构图, or 信息图/infographics. Use create_table_memo for tables, create_diagram_memo for diagrams, and create_infographic_memo for infographics. If the user did not name a notebook, omit notebookId. The note is saved in the inbox (等待分类). Do not ask which notebook.",
+  create_memo: " For prose Markdown notes only. Never use this for structured tables/多维表格, 思维导图/mind maps, 流程图/flowcharts, 架构图, 信息图/infographics, or 海报/posters. Use create_poster_memo for posters. Use create_table_memo for tables, create_diagram_memo for diagrams, and create_infographic_memo for infographics. If the user did not name a notebook, omit notebookId. The note is saved in the inbox (等待分类). Do not ask which notebook.",
   create_table_memo: " Create an editable structured table/多维表格 from the user's requested field plan. Infer useful field names and types when unspecified. Select fields need explicit options. This creates an empty table; only add records if the user requested example or supplied records. If the user did not name a notebook, omit notebookId so it is saved in the inbox (等待分类). Do not ask which notebook, and do not use the open notebook unless the user named it.",
   get_table_records: " Read an existing structured table's fields, record IDs, and revision. Use this before adding a record so cell keys are actual field IDs. Do not infer field IDs from names.",
   add_table_record: " Add one requested record to a structured table. First call get_table_records, then use its field IDs and latest revision. Do not invent factual records to fill a new table.",
   create_diagram_memo: " Create an editable visual diagram note. kind=mind-map for 思维导图/mind map, flowchart for 流程图, architecture for 架构图. Never use this for 信息图/infographic; call create_infographic_memo. Omit edge ids; EdgeEver generates them. For mind maps, give a root and children with parentId; omit node type. If the user did not name a notebook, omit notebookId. The diagram is saved in the inbox (等待分类). Do not ask which notebook, and do not use the open notebook unless the user named it. Build nodes from the open note body in Focus DATA when the user refers to this note.",
+  create_poster_memo: " Create a real editable poster (海报笔记), never poster-style Markdown. Supply short copy; the tool handles canvas layout and encoding. If no notebook was named, omit notebookId and use the inbox. Report failure instead of substituting prose.",
   create_infographic_memo: " Create an AntV infographic note (信息图). A share, proportion, or 占比 uses template chart-pie-donut-plain-text and numeric data.values, not a mind map. If the user did not supply the figures, say in data.desc that they are illustrative and are not an official disclosure. If the user did not name a notebook, omit notebookId. The infographic is saved in the inbox (等待分类). Do not ask which notebook, and do not use the open notebook unless the user named it.",
+  get_poster: " Read the existing poster canvas and elements before editing. Do not use raw Markdown for posters.",
+  update_poster: " Edit poster text, colors, typography and positions after get_poster. Preserve unmentioned and locked elements. Pass the revision you read.",
   get_diagram: " Read an existing editable diagram as a semantic graph. Call this before update_diagram. Do not use get_memo when you only need the diagram structure.",
   update_diagram: " Edit an existing diagram after get_diagram. Pass expectedRevision from get_diagram. Use add_node, update_node, remove_node, add_edge, update_edge, or remove_edge. Do not create a new diagram unless the user asked for a new note.",
   use_note_template: " Create a new memo from a template. If the user did not name a notebook, omit notebookId. The note is saved in the inbox (等待分类). Do not ask which notebook.",
@@ -258,6 +261,7 @@ export function createCompanionTools(args: { db: DatabaseAdapter; scope: Compani
   if (!args.input.allowNotes || !args.context) return {};
   const session = args.session ?? emptyCompanionAgentSession();
   const inspected = new Map(Object.entries(session.inspected));
+  const posterReads = new Map<string, number>();
   const persistSession = () => {
     session.inspected = Object.fromEntries(inspected);
   };
@@ -356,15 +360,15 @@ export function createCompanionTools(args: { db: DatabaseAdapter; scope: Compani
           }
           parameters_.expectedRevision = memo.revision;
         }
-        if (autoApply && parameters_.dryRun !== true && (definition.name === "update_memo" || definition.name === "update_diagram" || definition.name === "restore_memo_revision")) {
+        if (autoApply && parameters_.dryRun !== true && (definition.name === "update_memo" || definition.name === "update_diagram" || definition.name === "update_poster" || definition.name === "restore_memo_revision")) {
           const memo = await getMemoDetail(args.db, args.scope.workspaceId, String(parameters_.memoId));
-          if (!memo || inspected.get(memo.id) !== memo.revision) {
+          if (!memo || inspected.get(memo.id) !== memo.revision || (definition.name === "update_poster" && posterReads.get(memo.id) !== memo.revision)) {
             throw new AppError("companion_action_unread",
               definition.name === "update_diagram"
                 ? "Call get_diagram on this note before changing it."
                 : "Read the complete source notes before changing their content.", 400);
           }
-          if (definition.name === "update_diagram") parameters_.expectedRevision = memo.revision;
+          if (definition.name === "update_diagram" || definition.name === "update_poster") parameters_.expectedRevision = memo.revision;
         }
         if (autoApply && parameters_.dryRun !== true && definition.name === "merge_memos") {
           const memoIds = Array.isArray(parameters_.memoIds) ? parameters_.memoIds.map(String) : [];
@@ -375,7 +379,7 @@ export function createCompanionTools(args: { db: DatabaseAdapter; scope: Compani
             }
           }
         }
-        if ((definition.name === "get_memo" || definition.name === "get_diagram") && inspected.has(String(parameters_.memoId))) {
+        if ((definition.name === "get_memo" || definition.name === "get_diagram" || (definition.name === "get_poster" && posterReads.get(String(parameters_.memoId)) === inspected.get(String(parameters_.memoId)))) && inspected.has(String(parameters_.memoId))) {
           // The original full result remains in this run's model messages. Only
           // reuse it after authorization/context/cursor checks, never across runs.
           return done({ id: parameters_.memoId, revision: inspected.get(String(parameters_.memoId)), alreadyRead: true,
@@ -408,7 +412,7 @@ export function createCompanionTools(args: { db: DatabaseAdapter; scope: Compani
               nodeCount: Array.isArray(created.diagram?.nodes) ? created.diagram.nodes.length : undefined,
             });
           }
-          if (definition.name === "create_infographic_memo") {
+          if (definition.name === "create_infographic_memo" || definition.name === "create_poster_memo") {
             const created = result as { memo: MemoDetail; template?: string };
             remember(created.memo);
             return done({
@@ -419,7 +423,7 @@ export function createCompanionTools(args: { db: DatabaseAdapter; scope: Compani
               notebookName: await notebookName(created.memo.notebookId),
               revision: created.memo.revision,
               template: created.template,
-              infographic: true,
+              ...(definition.name === "create_poster_memo" ? { poster: true } : { infographic: true }),
             });
           }
           if (definition.name === "create_table_memo") {
@@ -447,7 +451,7 @@ export function createCompanionTools(args: { db: DatabaseAdapter; scope: Compani
               changes: updated.changes,
             });
           }
-          if (definition.name === "update_memo") {
+          if (definition.name === "update_memo" || definition.name === "update_poster") {
             const updated = (result as { memo: MemoDetail }).memo;
             const receipt = await done({ applied: true, id: updated.id, title: updated.title,
               notebookId: updated.notebookId, revision: updated.revision });
@@ -463,15 +467,16 @@ export function createCompanionTools(args: { db: DatabaseAdapter; scope: Compani
           return done({ applied: true, ...(typeof result === "object" && result ? result as object : { result }) });
         }
         if (current !== await companionWorkspaceCursor(args.db, args.scope.workspaceId)) return done({ error: "Notes changed during this read. Start a fresh request." });
-        if (definition.name === "get_diagram") {
-          const payload = result as { memo: { id: string; title: string | null; revision: number }; diagram: { kind?: string; nodes?: unknown[] } };
+        if (definition.name === "get_diagram" || definition.name === "get_poster") {
+          const payload = result as { memo: { id: string; title: string | null; revision: number; notebookId?: string }; diagram: { kind?: string; nodes?: unknown[] } };
           inspected.set(payload.memo.id, payload.memo.revision);
+          if (definition.name === "get_poster") posterReads.set(payload.memo.id, payload.memo.revision);
           const known = args.sources.find(source => source.id === payload.memo.id);
           remember({
             id: payload.memo.id,
             title: payload.memo.title,
             revision: payload.memo.revision,
-            notebookId: known?.notebookId || "",
+            notebookId: known?.notebookId || payload.memo.notebookId || "",
           });
           return done(payload);
         }
@@ -486,6 +491,10 @@ export function createCompanionTools(args: { db: DatabaseAdapter; scope: Compani
               createdAt: memo.createdAt, updatedAt: memo.updatedAt, diagramKind: payload.diagram.kind, diagram: payload.diagram,
               message: "This is an editable diagram. Change it with update_diagram, not update_memo.",
             });
+          }
+          if (memo.poster) {
+            return done({ id: memo.id, title: memo.title, notebookId: memo.notebookId, tags: memo.tags, revision: memo.revision,
+              poster: true, message: "This is an editable poster. Read its canvas with get_poster and edit with update_poster; do not decode or replace Markdown." });
           }
           const content = takeNoteText(memo.contentMarkdown, 8000);
           if (content.length === memo.contentMarkdown.length) inspected.set(memo.id, memo.revision); else inspected.delete(memo.id);
@@ -512,6 +521,7 @@ export function createCompanionTools(args: { db: DatabaseAdapter; scope: Compani
               notebookId: memo.notebookId,
               notebookName: await notebookName(memo.notebookId),
               tags: memo.tags,
+              poster: memo.poster,
               createdAt: memo.createdAt,
               updatedAt: memo.updatedAt,
               excerpt: takeNoteText(memo.excerpt, 180),

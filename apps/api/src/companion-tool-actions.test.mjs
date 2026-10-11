@@ -5,7 +5,7 @@ import { Hono } from "hono";
 import { createSelfHostedStorageAdapter } from "./self-hosted-storage-adapter.ts";
 import { registerCompanionRoutes } from "./companion-routes.ts";
 import { beginCompanionTurn, checkpointCompanionTurn, clearCompanionHistory, saveCompanionMemory } from "./companion-service.ts";
-import { createDefaultTableDocument, parseDiagramDocument, parseInfographicDocument, parseTableDocument, serializeTableDocument } from "@edgeever/shared";
+import { createPosterDocument, serializePosterDocument, parsePosterDocument, createDefaultTableDocument, parseDiagramDocument, parseInfographicDocument, parseTableDocument, serializeTableDocument } from "@edgeever/shared";
 import { createMemoRecord, getMemoDetail, normalizeSearchTimeBound, updateMemoRecord } from "./memo-service.ts";
 import { companionWorkspaceCursor, proposeCompanionToolAction } from "./companion-tool-actions.ts";
 import { getCompanionAction, applyCompanionAction, dismissCompanionAction } from "./companion-actions.ts";
@@ -48,8 +48,31 @@ async function setup() {
 }
 
 describe("shared companion MCP adapter", () => {
+  test("poster CRUD reuses scoped queries, guarded edits, recoverable trash and restoration", async () => {
+    const f = await setup();
+    const tools = createCompanionTools({ ...f, scope, signal: new AbortController().signal, assertActive: async () => {}, sources: [] });
+    const created = await tools.create_poster_memo.execute({ notebookId: "ideas", title: "Energy poster", heading: "Protect your energy" });
+    const listed = await tools.list_memos.execute({ poster: true });
+    expect(listed.memos.map(memo => memo.id)).toContain(created.id);
+    expect(listed.memos.find(memo => memo.id === created.id).poster).toBe(true);
+    expect(await tools.get_memo.execute({ memoId: created.id })).toMatchObject({ poster: true, message: expect.stringContaining("get_poster") });
+    await tools.get_poster.execute({ memoId: created.id });
+    const poster = await getMemoDetail(f.db, scope.workspaceId, created.id);
+    const heading = parsePosterDocument(poster.contentMarkdown).elements.find(element => element.role === "title");
+    await tools.update_poster.execute({ memoId: created.id, expectedRevision: poster.revision, edits: [{ id: heading.id, patch: { text: "Focus on what matters" } }] });
+    expect(parsePosterDocument((await getMemoDetail(f.db, scope.workspaceId, created.id)).contentMarkdown).copy.title).toBe("Focus on what matters");
+    await tools.trash_memos.execute({ memoIds: [created.id], dryRun: true });
+    expect(await getMemoDetail(f.db, scope.workspaceId, created.id)).not.toBeNull();
+    await tools.trash_memos.execute({ memoIds: [created.id] });
+    expect(await getMemoDetail(f.db, scope.workspaceId, created.id)).toBeNull();
+    expect((await tools.search_memos.execute({ poster: true })).memos.map(memo => memo.id)).not.toContain(created.id);
+    const trashed = await tools.list_memos.execute({ poster: true, includeDeleted: true });
+    expect(trashed.memos.map(memo => memo.id)).toContain(created.id);
+    await tools.restore_memos.execute({ memoIds: [created.id] });
+    expect(parsePosterDocument((await getMemoDetail(f.db, scope.workspaceId, created.id)).contentMarkdown).copy.title).toBe("Focus on what matters");
+  });
   test("reuses the exact reviewed MCP definitions, with no administration or upload tools", () => {
-    expect(COMPANION_MCP_TOOLS).toHaveLength(47);
+    expect(COMPANION_MCP_TOOLS).toHaveLength(50);
     for (const definition of COMPANION_MCP_TOOLS) expect(MCP_TOOLS.includes(definition)).toBe(true);
     for (const name of ["upload_memo_image", "upload_memo_attachment", "empty_trash", "share_memo"]) {
       expect(() => validateCompanionTool(name, {})).toThrow();
@@ -115,12 +138,25 @@ describe("shared companion MCP adapter", () => {
   test("read and dry-run tools reuse MCP without writing or requiring a proposal", async () => {
     const f = await setup();
     const tools = createCompanionTools({ ...f, scope, signal: new AbortController().signal, assertActive: async () => {}, sources: [] });
-    expect(Object.keys(tools)).toHaveLength(49);
+    expect(Object.keys(tools)).toHaveLength(52);
     expect(await tools.get_memo.execute({ memoId: f.notes[0].id })).toMatchObject({ content: "One original content" });
     expect(await tools.trash_memos.execute({ memoIds: [f.notes[0].id], dryRun: true })).toMatchObject({ dryRun: true });
     expect(await getMemoDetail(f.db, scope.workspaceId, f.notes[0].id)).not.toBeNull();
     expect(f.sqlite.query("SELECT COUNT(*) AS n FROM companion_actions").get().n).toBe(0);
     expect(createCompanionTools({ ...f, scope, input: { ...f.input, allowNotes: false } })).toEqual({});
+  });
+  test("poster changes use the shared agent execution path with read and revision guards", async () => {
+    const f = await setup();
+    const created = await createMemoRecord(f.db, scope.workspaceId, { notebookId: "ideas", title: "Poster", contentMarkdown: serializePosterDocument(createPosterDocument("Hello")), tags: [] }, actor, "owner");
+    const tools = createCompanionTools({ ...f, scope, signal: new AbortController().signal, assertActive: async () => {}, sources: [] });
+    await expect(tools.update_poster.execute({ memoId: created.id, expectedRevision: created.revision, background: "#16A06E" })).rejects.toMatchObject({ code: "companion_action_unread" });
+    await tools.get_memo.execute({ memoId: created.id });
+    const read = await tools.get_poster.execute({ memoId: created.id });
+    expect(read.poster.elements.length).toBeGreaterThan(0);
+    const updated = await tools.update_poster.execute({ memoId: created.id, expectedRevision: read.memo.revision, background: "#16A06E" });
+    expect(updated).toMatchObject({ applied: true, id: created.id });
+    expect(parsePosterDocument((await getMemoDetail(f.db, scope.workspaceId, created.id)).contentMarkdown).background).toBe("#16A06E");
+    expect(f.sqlite.query("SELECT COUNT(*) AS n FROM companion_actions").get().n).toBe(0);
   });
   test("read-only note access keeps MCP reads and omits write tools", async () => {
     const f = await setup();
@@ -134,6 +170,8 @@ describe("shared companion MCP adapter", () => {
     expect(tools.create_diagram_memo).toBeUndefined();
     expect(tools.update_diagram).toBeUndefined();
     expect(tools.get_diagram).toBeTruthy();
+    expect(tools.get_poster).toBeTruthy();
+    expect(tools.update_poster).toBeUndefined();
     expect(tools.update_memo).toBeUndefined();
     expect(tools.merge_memos).toBeUndefined();
     expect(tools.list_note_templates).toBeTruthy();
@@ -335,7 +373,7 @@ describe("shared companion MCP adapter", () => {
     expect(definition.description).toContain("use exactly that kind");
     expect(definition.description).toContain("等待分类");
     const plain = companionToolDefinitions(f.input);
-    for (const name of ["create_memo", "create_diagram_memo", "create_infographic_memo", "use_note_template"]) {
+    for (const name of ["create_memo", "create_diagram_memo", "create_infographic_memo", "create_poster_memo", "use_note_template"]) {
       const tool = plain.find(item => item.name === name);
       expect(tool.inputSchema.required ?? []).not.toContain("notebookId");
       expect(tool.description).toContain("等待分类");
@@ -362,6 +400,10 @@ describe("shared companion MCP adapter", () => {
     const tools = createCompanionTools({ ...f, scope, signal: new AbortController().signal, assertActive: async () => {}, sources: [] });
     const note = await tools.create_memo.execute({ title: "Inbox note", contentMarkdown: "Saved without asking" });
     expect(note.memo.notebookId).toBe(inboxId);
+    const poster = await tools.create_poster_memo.execute({ title: "精力管理", heading: "精力管理大于时间管理", subtitle: "把精力留给重要的事" });
+    expect(poster).toMatchObject({ applied: true, notebookId: inboxId, poster: true });
+    const savedPoster = await getMemoDetail(f.db, scope.workspaceId, poster.id);
+    expect(parsePosterDocument(savedPoster.contentMarkdown).copy.title).toBe("精力管理大于时间管理");
     const diagram = await tools.create_diagram_memo.execute({
       title: "模型蒸馏",
       kind: "flowchart",
