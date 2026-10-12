@@ -114,6 +114,7 @@ export const parseCompanionAgentSession = (value: unknown): CompanionAgentSessio
 
 const TOOL_HINTS: Record<string, string> = {
   find_notebooks: " Use this whenever the user names a notebook. Notebook names are not IDs.",
+  delete_notebook: " Delete an empty notebook using its exact ID from find_notebooks or resolve_notebook_path. This is separate from emptying the trash. Never trash or move its notes to make it empty unless the user explicitly requests that. If lookup is ambiguous, ask which notebook; do not guess.",
   list_notebooks: " Use this to list every notebook name. Do not guess names from the open note.",
   list_memos: " To list a named notebook, call find_notebooks first and pass that id. Without notebookId this lists the whole workspace, newest updated first. For newly created notes in a time range, use search_memos with createdAfter. If hasMore is true, say the list is incomplete.",
   search_memos: " Searches note titles and bodies, not notebook names. query is optional. For recently created or added notes, pass createdAfter (YYYY-MM-DD or ISO date-time) and omit query; never put this week/最近/新增 in query. For recently edited notes, use updatedAfter. Do not pass notebookId unless find_notebooks or list_notebooks returned it. For notes in a named notebook, find_notebooks then list_memos. If hasMore is true, say the list is incomplete.",
@@ -123,7 +124,7 @@ const TOOL_HINTS: Record<string, string> = {
   get_table_records: " Read an existing structured table's fields, record IDs, and revision. Use this before adding a record so cell keys are actual field IDs. Do not infer field IDs from names.",
   add_table_record: " Add one requested record to a structured table. First call get_table_records, then use its field IDs and latest revision. Do not invent factual records to fill a new table.",
   create_diagram_memo: " Create an editable visual diagram note. kind=mind-map for 思维导图/mind map, flowchart for 流程图, architecture for 架构图. Never use this for 信息图/infographic; call create_infographic_memo. Omit edge ids; EdgeEver generates them. For mind maps, give a root and children with parentId; omit node type. If the user did not name a notebook, omit notebookId. The diagram is saved in the inbox (等待分类). Do not ask which notebook, and do not use the open notebook unless the user named it. Build nodes from the open note body in Focus DATA when the user refers to this note.",
-  create_poster_memo: " Create a real editable poster (海报笔记), never poster-style Markdown. Supply short copy; the tool handles canvas layout and encoding. If no notebook was named, omit notebookId and use the inbox. Report failure instead of substituting prose.",
+  create_poster_memo: " Create a real editable poster (海报笔记), never poster-style Markdown. Plan the key takeaway first. For informative topics such as 产业布局, summaries, comparisons and guides, provide 3–6 useful heading/body sections, not just a heading and generic subtitle. Choose grid for categories, list for steps, and a style suited to the subject. Use referenced note content and do not invent figures or sources. Quotes/slogans/minimal covers can omit sections. The tool handles editable canvas layout and encoding. If no notebook was named, omit notebookId and use the inbox. Report failure instead of substituting prose.",
   create_infographic_memo: " Create an AntV infographic note (信息图). A share, proportion, or 占比 uses template chart-pie-donut-plain-text and numeric data.values, not a mind map. If the user did not supply the figures, say in data.desc that they are illustrative and are not an official disclosure. If the user did not name a notebook, omit notebookId. The infographic is saved in the inbox (等待分类). Do not ask which notebook, and do not use the open notebook unless the user named it.",
   get_poster: " Read the existing poster canvas and elements before editing. Do not use raw Markdown for posters.",
   update_poster: " Edit poster text, colors, typography and positions after get_poster. Preserve unmentioned and locked elements. Pass the revision you read.",
@@ -528,6 +529,7 @@ export function createCompanionTools(args: { db: DatabaseAdapter; scope: Compani
             }))),
           });
         }
+        if (definition.name === "get_poster_capabilities" || definition.name === "get_poster_preview" || definition.name === "export_poster") return done(result);
         const serialized = JSON.stringify(result);
         const text = serialized.slice(0, Math.min(8000, session.metadataRemaining));
         session.metadataRemaining -= text.length;

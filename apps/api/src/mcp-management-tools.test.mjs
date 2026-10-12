@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { globSync, readFileSync } from "node:fs";
 import { Database } from "bun:sqlite";
+import { claimPosterRender } from "./poster-render-service";
+import { registerPosterRenderRoutes } from "./poster-render-routes";
+import { Hono } from "hono";
 import { callMcpTool } from "./index.ts";
 import { createPosterDocument, serializePosterDocument, parsePosterDocument, addTableField, parseDiagramDocument, parseInfographicDocument, parseTableDocument, serializeTableDocument, createDefaultTableDocument } from "@edgeever/shared";
 
@@ -72,6 +75,119 @@ const createFixture = (scopes = ["read:memos", "write:memos"]) => {
 };
 
 describe("MCP template and AI instruction management", () => {
+  test("client render queue claims once, saves atomically, isolates workspaces and checks source revision", async () => {
+    const { sqlite, auth, context } = createFixture(["read:memos", "write:memos", "write:resources"]);
+    sqlite.query("INSERT INTO notebooks(id, workspace_id, name) VALUES ('nb_p', 'ws_mcp', 'Posters')").run();
+    const created = await callMcpTool(context, auth, "create_poster_memo", { notebookId: "nb_p", title: "Poster", heading: "Title" });
+    const input = { memoId: created.memo.id, expectedRevision: created.memo.revision };
+    const pending = await callMcpTool(context, auth, "request_poster_render", input);
+    expect(pending.status).toBe("pending");
+    expect((await callMcpTool(context, auth, "request_poster_render", input)).id).toBe(pending.id);
+    await expect(callMcpTool(context, { ...auth, scopes: ["write:memos"] }, "request_poster_render", input)).rejects.toMatchObject({code:"forbidden"});
+    await expect(callMcpTool(context, { ...auth, workspaceId: "ws_other" }, "get_poster_render_job", {jobId: pending.id})).rejects.toMatchObject({code:"not_found"});
+    expect(await claimPosterRender(context.env.storage.db, "ws_other")).toBeNull();
+    const claim = await claimPosterRender(context.env.storage.db, auth.workspaceId);
+    expect(claim.id).toBe(pending.id);
+    expect(await claimPosterRender(context.env.storage.db, auth.workspaceId)).toBeNull();
+    const app = new Hono();
+    app.use("*", async (c,next) => { c.set("auth", {...auth, kind:"user", actorType:"user"}); await next(); });
+    registerPosterRenderRoutes(app);
+    const complete = body => app.request(`/api/v1/poster-render/${claim.id}/complete`, {method:"POST", headers:{"content-type":"application/json"},body:JSON.stringify(body)},context.env);
+    const source = (await callMcpTool(context, auth, "get_poster", {memoId:created.memo.id})).poster;
+    expect((await complete({claimToken:"wrong", document:source})).status).toBe(404);
+    sqlite.query("INSERT INTO resources(id,memo_id,object_key,kind,mime_type,byte_size) VALUES ('preview', ?, 'preview', 'image', 'image/png', 3)").run(created.memo.id);
+    const document = {...source,previewResourceId:"preview"};
+    expect((await complete({claimToken:claim.claim_token,document:{...document,background:"#ff0000"}})).status).toBe(400);
+    const response = await complete({claimToken:claim.claim_token, document});
+    expect(response.status).toBe(200);
+    expect((await response.json()).job.status).toBe("completed");
+    expect((await complete({claimToken:claim.claim_token,document})).status).toBe(200);
+    const saved = await callMcpTool(context, auth, "get_poster", {memoId:created.memo.id});
+    expect(saved.poster.previewResourceId).toBe("preview");
+    expect(saved.memo.revision).toBe(input.expectedRevision+1);
+    const next = await callMcpTool(context,auth,"request_poster_render",{memoId:created.memo.id,expectedRevision:saved.memo.revision,templateId:"folio"});
+    const second = await claimPosterRender(context.env.storage.db,auth.workspaceId);
+    await callMcpTool(context,auth,"update_poster",{memoId:created.memo.id,expectedRevision:saved.memo.revision,background:"#aabbcc"});
+    const conflict = await app.request(`/api/v1/poster-render/${second.id}/complete`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({claimToken:second.claim_token,document:{...document,templateId:"folio"}})},context.env);
+    expect(conflict.status).toBe(409);
+    sqlite.query("UPDATE poster_render_jobs SET expires_at = '2000-01-01' WHERE id = ?").run(next.id);
+    expect((await callMcpTool(context,auth,"get_poster_render_job",{jobId:next.id})).status).toBe("failed");
+  });
+
+  test("render commit guard rolls back when an edit arrives after validation", async () => {
+    const { sqlite, auth, context } = createFixture(["read:memos", "write:memos", "write:resources"]);
+    sqlite.query("INSERT INTO notebooks(id, workspace_id, name) VALUES ('nb_p', 'ws_mcp', 'Posters')").run();
+    const created = await callMcpTool(context,auth,"create_poster_memo",{notebookId:"nb_p",title:"Guard",heading:"Guard"});
+    const job = await callMcpTool(context,auth,"request_poster_render",{memoId:created.memo.id,expectedRevision:created.memo.revision});
+    const [first,second] = await Promise.all([claimPosterRender(context.env.storage.db,auth.workspaceId),claimPosterRender(context.env.storage.db,auth.workspaceId)]);
+    expect([first,second].filter(Boolean)).toHaveLength(1);
+    const claim = first ?? second;
+    const source = (await callMcpTool(context,auth,"get_poster",{memoId:created.memo.id})).poster;
+    sqlite.query("INSERT INTO resources(id,memo_id,object_key,kind,mime_type,byte_size) VALUES ('preview', ?, 'preview', 'image', 'image/png', 3)").run(created.memo.id);
+    const db = context.env.storage.db, originalBatch = db.batch.bind(db);
+    let injected = false;
+    db.batch = async statements => {
+      if (!injected && statements.some(statement=>statement.sql.includes("commit_guard"))) {
+        injected = true;
+        await callMcpTool(context,auth,"update_poster",{memoId:created.memo.id,expectedRevision:created.memo.revision,background:"#aabbcc"});
+      }
+      return originalBatch(statements);
+    };
+    const app = new Hono();
+    app.use("*", async(c,next)=>{c.set("auth",{...auth,kind:"user",actorType:"user"});await next();});
+    registerPosterRenderRoutes(app);
+    const response = await app.request(`/api/v1/poster-render/${job.id}/complete`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({claimToken:claim.claim_token,document:{...source,previewResourceId:"preview"}})},context.env);
+    expect(response.status).toBe(409);
+    const saved = await callMcpTool(context,auth,"get_poster",{memoId:created.memo.id});
+    expect(saved.poster.background).toBe("#aabbcc");
+    expect(saved.poster.previewResourceId).toBeUndefined();
+    expect(saved.memo.revision).toBe(created.memo.revision+1);
+    expect((await callMcpTool(context,auth,"get_poster_render_job",{jobId:job.id})).status).toBe("rendering");
+  });
+
+  test("poster design operations validate image ownership before dry-run or save", async () => {
+    const { sqlite, auth, context } = createFixture();
+    sqlite.query("INSERT INTO notebooks(id, workspace_id, name) VALUES ('nb_p', 'ws_mcp', 'Posters')").run();
+    const created = await callMcpTool(context, auth, "create_poster_memo", { notebookId: "nb_p", title: "Poster", heading: "Title" });
+    const other = await callMcpTool(context, auth, "create_poster_memo", { notebookId: "nb_p", title: "Other", heading: "Other" });
+    for (const [id, memoId, kind] of [["owned", created.memo.id, "image"], ["foreign", other.memo.id, "image"], ["attachment", created.memo.id, "attachment"]]) {
+      sqlite.query("INSERT INTO resources(id,memo_id,object_key,kind,mime_type,byte_size) VALUES (?, ?, ?, ?, 'image/png', 1)").run(id, memoId, id, kind);
+    }
+    const operation = resourceId => ({ op: "add", element: { id: "image", name: "Image", type: "image", resourceId, x: 0, y: 0, width: 200, height: 100 } });
+    const input = { memoId: created.memo.id, expectedRevision: created.memo.revision, operations: [operation("owned")] };
+    for (const id of ["foreign", "attachment", "missing"]) {
+      await expect(callMcpTool(context, auth, "update_poster", { ...input, dryRun: true, operations: [operation(id)] })).rejects.toMatchObject({ code: "invalid_params" });
+    }
+    const dry = await callMcpTool(context, auth, "update_poster", { ...input, dryRun: true });
+    expect(dry.poster.elements.some(element => element.id === "image")).toBe(true);
+    expect((await callMcpTool(context, auth, "get_poster", { memoId: created.memo.id })).poster.elements.some(element => element.id === "image")).toBe(false);
+    const saved = await callMcpTool(context, auth, "update_poster", input);
+    expect(saved.poster.elements.find(element => element.id === "image").resourceId).toBe("owned");
+    await expect(callMcpTool(context, auth, "update_poster", input)).rejects.toMatchObject({ code: "revision_conflict" });
+  });
+
+  test("poster preview/export returns actual owned image bytes and never a stale preview", async () => {
+    const { sqlite, auth, context } = createFixture();
+    sqlite.query("INSERT INTO notebooks(id, workspace_id, name) VALUES ('nb_p', 'ws_mcp', 'Posters')").run();
+    const poster = { ...createPosterDocument("Original"), previewResourceId: "preview" };
+    const created = await callMcpTool(context, auth, "create_memo", { notebookId: "nb_p", title: "Poster", contentMarkdown: serializePosterDocument(poster) });
+    sqlite.query("INSERT INTO resources(id,memo_id,object_key,kind,mime_type,byte_size) VALUES ('preview', ?, 'preview', 'image', 'image/png', 3)").run(created.memo.id);
+    let reads = 0;
+    context.env.storage.resources.get = async () => { reads++; return { size: 3, body: new Blob([new Uint8Array([1, 2, 3])]).stream(), writeHttpMetadata() {} }; };
+    const fullAuth = { ...auth, scopes: [...auth.scopes, "read:resources"] };
+    await expect(callMcpTool(context, { ...auth, scopes: ["read:memos"] }, "get_poster_preview", { memoId: created.memo.id })).rejects.toMatchObject({ code: "forbidden" });
+    expect(reads).toBe(0);
+    const preview = await callMcpTool(context, fullAuth, "get_poster_preview", { memoId: created.memo.id });
+    expect(preview).toMatchObject({ available: true, image: { data: "AQID", mimeType: "image/png" } });
+    const source = await callMcpTool(context, { ...auth, scopes: ["read:memos"] }, "export_poster", { memoId: created.memo.id, format: "source" });
+    expect(JSON.parse(source.content).elements).toEqual(poster.elements);
+    const updated = await callMcpTool(context, auth, "update_poster", { memoId: created.memo.id, expectedRevision: created.memo.revision, edits: [{ id: "heading", patch: { text: "Updated" } }] });
+    expect(updated.poster.previewResourceId).toBeUndefined();
+    expect(await callMcpTool(context, fullAuth, "get_poster_preview", { memoId: created.memo.id })).toMatchObject({ available: false, reason: "browser_render_required" });
+    await expect(callMcpTool(context, fullAuth, "export_poster", { memoId: created.memo.id, format: "saved_preview" })).rejects.toMatchObject({ code: "preview_unavailable" });
+    expect(reads).toBe(1);
+    expect((await callMcpTool(context, auth, "get_poster_capabilities", {})).operations).toContain("add");
+  });
   test("poster queries filter before pagination and include existing posters without matching prose titles", async () => {
     const { sqlite, auth, context } = createFixture();
     sqlite.query("INSERT INTO notebooks (id, workspace_id, name) VALUES (?, ?, ?)").run("nb_posters", "ws_mcp", "Posters");
