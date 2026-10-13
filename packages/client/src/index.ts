@@ -182,6 +182,11 @@ export type ListApiTokensResponse = {
   availableScopes: string[];
 };
 
+export type InstanceStorageUsageResponse = {
+  summary: ResourceStorageSummary;
+  users: { userId: string; summary: ResourceStorageSummary }[];
+};
+
 export type ListUsersResponse = {
   users: InstanceUser[];
 };
@@ -1267,6 +1272,8 @@ export const createEdgeEverClient = (options: EdgeEverClientOptions = {}) => {
     },
 
     listUsers: () => request<ListUsersResponse>("/api/v1/users"),
+
+    getInstanceStorageUsage: () => request<InstanceStorageUsageResponse>("/api/v1/instance/storage-usage"),
 
     createUser: (payload: { username: string; displayName?: string | null; password: string }) =>
       request<UserResponse>("/api/v1/users", {
