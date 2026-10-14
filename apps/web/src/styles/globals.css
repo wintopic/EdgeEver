@@ -510,7 +510,10 @@ body,
 /* Public share pages are standalone and must scroll the document. */
 html:has(.edgeever-public-share),
 html:has(.edgeever-public-share) body,
-html:has(.edgeever-public-share) #root {
+html:has(.edgeever-public-share) #root,
+html:has([data-site-theme]),
+html:has([data-site-theme]) body,
+html:has([data-site-theme]) #root {
   height: auto;
   min-height: 100%;
   overflow: auto;
@@ -1318,6 +1321,16 @@ html[data-edgeever-extension-theme] .edgeever-memo-divider {
 @media (min-width: 640px) {
   .edgeever-public-share .ProseMirror {
     padding-inline: 36px;
+  }
+}
+
+[data-site-theme="default"] .edgeever-public-share .ProseMirror {
+  padding-inline: 20px;
+}
+
+@media (min-width: 640px) {
+  [data-site-theme="default"] .edgeever-public-share .ProseMirror {
+    padding-inline: 40px;
   }
 }
 
