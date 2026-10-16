@@ -1,8 +1,8 @@
 export type NoteImageFormat = "jpeg" | "png";
-export type NoteImageTheme = "slate" | "aurora" | "sunset" | "midnight" | "editorial" | "terminal" | "film" | "mint" | "lavender";
+export type NoteImageTheme = "paper" | "press" | "highlight" | "slate" | "aurora" | "sunset" | "midnight" | "editorial" | "terminal" | "film" | "mint" | "lavender";
 export type NoteImageBackground = NoteImageTheme | "warm" | "notepad" | "xuan" | "polaroid";
-export type NoteImageFontStyle = "auto" | "sans" | "serif" | "mono";
-export const NOTE_IMAGE_THEME_OPTIONS = ["slate", "mint", "aurora", "sunset", "editorial", "film", "terminal"] as const;
+export type NoteImageFontStyle = "auto" | "sans" | "serif" | "mono" | "kai";
+export const NOTE_IMAGE_THEME_OPTIONS = ["paper", "press", "highlight", "slate", "mint", "aurora", "sunset", "terminal"] as const;
 export type NoteImageFontSize = "sm" | "md" | "lg";
 export type NoteImageCardWidth = "compact" | "standard" | "wide";
 
@@ -38,6 +38,9 @@ export const planNativeNoteImageRender = (width: number, height: number) => {
 const WINDOWS_RESERVED_NAME = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
 
 export const NOTE_IMAGE_BACKGROUND_COLORS: Record<NoteImageBackground, string> = {
+  paper: "#fbf9f4",
+  press: "#f7f7f5",
+  highlight: "#fefce8",
   slate: "#ffffff",
   aurora: "#a7f3d0",
   sunset: "#fde68a",
@@ -80,6 +83,78 @@ export type ThemeStyleConfig = {
 };
 
 export const NOTE_IMAGE_THEMES: Record<NoteImageTheme, ThemeStyleConfig> = {
+  paper: {
+    canvasBg: "#fbf9f4",
+    cardBg: "#fbf9f4",
+    cardBorder: "none",
+    cardShadow: "none",
+    textColor: "#2c2925",
+    headingColor: "#1a1816",
+    metaColor: "#8c8275",
+    metaBg: "rgba(140, 130, 117, 0.12)",
+    metaBorder: "rgba(140, 130, 117, 0.22)",
+    accentColor: "#b45309",
+    accentSubtle: "rgba(180, 83, 9, 0.15)",
+    linkBg: "rgba(180, 83, 9, 0.08)",
+    dividerColor: "rgba(140, 130, 117, 0.3)",
+    codeBg: "rgba(140, 130, 117, 0.12)",
+    codeBorder: "rgba(140, 130, 117, 0.25)",
+    codeColor: "#2c2925",
+    quoteBg: "rgba(255, 255, 255, 0.65)",
+    quoteBorder: "#a89f91",
+    tableThBg: "rgba(140, 130, 117, 0.12)",
+    tableBorder: "rgba(140, 130, 117, 0.25)",
+    brandText: "#2c2925",
+    brandMark: "#8c8275",
+  },
+  press: {
+    canvasBg: "linear-gradient(180deg, #f7f7f5 0%, #ededeb 100%)",
+    cardBg: "#ffffff",
+    cardBorder: "1px solid #e2e2e0",
+    cardShadow: "0 12px 32px -4px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.02)",
+    textColor: "#1f2421",
+    headingColor: "#111412",
+    metaColor: "#64748b",
+    metaBg: "#f8fafc",
+    metaBorder: "#e2e8f0",
+    accentColor: "#b91c1c",
+    accentSubtle: "rgba(185, 28, 28, 0.12)",
+    linkBg: "rgba(185, 28, 28, 0.06)",
+    dividerColor: "#111412",
+    codeBg: "#f8fafc",
+    codeBorder: "#e2e8f0",
+    codeColor: "#0f172a",
+    quoteBg: "#fcfcfb",
+    quoteBorder: "#111412",
+    tableThBg: "#f1f5f9",
+    tableBorder: "#e2e8f0",
+    brandText: "#111412",
+    brandMark: "#b91c1c",
+  },
+  highlight: {
+    canvasBg: "linear-gradient(135deg, #fef9c3 0%, #fef08a 35%, #e0e7ff 100%)",
+    cardBg: "#ffffff",
+    cardBorder: "1px solid rgba(254, 240, 138, 0.6)",
+    cardShadow: "0 20px 48px -12px rgba(234, 179, 8, 0.18), 0 4px 16px rgba(0, 0, 0, 0.04)",
+    textColor: "#1e293b",
+    headingColor: "#0f172a",
+    metaColor: "#475569",
+    metaBg: "rgba(254, 240, 138, 0.45)",
+    metaBorder: "rgba(250, 204, 21, 0.5)",
+    accentColor: "#ca8a04",
+    accentSubtle: "rgba(202, 138, 4, 0.16)",
+    linkBg: "rgba(202, 138, 4, 0.08)",
+    dividerColor: "rgba(254, 215, 170, 0.7)",
+    codeBg: "#fefce8",
+    codeBorder: "#fef08a",
+    codeColor: "#854d0e",
+    quoteBg: "#fefce8",
+    quoteBorder: "#eab308",
+    tableThBg: "#fef9c3",
+    tableBorder: "#fef08a",
+    brandText: "#0f172a",
+    brandMark: "#ca8a04",
+  },
   slate: {
     canvasBg: "#ffffff",
     cardBg: "#ffffff",
@@ -301,25 +376,61 @@ export const NOTE_IMAGE_THEMES: Record<NoteImageTheme, ThemeStyleConfig> = {
 };
 
 export const NOTE_IMAGE_FONT_FAMILIES: Record<Exclude<NoteImageFontStyle, "auto">, string> = {
-  sans: 'system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif',
-  serif: '"Songti SC", "Noto Serif SC", "Source Han Serif SC", "STSong", "Hiragino Mincho ProN", Georgia, "Times New Roman", serif',
-  mono: '"JetBrains Mono", "SF Mono", "Fira Code", Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+  sans: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif',
+  serif: 'Georgia, "Nimbus Roman No9 L", "Songti SC", "Noto Serif SC", "Source Han Serif SC", "Source Han Serif CN", "STSong", "AR PL New Sung", "SimSun", "Hiragino Mincho ProN", serif',
+  mono: '"JetBrains Mono", "SF Mono", "Fira Code", "Cascadia Code", Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+  kai: '"LXGW WenKai", "霞鹜文楷", "Kaiti SC", "STKaiti", "KaiTi", "KaiTi_GB2312", "BiauKai", "楷体", "STFangsong", "FangSong", serif',
 };
 
 /** Theme typography is shared by previews, Web exports and native WebViews. */
 export const resolveNoteImageTypography = (theme: NoteImageTheme, fontStyle: NoteImageFontStyle = "auto") => {
   const resolvedTheme = resolveTheme(undefined, theme);
-  const bodyStyle = fontStyle === "auto"
-    ? (resolvedTheme === "film" || resolvedTheme === "sunset" ? "serif" : "sans")
-    : fontStyle;
-  const headingStyle = fontStyle === "auto"
-    ? (resolvedTheme === "editorial" ? "serif" : resolvedTheme === "terminal" ? "mono" : bodyStyle)
-    : bodyStyle;
+
+  let bodyStyle: Exclude<NoteImageFontStyle, "auto">;
+  let headingStyle: Exclude<NoteImageFontStyle, "auto">;
+
+  if (fontStyle !== "auto") {
+    bodyStyle = fontStyle;
+    headingStyle = fontStyle;
+  } else {
+    switch (resolvedTheme) {
+      case "paper":
+        bodyStyle = "kai";
+        headingStyle = "kai";
+        break;
+      case "press":
+        bodyStyle = "serif";
+        headingStyle = "serif";
+        break;
+      case "terminal":
+        bodyStyle = "mono";
+        headingStyle = "mono";
+        break;
+      case "film":
+      case "sunset":
+        bodyStyle = "serif";
+        headingStyle = "serif";
+        break;
+      case "editorial":
+        bodyStyle = "sans";
+        headingStyle = "serif";
+        break;
+      case "highlight":
+      case "slate":
+      case "mint":
+      case "aurora":
+      default:
+        bodyStyle = "sans";
+        headingStyle = "sans";
+        break;
+    }
+  }
+
   return {
     bodyFamily: NOTE_IMAGE_FONT_FAMILIES[bodyStyle],
     headingFamily: NOTE_IMAGE_FONT_FAMILIES[headingStyle],
-    headingWeight: headingStyle === "serif" ? 700 : 720,
-    lineHeightAdjustment: bodyStyle === "serif" ? 0.08 : bodyStyle === "mono" ? 0.02 : 0,
+    headingWeight: headingStyle === "serif" ? 720 : headingStyle === "kai" ? 650 : 700,
+    lineHeightAdjustment: bodyStyle === "serif" ? 0.08 : bodyStyle === "kai" ? 0.06 : bodyStyle === "mono" ? 0.02 : 0,
   };
 };
 
@@ -383,14 +494,18 @@ export const NOTE_IMAGE_FONT_SIZES: Record<
 export const resolveTheme = (background?: NoteImageBackground, theme?: NoteImageTheme): NoteImageTheme => {
   if (theme === "midnight") return "terminal";
   if (theme === "lavender") return "mint";
+  if (theme === "editorial") return "press";
+  if (theme === "film") return "paper";
+  if (theme === ("notepad" as unknown as NoteImageTheme) || theme === ("xuan" as unknown as NoteImageTheme)) return "press";
+  if (theme === ("polaroid" as unknown as NoteImageTheme)) return "paper";
   if (theme && NOTE_IMAGE_THEMES[theme]) return theme;
-  if (theme === ("notepad" as unknown as NoteImageTheme) || theme === ("xuan" as unknown as NoteImageTheme)) return "editorial";
-  if (theme === ("polaroid" as unknown as NoteImageTheme)) return "film";
   if (background === "warm") return "sunset";
-  if (background === "notepad" || background === "xuan") return "editorial";
-  if (background === "polaroid") return "film";
+  if (background === "notepad" || background === "xuan") return "press";
+  if (background === "polaroid") return "paper";
+  if (background === "editorial") return "press";
+  if (background === "film") return "paper";
   if (background && NOTE_IMAGE_THEMES[background as NoteImageTheme]) return resolveTheme(undefined, background as NoteImageTheme);
-  return "mint";
+  return "paper";
 };
 
 export const buildImageExportBasename = (title: string, fallback: string) => {
@@ -430,7 +545,7 @@ export const buildNoteImageCardMarkup = ({
   bodyHtml,
   theme = "mint",
   fontStyle = "auto",
-  showTitle = true,
+  showTitle = false,
   showNotebook = false,
   showTags = false,
   showUpdatedAt = true,
@@ -531,7 +646,7 @@ export const buildNoteImageCardMarkup = ({
       </footer>`
     : "";
 
-  return `<div class="edgeever-image-wrapper">
+  return `<div class="edgeever-image-wrapper" data-theme="${theme}">
   <div class="edgeever-grain-overlay" aria-hidden="true"></div>
   <article class="edgeever-image-card" data-theme="${theme}">
     ${tearStripHtml}
@@ -1028,6 +1143,122 @@ export const generateCardCss = ({
       letter-spacing: -0.01em;
       color: var(--ee-brand-text);
     }
+
+    ${theme === "paper" ? `
+    .edgeever-image-wrapper[data-theme="paper"] {
+      background-color: #fbf9f4;
+      background-image: radial-gradient(#d5cdc0 0.85px, transparent 0.85px);
+      background-size: 20px 20px;
+      padding: 32px 28px;
+    }
+    .edgeever-image-wrapper[data-theme="paper"] .edgeever-grain-overlay {
+      opacity: 0.03;
+    }
+    .edgeever-image-card[data-theme="paper"] {
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      padding: 16px 8px 12px;
+    }
+    .edgeever-image-card[data-theme="paper"] .edgeever-card-title {
+      font-size: calc(var(--ee-title-size) * 0.94);
+      font-weight: 700;
+      letter-spacing: -0.015em;
+    }
+    .edgeever-image-card[data-theme="paper"] .edgeever-card-divider {
+      height: 1px;
+      background: none;
+      border-top: 1px dashed rgba(140, 130, 117, 0.4);
+      margin: 0 0 20px;
+    }
+    .edgeever-image-card[data-theme="paper"] blockquote {
+      border-left: 3px solid #b4a796;
+      background: rgba(255, 255, 255, 0.65);
+      border-radius: 6px;
+      padding: 12px 16px;
+    }
+    .edgeever-image-card[data-theme="paper"] blockquote::before {
+      display: none;
+    }
+    ` : ""}
+
+    ${theme === "press" ? `
+    .edgeever-image-card[data-theme="press"] {
+      border: 1px solid #d4d4d8;
+      border-radius: 2px;
+      box-shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.05);
+    }
+    .edgeever-image-card[data-theme="press"] .edgeever-card-header {
+      border-top: 3.5px solid #111412;
+      padding-top: 14px;
+      position: relative;
+    }
+    .edgeever-image-card[data-theme="press"] .edgeever-card-header::before {
+      content: "";
+      position: absolute;
+      top: 4.5px;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: #111412;
+    }
+    .edgeever-image-card[data-theme="press"] .edgeever-card-title {
+      font-family: var(--ee-heading-font-family);
+      letter-spacing: -0.01em;
+      margin-top: 10px;
+    }
+    .edgeever-image-card[data-theme="press"] .edgeever-card-divider {
+      height: 1px;
+      background: #111412;
+      margin: 16px 0 24px;
+    }
+    .edgeever-image-card[data-theme="press"] blockquote {
+      border-left: 2px solid #111412;
+      background: #fafaf9;
+      border-radius: 0;
+      padding: 16px 20px 16px 30px;
+      font-style: normal;
+    }
+    .edgeever-image-card[data-theme="press"] blockquote::before {
+      content: "“";
+      font-family: Georgia, "Songti SC", serif;
+      font-size: 46px;
+      top: -14px;
+      left: 6px;
+      color: #b91c1c;
+      opacity: 0.45;
+    }
+    .edgeever-image-card[data-theme="press"] .edgeever-card-body h1 {
+      border-left: 3px solid #b91c1c;
+    }
+    ` : ""}
+
+    ${theme === "highlight" ? `
+    .edgeever-image-card[data-theme="highlight"] {
+      border-radius: 22px;
+      border: 1px solid rgba(253, 224, 71, 0.7);
+      box-shadow: 0 20px 50px -12px rgba(202, 138, 4, 0.16), 0 2px 8px rgba(0, 0, 0, 0.03);
+    }
+    .edgeever-image-card[data-theme="highlight"] strong,
+    .edgeever-image-card[data-theme="highlight"] b {
+      background: linear-gradient(104deg, rgba(254, 240, 138, 0.25) 1%, rgba(254, 240, 138, 0.8) 4%, rgba(254, 240, 138, 0.7) 96%);
+      padding: 0.05em 0.35em;
+      border-radius: 4px;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+    .edgeever-image-card[data-theme="highlight"] mark {
+      background: linear-gradient(104deg, rgba(250, 204, 21, 0.35) 1%, rgba(250, 204, 21, 0.9) 3%, rgba(250, 204, 21, 0.8) 98%);
+      font-weight: 600;
+    }
+    .edgeever-image-card[data-theme="highlight"] .edgeever-card-title {
+      font-weight: 800;
+    }
+    .edgeever-image-card[data-theme="highlight"] .edgeever-card-body h1 {
+      border-left: 4px solid #eab308;
+    }
+    ` : ""}
 
     ${theme === "editorial" ? `
     .edgeever-image-card[data-theme="editorial"] {

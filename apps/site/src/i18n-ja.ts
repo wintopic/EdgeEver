@@ -1,10 +1,10 @@
 export const jaSiteTagline =
-  "オープンソース、AI ネイティブ、Cloudflare 無料枠 / Docker で自前運用できる Evernote 代替ノート";
+  "AI ネイティブ知識ベース、瞬時マルチデバイス同期＆ネイティブ MCP を備えた Evernote / Obsidian 代替ツール。Cloudflare 無料運用または Docker 自前運用";
 
 export const jaSiteCopy = {
   layout: {
     defaultDescription:
-      "EdgeEver はオープンソースで AI ネイティブな、セルフホスト型のノートと知識ベースです。Evernote の三ペインを残しつつ、ローカル ACP Agent 連携、伴走サイドバー、図解ノート、マルチ端末同期を備え、macOS、Windows、Linux、iOS、Android、ブラウザ Clipper に対応。Cloudflare の無料枠または Docker で同じアプリを動かせます。",
+      "EdgeEver はオープンソースで AI ネイティブな、セルフホスト型のノートと知識ベースです。クラシックな三ペインの高い作業効率を残しつつ、ローカル ACP Agent 連携、伴走サイドバー、図解ノート、マルチ端末同期を備え、macOS、Windows、Linux、iOS、Android、ブラウザ Clipper に対応。Cloudflare の無料枠または Docker で同じアプリを動かせます。",
     defaultTitle: `EdgeEver - ${jaSiteTagline}`,
     imageAlt: "EdgeEver ノートアプリのスクリーンショット",
     ogLocale: "ja_JP",
@@ -70,7 +70,7 @@ export const jaSiteCopy = {
       note2Title: "ローカル ACP Agent 連携",
       note2Sub: "Codex / Antigravity 協調...",
       editorTitle: "EdgeEver Architecture",
-      editorBody: "EdgeEver は Evernote の三ペインに、AI Agent 連携と柔軟な導入を足したものです。",
+      editorBody: "EdgeEver はクラシックな三ペインに、AI Agent 連携と柔軟な導入を足したものです。",
       editorSaveTag: "SQLite に自動保存",
     },
     card2: {

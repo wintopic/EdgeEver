@@ -1,5 +1,5 @@
 export const plSiteTagline =
-  "Otwartoźródłowa, natywnie wspierająca AI, samodzielnie hostowana alternatywa dla Evernote – wdrożenie w Cloudflare lub Dockerze.";
+  "Natywna dla AI baza wiedzy oraz alternatywa dla Evernote/Obsidian z błyskawiczną synchronizacją i natywnym MCP. Bezpłatnie na Cloudflare lub self-hosted przez Docker.";
 
 export const plSiteCopy = {
   layout: {
@@ -70,7 +70,7 @@ export const plSiteCopy = {
       note2Title: "Połączenie z lokalnym agentem ACP",
       note2Sub: "Codex / Antigravity lokalnie...",
       editorTitle: "EdgeEver Architecture",
-      editorBody: "EdgeEver łączy klasyczny trzypanelowy układ Evernote ze współpracą z agentami AI i elastycznymi opcjami wdrożenia.",
+      editorBody: "EdgeEver łączy klasyczny trzypanelowy układ ze współpracą z agentami AI i elastycznymi opcjami wdrożenia.",
       editorSaveTag: "Zapisano automatycznie w SQLite",
     },
     card2: {
