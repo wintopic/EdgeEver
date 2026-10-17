@@ -1,3 +1,4 @@
+import { FONT_IDS } from "@edgeever/shared/font-catalog";
 import { describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
 import { globSync, readFileSync } from "node:fs";
@@ -104,6 +105,22 @@ describe("public memo shares", () => {
     sqlite.close();
   });
 
+  test("reads existing fonts and new catalog choices through the same stored preference", async () => {
+    const { sqlite, environment } = createDatabaseEnvironment();
+    sqlite.query("INSERT INTO users (id, username, password_hash, note_body_font) VALUES (?, ?, ?, ?)")
+      .run("usr_font_catalog", "font-catalog", "hash", "wenkai");
+    sqlite.query("UPDATE memo_shares SET created_by = ? WHERE id = ?").run("usr_font_catalog", "share_source");
+    const app = new Hono();
+    registerPublicShareRoutes(app);
+    for (const id of ["wenkai-screen", ...FONT_IDS, "neo-zhi-song", "source-serif"]) {
+      sqlite.query("UPDATE users SET note_body_font = ? WHERE id = ?").run(id, "usr_font_catalog");
+      const response = await app.request(`/api/public/shares/${sourceToken}`, {}, environment);
+      expect(response.status).toBe(200);
+      expect((await response.json()).share.bodyFont).toBe(id);
+    }
+    sqlite.close();
+  });
+
   test("publishes the author's built-in note font and ignores anything else", async () => {
     const { sqlite, environment } = createDatabaseEnvironment();
     sqlite.query("INSERT INTO users (id, username, password_hash, note_body_font) VALUES (?, ?, ?, ?)")
@@ -194,6 +211,14 @@ describe("public memo shares", () => {
     }, environment);
     expect(response.status).toBe(200);
     expect(sqlite.query("SELECT note_body_font FROM users WHERE id = ?").get("usr_author").note_body_font).toBe("source-han-serif");
+
+    for (const id of FONT_IDS) {
+      const response = await app.request("/api/v1/me/note-body-font", {
+        method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ bodyFont: id }),
+      }, environment);
+      expect(response.status).toBe(200);
+      expect(sqlite.query("SELECT note_body_font FROM users WHERE id = ?").get("usr_author").note_body_font).toBe(id);
+    }
 
     const cleared = await app.request("/api/v1/me/note-body-font", {
       method: "PUT",
@@ -317,7 +342,7 @@ const memberAuth = {
   role: "member",
 };
 
-const createShareApp = (environment) => {
+const createShareApp = () => {
   const app = new Hono();
   app.use("/api/v1/*", async (c, next) => {
     c.set("auth", memberAuth);

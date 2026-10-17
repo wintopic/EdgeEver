@@ -312,6 +312,13 @@ export default defineConfig({
         codeSplitting: {
           groups: [
             {
+              // Font coverage tables are static data used by image sharing.
+              // Keep them out of the editor component's JavaScript chunk.
+              name: "note-image-font-manifest",
+              test: /[\\/]note-image-font-manifest\.ts$/,
+              priority: 51,
+            },
+            {
               name: "vendor-code-highlight",
               test: /node_modules[\\/](?:lowlight|highlight\.js)[\\/]/,
               priority: 50,

@@ -1,4 +1,34 @@
 import Foundation
+
+// BEGIN GENERATED FONT CATALOG — bun scripts/sync-font-catalog.mjs
+enum NoteImageFontCatalog {
+    static let choices: [(id: String, zh: String, en: String)] = [
+        (id: "smiley", zh: "得意黑", en: "Smiley Sans"),
+        (id: "wenkai", zh: "霞鹜文楷", en: "LXGW WenKai"),
+        (id: "zhuque", zh: "朱雀仿宋", en: "Zhuque Fangsong"),
+        (id: "heavy", zh: "思源黑体 Heavy", en: "Noto Sans SC Heavy"),
+        (id: "puhui", zh: "普惠体", en: "PuHuiTi"),
+        (id: "puhui-heavy", zh: "普惠体 Heavy", en: "PuHuiTi Heavy"),
+        (id: "youshe", zh: "优设标题黑", en: "YouShe Title"),
+        (id: "shuhei", zh: "阿里妈妈数黑体", en: "Alimama ShuHei"),
+        (id: "source-han-serif", zh: "思源宋体", en: "Noto Serif SC"),
+        (id: "anton", zh: "Anton", en: "Anton"),
+        (id: "douyin", zh: "抖音美好体", en: "Douyin Sans"),
+        (id: "mashan", zh: "马善政楷书", en: "Ma Shan Zheng"),
+        (id: "jiangcheng", zh: "江城圆体", en: "Jiangcheng Rounded"),
+        (id: "huangyou", zh: "站酷庆科黄油体", en: "ZCOOL QingKe HuangYou"),
+        (id: "glow", zh: "未来荧黑", en: "Glow Sans"),
+        (id: "kuaile", zh: "站酷快乐体", en: "ZCOOL KuaiLe"),
+        (id: "source-han-sans", zh: "思源黑体", en: "Noto Sans SC"),
+        (id: "source-han-serif-heavy", zh: "思源宋体 Heavy", en: "Noto Serif SC Heavy"),
+        (id: "inter", zh: "Inter", en: "Inter"),
+        (id: "dmserif", zh: "DM Serif Display", en: "DM Serif Display"),
+        (id: "bebas", zh: "Bebas Neue", en: "Bebas Neue"),
+        (id: "spacegrotesk", zh: "Space Grotesk", en: "Space Grotesk"),
+        (id: "jetbrains", zh: "JetBrains Mono", en: "JetBrains Mono"),
+    ]
+}
+// END GENERATED FONT CATALOG
 import Observation
 import SwiftUI
 
@@ -29,6 +59,55 @@ enum AppUILocale {
 
     static func usesEnglish(preferenceCode: String, systemLanguageCode: String?) -> Bool {
         language(preferenceCode: preferenceCode, systemLanguageCode: systemLanguageCode) == .english
+    }
+}
+
+/// Local image-share choices, independent of the current note or sheet lifetime.
+struct NoteImageSharePreferences: Codable, Equatable {
+    var theme: String = "gradient"
+    var fontStyle: String = "auto"
+    var fontSize: String = "lg"
+    var cardWidth: String = "wide"
+    var format: String = "png"
+    var showTitle: Bool = true
+    var showNotebook: Bool = false
+    var showTags: Bool = false
+    var showUpdatedAt: Bool = true
+    var showBranding: Bool = true
+
+    init() {}
+
+    private enum CodingKeys: String, CodingKey {
+        case theme, fontStyle, fontSize, cardWidth, format, showTitle, showNotebook, showTags, showUpdatedAt, showBranding
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        if let value = try? values.decode(String.self, forKey: .theme),
+           ["gradient", "glass", "quote", "book", "memo", "bento", "black-sun", "frame", "handwritten", "code"].contains(value) {
+            theme = value
+        }
+        if let value = try? values.decode(String.self, forKey: .fontStyle),
+           (["auto", "serif", "sans", "mono", "kai"] + NoteImageFontCatalog.choices.map(\.id)).contains(value) {
+            fontStyle = value
+        }
+        if let value = try? values.decode(String.self, forKey: .fontSize),
+           ["sm", "md", "lg"].contains(value) {
+            fontSize = value
+        }
+        if let value = try? values.decode(String.self, forKey: .cardWidth),
+           ["compact", "standard", "wide"].contains(value) {
+            cardWidth = value
+        }
+        if let value = try? values.decode(String.self, forKey: .format),
+           ["png", "jpeg"].contains(value) {
+            format = value
+        }
+        showTitle = (try? values.decode(Bool.self, forKey: .showTitle)) ?? true
+        showNotebook = (try? values.decode(Bool.self, forKey: .showNotebook)) ?? false
+        showTags = (try? values.decode(Bool.self, forKey: .showTags)) ?? false
+        showUpdatedAt = (try? values.decode(Bool.self, forKey: .showUpdatedAt)) ?? true
+        showBranding = (try? values.decode(Bool.self, forKey: .showBranding)) ?? true
     }
 }
 
@@ -64,8 +143,22 @@ final class PreferencesStore {
         didSet { persistAiAssistantLastAction() }
     }
 
+    var noteImageShare: NoteImageSharePreferences {
+        didSet {
+            if let data = try? JSONEncoder().encode(noteImageShare) {
+                defaults.set(data, forKey: Keys.noteImageShare)
+            }
+        }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        if let data = defaults.data(forKey: Keys.noteImageShare),
+           let saved = try? JSONDecoder().decode(NoteImageSharePreferences.self, from: data) {
+            self.noteImageShare = saved
+        } else {
+            self.noteImageShare = NoteImageSharePreferences()
+        }
         self.localeCode = defaults.string(forKey: Keys.locale) ?? "system"
         self.useCompression = defaults.object(forKey: Keys.compression) as? Bool ?? true
         self.showDescendantNotes = defaults.object(forKey: Keys.showDescendantNotes) as? Bool ?? true
@@ -157,6 +250,7 @@ final class PreferencesStore {
     }
 
     private enum Keys {
+        static let noteImageShare = "edgeever.ios.noteImagePreferences"
         static let locale = "edgeever.ios.locale"
         static let compression = "edgeever.ios.imageCompression"
         static let showDescendantNotes = "edgeever.ios.showDescendantNotes"

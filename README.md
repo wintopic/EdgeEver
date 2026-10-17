@@ -19,12 +19,13 @@
   <p>
     <a href="https://t.me/+wwUx1BYLrIdiZjY1"><img src="assets/readme/community/telegram.svg" alt="Telegram" width="16" height="16" align="absmiddle" /> Telegram Group</a> &nbsp;|&nbsp;
     <a href="https://demo.edgeever.org">🌐 Live Demo</a> &nbsp;|&nbsp;
-    <a href="#client-downloads">📱 Client Downloads</a> &nbsp;|&nbsp;
+    <a href="#all-platform-clients--browser-extension">📱 Download Clients & Extension</a> &nbsp;|&nbsp;
     <a href="#features">Key Features & Workflows</a>
   </p>
+  <p>
+    <img src="assets/readme/hero.png" alt="EdgeEver Three-Pane Workspace & AI Companion Interface" width="880" />
+  </p>
 </div>
-
-
 
 EdgeEver is a modern, open-source notes and knowledge base workspace. It preserves the classic, high-efficiency three-pane productivity workflow (Tree View · Note List · Editor) while offering an open data architecture and seamless AI Agent integration for complete ownership and smart productivity.
 
@@ -35,12 +36,14 @@ EdgeEver is a modern, open-source notes and knowledge base workspace. It preserv
 
 ## Why EdgeEver
 
-Many users of **note-taking apps and personal knowledge bases** simply want a **reliable, open, and fast** personal knowledge base. However, existing mainstream solutions all present tradeoffs:
+Many users of **note-taking apps and personal knowledge bases** simply want a **reliable, open, and fast** personal knowledge base. Existing mainstream solutions all present tradeoffs:
 
-* **Evernote**: Once offered the smoothest, most seamless multi-device cloud sync experience. Yet as it evolved into a full-featured commercial suite, ads and add-ons multiplied while system overhead climbed. Meanwhile, free-tier quotas tightened, premium AI subscriptions grew expensive, and it remains difficult to integrate into modern self-hosted and private AI workflows.
-* **Obsidian**: Open files, closed-source core. Official Sync is paid and third-party sync is tedious; relying entirely on flat local file scanning causes noticeable cold-start and search lag once notes reach thousands or heavy plugins are loaded; storing images and attachments alongside notes quickly bloats vaults, making mobile sync sluggish and leaving orphaned files behind; and it is overly heavy for lightweight, capture-anywhere use.
-* **Memos & Stream Notes**: Clean and simple, but their social-timeline layouts differ fundamentally from the structured productivity of a classic three-pane workflow.
-* **SiYuan & Block-based PKMs**: Powerful with self-hosting support, but their granular "block-level" architecture imposes noticeable cognitive overhead for quick daily capture and continuous prose writing. Furthermore, they lack a true zero-cost serverless deployment tier, and multi-device sync relies on paid official subscriptions or paying extra to unlock S3/WebDAV sync features with your own storage.
+| Solution Type | Typical Apps | Layout & User Experience | Sync Mechanism & Hosting Cost | AI & Agent Ecosystem |
+| :--- | :--- | :--- | :--- | :--- |
+| **Traditional Cloud PKM** | Evernote | Classic 3-pane layout, bloated over time | Tightening free tier, expensive subscription | Closed ecosystem, hard to plug into private AI |
+| **Local File Vaults** | Obsidian | Local folders & tabs, lags with massive notes | Closed core, paid official sync, bloated attachments | Relies on community plugins, no native MCP/ACP |
+| **Lightweight Card / Block PKM** | Memos / SiYuan | Stream cards or granular block architecture | Requires self-hosted server, or paid official sync | Focused on atomic notes, cognitive overhead for prose |
+| **Serverless Full-Stack Open PKM** | **EdgeEver** | **Classic 3-Pane + Rich Text & Markdown Dual View** | **Zero-Cost Cloudflare Serverless / Docker On-Premise** | **Native Built-In Remote MCP & Desktop ACP Protocol** |
 
 **EdgeEver fills this gap**: The entire stack is open source, delivering truly **seamless, low-latency, instant multi-device cloud sync** with full self-hosting freedom. It keeps the three-pane layout you know, stays silky-smooth and lightweight even with 10,000+ notes, and ships native AI agents with zero-cost deployment.
 
@@ -50,7 +53,9 @@ Many users of **note-taking apps and personal knowledge bases** simply want a **
 
 The public demo resets every day at 3:00 AM (China Standard Time) and restores sample notes. Do not store private content there.
 
-## Client Downloads
+## All-Platform Clients & Browser Extension
+
+### Client Downloads
 
 <p>
   <a href="https://github.com/tianma-if/edgeever/releases/latest"><img src="assets/readme/platforms/macos.svg" alt="Download EdgeEver for macOS" width="40" height="40" /></a>&nbsp;&nbsp;
@@ -62,34 +67,55 @@ The public demo resets every day at 3:00 AM (China Standard Time) and restores s
 
 > The iOS app requires an Apple ID from outside mainland China.
 
+### Browser Web Clipper Extension
+
+<p>
+  <a href="https://chromewebstore.google.com/detail/edgeever-web-clipper/gjadpfmanienmlofajibkfkkpfdkclgo"><img src="https://raw.githubusercontent.com/alrra/browser-logos/58881b84c4d73adc03c06fa2c275a7abee02d935/src/chrome/chrome.svg" alt="Install EdgeEver Web Clipper for Google Chrome" width="36" height="36" /></a>&nbsp;&nbsp;
+  <a href="https://chromewebstore.google.com/detail/edgeever-web-clipper/gjadpfmanienmlofajibkfkkpfdkclgo"><img src="https://raw.githubusercontent.com/alrra/browser-logos/58881b84c4d73adc03c06fa2c275a7abee02d935/src/edge/edge.svg" alt="Install EdgeEver Web Clipper for Microsoft Edge" width="36" height="36" /></a>&nbsp;&nbsp;
+  <a href="https://addons.mozilla.org/firefox/addon/edgeever-web-clipper/"><img src="https://raw.githubusercontent.com/alrra/browser-logos/58881b84c4d73adc03c06fa2c275a7abee02d935/src/firefox/firefox.svg" alt="Install EdgeEver Web Clipper for Firefox" width="36" height="36" /></a>
+</p>
+
+- **Smart Article Extraction**: Automatically extracts clean article content into Markdown, preserving source URL and timestamp.
+- **Selection & Context Menu Clipping**: Clip selected text or right-click any image to create a note instantly without clutter.
+- **Deep Social & Community Support**: Tailored adapters for X (Twitter), Xiaohongshu, Zhihu, Reddit, GitHub, Bilibili, and YouTube.
+- **Direct Self-Hosted Privacy**: Clips transmit straight to your private instance without third-party server relay.
+
 <a id="features"></a>
 ## Key Features & Workflows
 
 From multi-channel inspiration capture to deep visual expression and team collaboration, EdgeEver delivers frictionless, end-to-end workflows:
 
-### Universal Clipping & Media Storage
-- **Cross-Platform One-Click Clipping**: Browser extension deeply adapts to 15+ major social, community, and media platforms, including [Xiaohongshu galleries](docs/best-practices.md#2-one-click-xiaohongshu-red-note-clipping), [X (Twitter) posts & quotes](docs/best-practices.md#3-one-click-x-twitter-post--quote-clipping), [Zhihu Q&As](docs/best-practices.md#4-one-click-zhihu-answer--column-article-clipping), [Reddit](docs/best-practices.md#5-one-click-reddit-discussion-post-clipping), [GitHub](docs/best-practices.md#8-one-click-github-repository-metadata-clipping), YouTube, and Bilibili; one-click mobile system share clipping for [photos](docs/best-practices.md#9-one-click-mobile-image-sharing-to-notes) and [WeChat articles](docs/best-practices.md#10-one-click-wechat-article-clipping-on-mobile).
-- **WeChat Chat History Archiving**: One-click complete transcript import on macOS via WeChat "Forward to Other Apps → EdgeEver", preserving participants, timestamps, quoted replies, and stickers, with images embedded and audio/video files saved as note attachments. See [One-Click WeChat Chat History Archiving](docs/best-practices.md#1-one-click-wechat-chat-history-archiving).
-- **Universal File Attachments & Client-Side Image Compression**: Easily upload and attach PDFs, Office documents, archives, and multimedia files, safely handling up to 1 GiB attachments via chunked streaming; silent client-side image compression in the browser reduces screenshots and large images by 50%-90% for faster loading and minimal storage use.
+### Featured Workflows in Action
 
-### Intelligent Visual Notes & Database Collaboration
-- **Visual Diagram Notes & Professional Infographics**: Ditch external diagramming tools—prompt the companion AI assistant to generate interactive, editable [mind maps, flowcharts & architecture diagrams](docs/best-practices.md#11-ai-conversational-generation-of-mind-maps-flowcharts--architecture-diagrams) (see [Visual Diagram Notes Design Guide](docs/visual-diagram-notes.md), with native Mermaid code block rendering); use the built-in template gallery to generate stylized, versatile [infographics across all formats (timelines, comparisons, quadrant matrices, etc.)](docs/best-practices.md#12-ai-powered-generation-of-professional-infographics) in-place.
-- **AI Multi-Dimensional Tables & Public Forms**: Generate structured [multi-dimensional tables for any business workflow](docs/best-practices.md#13-instant-multi-dimensional-database-table-generation-via-ai-prompt) (such as project tracking, content banks, and HR rosters) via natural language AI prompts, inferring tags, dates, and rich field types with sample rows; publish [public online collection forms](docs/best-practices.md#14-one-click-public-online-form-collection-from-database-tables) with one click without login requirements, syncing submitted responses in real time.
-- **Native Poster Notes & AI Visual Layout**: Native canvas-based structured poster notes with rich visual card templates and curated layouts; double-click to edit copy or replace images and placeholders with one-click responsive zoom; companion AI assistants and ACP / MCP protocols can directly compose, interpret, and refine poster content.
-- **Dual-View Editing, Space Organization & Public Knowledge Base**: Smoothly toggle between rich-text and raw Markdown views on desktop; classic 3-pane layout with resizable panel width, one-click Focus Mode, infinite-depth notebooks, batch note merging/moving, and drag-and-drop sorting; automatic revision history; beyond password-protected single note sharing, publish **entire notebooks as standalone, navigable knowledge base websites** with hierarchical directory trees and password protection.
+| 💡 One-Prompt AI Mind Maps & Diagrams | 📊 AI Database Tables & Online Forms |
+| :---: | :---: |
+| <img src="docs/assets/best-practices/ai-diagram-mindmap.png" alt="AI Mind Map Generation" width="420" /> | <img src="docs/assets/best-practices/ai-database-employee-roster.png" alt="AI Database Tables" width="420" /> |
+| **💬 One-Click WeChat Chat History Archiving** | **🎨 WeChat Official Account & Newsletter Styling** |
+| <img src="docs/assets/best-practices/wechat-chat-imported-note.png" alt="WeChat Chat Archiving" width="420" /> | <img src="docs/assets/best-practices/copy-to-wechat-mp-menu.png" alt="Copy Formatted Rich Text" width="420" /> |
 
-### Creator Publishing & Effortless Distribution
-- **WeChat Official Account & Rich Copy**: Designed for creators, transform notes into beautifully formatted rich text with inline CSS, featuring [one-click note copy to WeChat Official Account](docs/best-practices.md#6-one-click-note-copy-to-wechat-official-account--blogs) editor, newsletters, or blogs without extra tools.
-- **Elegant Long-Image Posters & Multi-Format Export**: Turn any note into an [elegant image poster card](docs/best-practices.md#7-ai-rss-daily-digest--elegant-image-poster-sharing) with one click, featuring refined visual themes, monogram avatars, adaptive typography, and layout options for sharing on social platforms; export individual notes to Markdown, HTML, or PDF effortlessly.
-- **AI RSS Daily Digests**: Built-in official AI RSS subscription plugin that automatically aggregates feeds and blogs, filters out noise with AI, and compiles concise, well-structured daily digest notes.
+### 1. Universal Clipping & Media Storage
+- **Cross-Platform One-Click Clipping**: Extension tailored for [Xiaohongshu](docs/best-practices.md#2-one-click-xiaohongshu-red-note-clipping), [X (Twitter)](docs/best-practices.md#3-one-click-x-twitter-post--quote-clipping), [Zhihu](docs/best-practices.md#4-one-click-zhihu-answer--column-article-clipping), [Reddit](docs/best-practices.md#5-one-click-reddit-discussion-post-clipping), [GitHub](docs/best-practices.md#8-one-click-github-repository-metadata-clipping), YouTube, and Bilibili; one-click mobile sharing for [photos](docs/best-practices.md#9-one-click-mobile-image-sharing-to-notes) and [articles](docs/best-practices.md#10-one-click-wechat-article-clipping-on-mobile).
+- **WeChat Chat History Archiving**: One-click complete transcript import on macOS preserving participants, timestamps, attachments, and stickers. See [WeChat Archiving](docs/best-practices.md#1-one-click-wechat-chat-history-archiving).
+- **Universal Attachments & Client Image Compression**: Handles up to 1 GiB files; silent in-browser image compression shrinks files by 50%-90%.
 
-### Native AI Agents & Open Ecosystem
-- **Native Agent Protocols (MCP & ACP)**: Built-in Model Context Protocol (MCP) enables external AI Agents to read and organize notes; desktop app integrates Agent Client Protocol (ACP) to drive local agents (Codex, Antigravity, Claude Code, WorkBuddy, etc.) directly for collaborative creation.
-- **Bring Your Own AI Models & Extensible Plugin API**: Connect multiple OpenAI, Anthropic, Gemini compatible providers and custom proxies to summarize, extract insights, proofread, translate, and refine writing; customize and extend EdgeEver via comprehensive [Plugin Development APIs](docs/plugin-development.md).
+### 2. Intelligent Visual Notes & Database Collaboration
+- **Visual Diagram Notes & Professional Infographics**: Prompt the AI companion to generate editable [mind maps & flowcharts](docs/best-practices.md#11-ai-conversational-generation-of-mind-maps-flowcharts--architecture-diagrams) (see [Design Guide](docs/visual-diagram-notes.md)); built-in templates produce [infographics](docs/best-practices.md#12-ai-powered-generation-of-professional-infographics) instantly.
+- **AI Multi-Dimensional Tables & Public Forms**: Natural language prompts build [structured database tables](docs/best-practices.md#13-instant-multi-dimensional-database-table-generation-via-ai-prompt) with sample rows; launch [public collection forms](docs/best-practices.md#14-one-click-public-online-form-collection-from-database-tables) without login barriers.
+- **Native Poster Notes & AI Visual Layout**: Canvas-based structured poster notes with rich visual card layouts, responsive zooming, and direct AI companion collaboration.
+- **Dual-View Editing & Public Knowledge Base**: Seamlessly toggle between rich-text and raw Markdown; publish **entire notebooks as standalone, navigable knowledge base websites**.
 
-### Open Architecture, Cross-Platform & Security Foundation
-- **Flexible Deployment & Unlocked Data**: Run for free on Cloudflare Serverless (~150k short notes and ~50k images on the free tier), or deploy via Docker to your VPS, NAS, or home server for millions of notes; built on standard SQLite with REST APIs, CLI tooling, and lossless full ZIP export/import to keep your data completely independent.
-- **All-Platform Coverage & Production Security**: Official client support across Web, [Android](https://play.google.com/store/apps/details?id=org.edgeever.mobile), [macOS](https://github.com/tianma-if/edgeever/releases), [Windows](https://github.com/tianma-if/edgeever/releases/latest), [Linux](https://github.com/tianma-if/edgeever/releases/latest), and [iOS](https://apps.apple.com/us/app/edgeever/id6792625631), with web clipper extensions for [Chrome](https://chromewebstore.google.com/detail/edgeever-web-clipper/gjadpfmanienmlofajibkfkkpfdkclgo), [Edge](https://chromewebstore.google.com/detail/edgeever-web-clipper/gjadpfmanienmlofajibkfkkpfdkclgo), and [Firefox](https://addons.mozilla.org/firefox/addon/edgeever-web-clipper/); self-hosted synchronization without device limits, lightweight memory footprint on desktop, offline drafts with sync queues, server-side brute-force protection, and isolated multi-user workspaces.
+### 3. Creator Publishing & Effortless Distribution
+- **WeChat Official Account & Rich Copy**: Transform notes into styled rich text with inline CSS, featuring [one-click copy](docs/best-practices.md#6-one-click-note-copy-to-wechat-official-account--blogs) directly to newsletter editors.
+- **Elegant Long-Image Posters & Multi-Format Export**: Turn notes into [stylized image poster cards](docs/best-practices.md#7-ai-rss-daily-digest--elegant-image-poster-sharing); export individual notes to Markdown, HTML, or PDF effortlessly.
+- **AI RSS Daily Digests**: Built-in AI RSS plugin aggregates feeds, filters noise, and compiles concise daily digest notes.
+
+### 4. Native AI Agents & Open Ecosystem
+- **Native Agent Protocols (MCP & ACP)**: Built-in MCP lets external AI Agents read and organize notes; desktop app uses ACP to drive local agents (Codex, Antigravity, Claude Code, etc.) collaboratively.
+- **Bring Your Own AI Models & Extensible Plugin API**: Connect OpenAI, Anthropic, Gemini compatible providers; extend features via [Plugin Development APIs](docs/plugin-development.md).
+
+### 5. Open Architecture, Cross-Platform & Security Foundation
+- **Flexible Deployment & Unlocked Data**: Run on Cloudflare Serverless (~150k notes for free) or Docker on-premise; standard SQLite storage with lossless full ZIP export/import.
+- **All-Platform Coverage & Production Security**: Official clients across Web, Android, iOS, macOS, Windows, Linux, and browsers; offline drafts, sync queues, and brute-force protection.
 
 👉 Explore all 14 step-by-step showcases with screenshots: **[Complete Showcase & Workflows Guide](docs/best-practices.md)**
 
@@ -125,144 +151,45 @@ Deploy EdgeEver entirely through GitHub and Cloudflare:
 
 ### Option B: Manual Online Deployment
 
+<details>
+<summary>📖 Click to expand: 6-Step Web Manual Deployment Guide</summary>
+
 Complete setup in 6 web steps:
 
 1. **Fork the Repository**: Click **Fork** at the top right of GitHub to fork EdgeEver into your personal account.
 2. **Create Cloudflare Resources**: Create D1 `edgeever` and R2 `edgeever-resources`.
 3. **Import & Configure the Project**: Create a Worker named `edgeever` from the Fork's `main` branch in Cloudflare **Workers & Pages**. Use the repository root and keep Cloudflare's default Workers Builds deploy command, which runs in Cloudflare. Ensure its API token can read and edit D1. The deploy command creates the bindings; do not edit Fork files.
 4. **Choose the Administrator Password**: Choose an administrator password, preferably at least 32 characters. Once the Worker is created, save it as the runtime Secret `EDGE_EVER_AUTH_PASSWORD`.
-5. **Build & Verify**: Save and Deploy creates the Worker and starts a build. If it fails because the administrator Secret is missing, add the runtime Secret from step 4 and retry. The username defaults to `admin`; to use another, set the `EDGE_EVER_AUTH_USERNAME` Workers Builds variable before retrying. Once deployed, confirm `/api/health` returns `200`, then log in with the configured username and password.
+5. **Build & Verify**: Save and Deploy creates the Worker and starts a build. The initial build primarily initializes the Worker instance; if it fails due to missing administrator Secret, this is expected behavior. Simply add the runtime Secret `EDGE_EVER_AUTH_PASSWORD` from Step 4 and click retry. The username defaults to `admin`; to use another, set `EDGE_EVER_AUTH_USERNAME` as a Workers Builds variable before retrying. Once deployed, confirm `/api/health` returns `200`, then log in with the configured username and password.
 6. **Enable Automatic Updates**: Open the Fork's **Actions** tab, click **I understand my workflows, go ahead and enable them**, then manually run **Update deployed EdgeEver** once so the Fork can automatically receive future stable releases and fixes.
 
 > 📖 For full step-by-step instructions and configuration details, see the [Online Deployment Guide](docs/deploy-cloudflare-button.md).
 
 > 💡 **Custom Domain & Access**: After deployment, you can directly use the default `*.workers.dev` domain assigned by Cloudflare, or attach your own custom domain in the Worker settings under **Settings → Domains & Routes**.
 
-> 💡 **Cloudflare R2 Activation**: Although Cloudflare R2 offers a generous [free storage allowance](https://developers.cloudflare.com/r2/pricing/#free-tier) that note-taking workloads remain completely within, you must first activate an R2 subscription and add a payment method. Cloudflare [officially supports](https://developers.cloudflare.com/billing/get-started/update-billing-info/#supported-payment-methods) UnionPay, Visa, Mastercard, and other cards, as well as PayPal, Apple Pay, Google Pay, and other payment methods.
+> 💡 **Enabling Cloudflare R2**: While Cloudflare R2 provides a generous [free storage tier](https://developers.cloudflare.com/r2/pricing/#free-tier) that will never be exceeded in typical note-taking, enabling R2 requires activating an R2 subscription and adding a payment method. Cloudflare [officially supports](https://developers.cloudflare.com/billing/get-started/update-billing-info/#supported-payment-methods) UnionPay, Visa, Mastercard, PayPal, Apple Pay, Google Pay, and other methods.
 
-### Option C: Docker on a VPS or NAS
+</details>
 
-Use the GitHub-hosted installer and the official GHCR image:
+### Option C: Deploy with Docker on VPS or NAS
+
+Docker runs the same frontend, API routes, services, authentication, MCP implementation, and migrations as Cloudflare. The container uses SQLite with local files or S3-compatible attachment storage and supports `amd64` and `arm64`. See [Deploy EdgeEver with Docker](docs/deploy-docker.md) and [Self-hosting and Docker architecture](docs/self-hosting-architecture.md).
+
+Run the official installation script hosted on GitHub with the official GHCR container image:
 
 ```sh
 curl -fsSL https://edgeever.org/install.sh | bash
 ```
 
-The command pulls the latest image, generates an administrator password, and starts EdgeEver with Docker Compose.
+This pulls the latest image, generates an administrator password, and starts EdgeEver via Docker Compose. Daily auto-updates are enabled by default; to update manually, run `~/edgeever/update.sh` on the server.
 
-See the [Docker deployment guide](docs/deploy-docker.md) for manual deployment and configuration.
-
-After installation, updates run automatically each day by default. To update manually, run `~/edgeever/update.sh` on the deployment server.
+> 💡 **Network Note**: The official image is hosted on GitHub Container Registry (GHCR). If pulls are slow in certain network environments, configure an appropriate network proxy or mirror.
 
 ---
 
-## Multi-Account Login & Storage Usage
+## Migration & Advanced Setup
 
-Once deployed, a single instance supports multi-account login.
-
-The instance administrator can create, disable, or reset member accounts in **Profile** -> **User accounts**. Each member gets a fully isolated personal workspace, including notebooks, notes, attachments, Trash, import/export, and MCP tokens. An intuitive storage usage dashboard provides real-time visibility into attachment storage consumed across the whole instance as well as per account.
-
-## Browser Web Clipper
-
-<p>
-  <a href="https://chromewebstore.google.com/detail/edgeever-web-clipper/gjadpfmanienmlofajibkfkkpfdkclgo"><img src="https://raw.githubusercontent.com/alrra/browser-logos/58881b84c4d73adc03c06fa2c275a7abee02d935/src/chrome/chrome.svg" alt="Install EdgeEver Web Clipper for Google Chrome" width="36" height="36" /></a>&nbsp;&nbsp;
-  <a href="https://chromewebstore.google.com/detail/edgeever-web-clipper/gjadpfmanienmlofajibkfkkpfdkclgo"><img src="https://raw.githubusercontent.com/alrra/browser-logos/58881b84c4d73adc03c06fa2c275a7abee02d935/src/edge/edge.svg" alt="Install EdgeEver Web Clipper for Microsoft Edge" width="36" height="36" /></a>&nbsp;&nbsp;
-  <a href="https://addons.mozilla.org/firefox/addon/edgeever-web-clipper/"><img src="https://raw.githubusercontent.com/alrra/browser-logos/58881b84c4d73adc03c06fa2c275a7abee02d935/src/firefox/firefox.svg" alt="Install EdgeEver Web Clipper for Firefox" width="36" height="36" /></a>
-</p>
-
-- **Smart Article Extraction**: Automatically extracts article content and converts it into clean Markdown, preserving the source URL and clipping timestamp.
-- **Selection & Context Menu Clipping**: Save selected text or right-clicked images directly as notes without capturing the entire page.
-- **Deep Social & Community Clipping**: Native structured clipping for 15+ major platforms including X (Twitter), Xiaohongshu, Zhihu, Reddit, GitHub, YouTube, and Bilibili.
-- **Private Self-Hosted Direct Connection**: Sends clipped content directly to your personal EdgeEver instance without third-party relays.
-
-## Community and Feedback
-
-- Bugs, feature requests, and deployment issues: [GitHub Issues](https://github.com/tianma-if/edgeever/issues)
-- Code contributions: read the [Contribution Guide](CONTRIBUTING.md). If your Fork is also used to deploy EdgeEver, keep its `main` branch deployment-only. Create a separate branch from the official `upstream/main` for synchronization, development, and pull requests; do not develop on or Sync fork the deployment `main`.
-
-### Telegram Community
-
-Welcome to the EdgeEver community, bringing together developers and creators exploring vibe coding and AI. Join us to discuss cutting-edge AI productivity and best practices for personal knowledge bases.
-
-👉 [Join the EdgeEver Telegram group](https://t.me/+wwUx1BYLrIdiZjY1)
-
-## Plugins and Themes
-
-Web and desktop apps support functional plugins and custom themes, installable from the official marketplace, GitHub, or a Manifest URL, with seamless sync across your workspace. Developers can extend capabilities using `@edgeever/plugin-api`; see the [plugin development guide](docs/plugin-development.md) and [marketplace submission policy](docs/plugin-marketplace-policy.md).
-
-## Tech Stack
-
-- Bun workspace monorepo with Web, API, official site, and shared type package.
-- Frontend: Vite, React, React Router, TanStack Query, Tailwind CSS, shadcn/ui, and Radix UI.
-- Editor: TipTap / ProseMirror with Markdown support; PWA uses vite-plugin-pwa, Workbox, and Dexie.
-- Android app: Expo + React Native in `apps/mobile`, with SQLite local storage and incremental sync.
-- iOS app: Native SwiftUI in `apps/ios` (iOS 17+), with a packaged TipTap EditorBundle, GRDB local mirror/outbox, and Android-aligned shell chrome.
-- Native desktop app: Electron + Rust sidecar combines a consistent cross-platform experience with high-performance local data services; SQLite enables offline editing, incremental sync when back online, and local backups.
-- Web clipper: Manifest V3, Mozilla Readability, and Turndown for Chrome, Microsoft Edge, and Firefox.
-- Backend: one Hono/Zod business application with REST API and Remote MCP; Cloudflare uses Workers/D1/R2, while Docker uses Bun/SQLite/local files or S3.
-- Official site: Astro static site in `apps/site`, deployable to Cloudflare Pages.
-
-## Quick Start
-
-```sh
-bun install
-bun run dev
-```
-
-Local development signs in automatically; fresh databases use `owner` / `edgeever-local-dev`. Log out to test the login screen.
-
-## Project Structure
-
-```text
-apps/web          Vite + React frontend, PWA, offline drafts, and sync queue
-apps/extension    Chrome/Edge/Firefox Manifest V3 web clipper
-apps/api          Cloudflare Worker + Hono API, MCP endpoint
-apps/mobile       Expo + React Native Android app
-apps/ios          Native SwiftUI iOS app (TipTap EditorBundle, GRDB)
-apps/desktop      Electron desktop shell, preload bridge, and native packaging
-apps/site         Astro official website, deployable independently
-packages/client   Shared API client for web and mobile apps
-packages/shared   Shared types, Zod schemas, TipTap / Markdown conversion
-crates/desktop-sidecar
-                   Rust sidecar for local SQLite, offline data, backups, and resources
-scripts           Wrangler wrapper, password hash, CLI, MCP stdio bridge, Evernote ENEX import
-migrations        Shared append-only D1/SQLite database migrations
-docs              Architecture, migration, and deployment docs
-.github/workflows CI for web, mobile, iOS, desktop packaging, deployment, and releases
-wrangler.toml     Cloudflare Workers, Assets, D1, R2 configuration
-```
-
-## Content Formats
-
-EdgeEver stores note content in three forms:
-
-```text
-content_json      TipTap/ProseMirror document, the editor source of truth
-content_markdown  API, Agent, import, and export format
-content_text      Search, summary, and indexing text
-```
-
-Open **Profile** -> **Import and export** to export or import an EdgeEver ZIP. Its `notes/` directory is directly readable and portable as Markdown, while its structured data supports complete recovery between EdgeEver instances. Import preserves unrelated target data and overwrites records with matching EdgeEver IDs.
-
-## MCP
-
-Create an API token in **Profile** -> **API / MCP** and copy the Remote MCP configuration in one click to let AI Agents such as Claude Code, Cursor, Antigravity, and OpenClaw securely manage your knowledge base within account permissions. EdgeEver supports full CRUD for text notes, visual diagram notes (mind maps, flowcharts, and architecture diagrams), structured table notes, and native poster notes. Agents can also manage notebook hierarchies, tags, attachments, revision history, note templates, and AI instructions.
-
-> 💡 **Inspiration:**
-> Make AI your true knowledge orchestrator and creative co-pilot—instantly turn concepts into interactive mind maps, flowcharts, architecture diagrams, and structured tables, while supplying private context to your AI Agents. Paired with EdgeEver’s powerful rich-text editing and elegant typography, AI-assisted content becomes beautifully structured, polished, and publication-ready knowledge assets.
-
-## Image Compression
-
-Image compression happens in the Web client before upload and is controlled by the **Compress note images** setting. When enabled, PNG, JPEG, WebP, and AVIF files are converted to WebP when beneficial, with the longest edge limited to `2560px`. If compression does not reduce size, the original file is kept.
-
-EdgeEver avoids Worker-side image processing to reduce compute and image-processing quota usage. REST API and MCP upload paths store the file content provided by the client without additional server-side compression.
-
-## Advanced Object Storage & Third-Party Image Hosting
-
-- **OSS Object Storage**: The instance owner can configure S3-compatible object storage under **Settings → Advanced → OSS object storage**. Changing storage does not migrate or affect existing attachments.
-- **Desktop PicGo Integration**: The desktop app optionally integrates with a local PicGo client service, uploading inserted images directly to GitHub, SM.MS, Upyun, Qiniu, or custom image hosts to minimize self-hosted storage and bandwidth consumption.
-
-## Migration
+### Migration
 
 If you want to migrate notes from other platforms to EdgeEver, please refer to the following simple migration guides:
 
@@ -271,33 +198,126 @@ If you want to migrate notes from other platforms to EdgeEver, please refer to t
 - **Memos Migration**: Please refer to [docs/memos-migration-guide.md](docs/memos-migration-guide.md)
 - **Notion Migration**: Please refer to [docs/notion-migration-guide.md](docs/notion-migration-guide.md)
 
-## Docker Deployment
+### Native MCP Integration
 
-Docker runs the same frontend, API routes, services, authentication, MCP implementation, and migrations as Cloudflare. The container uses SQLite with local files or S3-compatible attachment storage and supports `amd64` and `arm64`. See [Deploy EdgeEver with Docker](docs/deploy-docker.md) and [Self-hosting and Docker architecture](docs/self-hosting-architecture.md).
+In **Profile** -> **API / MCP**, generate an API token and copy the Remote MCP configuration to allow AI Agents (Claude Code, Cursor, Antigravity, OpenClaw, etc.) to safely access your knowledge base. Agents can read and write text notes, diagrams, tables, and poster notes, as well as manage notebooks, tags, attachments, revisions, templates, and prompts.
 
-## Sync Timing
+> 💡 **Inspiration:**
+> Make AI your true knowledge orchestrator and creative co-pilot—instantly turn concepts into interactive mind maps, flowcharts, architecture diagrams, and structured tables, while supplying private context to your AI Agents. Paired with EdgeEver’s powerful rich-text editing and elegant typography, AI-assisted content becomes beautifully structured, polished, and publication-ready knowledge assets.
+
+### Multi-Account & Storage Analytics
+
+A deployed instance supports multiple user accounts. Administrators can manage accounts under **Profile** -> **Account Management**. Each user receives an isolated workspace, complete with notebooks, notes, attachments, trash, imports/exports, and MCP tokens. A storage analytics dashboard offers real-time visibility into overall and per-account attachment usage.
+
+### Advanced Object Storage & Third-Party Image Hosting
+
+- **OSS Object Storage**: The instance owner can configure S3-compatible object storage under **Settings → Advanced → OSS object storage**. Changing storage does not migrate or affect existing attachments.
+- **Desktop PicGo Integration**: The desktop app optionally integrates with a local PicGo client service, uploading inserted images directly to GitHub, SM.MS, Upyun, Qiniu, or custom image hosts to minimize self-hosted storage and bandwidth consumption.
+
+### Plugins & Themes
+
+Web and desktop apps support functional plugins and custom themes installable with one click from the official marketplace, GitHub, or a manifest URL, syncing across your workspace. Developers can extend capabilities using `@edgeever/plugin-api`. See [Plugin Development](docs/plugin-development.md) and [Plugin Marketplace Policy](docs/plugin-marketplace-policy.md).
+
+---
+
+## Developer Guide & Architecture
+
+### Tech Stack
+
+- Bun workspace monorepo covering Web, API, site, and shared packages.
+- Frontend: Vite, React, React Router, TanStack Query; UI built with Tailwind CSS, shadcn/ui, and Radix UI.
+- Editor: TipTap / ProseMirror with Markdown support; PWA powered by vite-plugin-pwa, Workbox, and Dexie.
+- Android App: Expo + React Native in `apps/mobile` with SQLite local storage and incremental sync.
+- iOS App: Native SwiftUI (iOS 17+) in `apps/ios` with TipTap EditorBundle and GRDB local mirroring/outbox, aligned with the Android app shell.
+- Native Desktop: Electron + Rust sidecar balancing cross-platform consistency with high-performance local SQLite storage, offline editing, and incremental sync.
+- Web Clipper: Manifest V3, Mozilla Readability, and Turndown for Chrome, Microsoft Edge, and Firefox.
+- Backend: Hono/Zod application delivering REST API and Remote MCP; Cloudflare Workers/D1/R2, and Docker Bun/SQLite/local files or S3.
+- Site: Astro static site in `apps/site`, built independently and deployable to Cloudflare Pages.
+
+### Quick Start
+
+```sh
+bun install
+bun run dev
+```
+
+Local development logs in automatically with `owner` / `edgeever-local-dev`. Log out manually to test the login screen.
+
+### Project Structure
+
+```text
+apps/web          Vite + React frontend, PWA, offline drafts, and sync queue
+apps/extension    Chrome/Edge/Firefox Manifest V3 web clipper extension
+apps/api          Cloudflare Worker + Hono API, MCP endpoint
+apps/mobile       Expo + React Native Android App
+apps/ios          Native SwiftUI iOS App (TipTap EditorBundle, GRDB)
+apps/desktop      Electron desktop shell, preload bridge, and native packaging
+apps/site         Astro official website, independently deployable
+packages/client   Shared API client for web and mobile
+packages/shared   Shared types, Zod schemas, TipTap / Markdown converters
+crates/desktop-sidecar
+                  Rust sidecar managing local SQLite, offline data, and backup
+scripts           Wrangler wrappers, password hashing, CLI, MCP stdio bridge, ENEX import
+migrations        Shared, append-only SQLite migrations for D1 and local setups
+docs              Architecture, migration, and deployment guides
+.github/workflows CI for packaging, deployment, and releases
+wrangler.toml     Cloudflare Workers, Assets, D1, and R2 configuration
+```
+
+<details>
+<summary>⚙️ Architecture Design & Sync Implementation Details (Click to expand)</summary>
+
+#### Content Formats
+
+EdgeEver stores three content representations simultaneously:
+
+```text
+content_json      TipTap/ProseMirror document, the authoritative editor format
+content_markdown  Used by APIs, AI Agents, imports, and exports
+content_text      Used for search, summarization, and indexing
+```
+
+Export or import EdgeEver ZIP files from **Profile** -> **Import & Export**. The `notes/` directory contains standard Markdown files for reading or migration, while structured data enables full restoration between EdgeEver instances. Existing data is preserved on import; matching IDs are updated.
+
+#### Image Compression
+
+Image compression happens in the Web client before upload and is controlled by the **Compress note images** setting. When enabled, PNG, JPEG, WebP, and AVIF files are converted to WebP when beneficial, with the longest edge limited to `2560px`. If compression does not reduce size, the original file is kept.
+
+EdgeEver avoids Worker-side image processing to reduce compute and image-processing quota usage. REST API and MCP upload paths store the file content provided by the client without additional server-side compression.
+
+#### Sync Timing
 
 Web, PWA, and desktop upload memo edits after 30 seconds of inactivity and check for remote changes every 5 minutes while visible; focus and manual refresh remain immediate. Adjust `DEFERRED_MEMO_SYNC_DELAY_MS` and `BACKGROUND_WORKSPACE_REFRESH_INTERVAL_MS` in [`apps/web/src/lib/workspace-refresh.ts`](apps/web/src/lib/workspace-refresh.ts).
 
+</details>
+
+---
+
+## Community & Feedback
+
+- Please report bugs, suggest features, and ask deployment questions on [GitHub Issues](https://github.com/tianma-if/edgeever/issues) so other users can search and reference them.
+- Read [Contributing Guidelines](CONTRIBUTING.md) before submitting code. If your fork is used to deploy EdgeEver, keep `main` dedicated to deployment; branch from official `upstream/main` to develop and open PRs.
+
 ## Sponsor & Support
 
-EdgeEver is a free and open-source project. Sustaining cross-platform client development, continuous device testing, code signing, and multi-runtime ecosystem maintenance requires ongoing dedication and resources.
+EdgeEver is a free and open-source project. Sustaining client development across macOS, Windows, Linux, iOS, and Android, hardware testing, code-signing certificates, and multi-runtime architecture requires continuous resources.
 
-- [Support EdgeEver](docs/sponsor.md) — Voluntary donation via WeChat Pay or Alipay
-- [Sponsors & Partners](docs/partners.md) — Support infrastructure, developer tools, services, or community collaboration
+- [Support EdgeEver](docs/sponsor.md) — Donate via WeChat Pay or Alipay
+- [Sponsors & Partners](docs/partners.md) — Support infrastructure, tooling, or collaboration
 
 ## Acknowledgements
 
-- EdgeEver's note-taking product design was also informed by the publicly available product experiences of mature note-taking tools such as [Evernote](https://evernote.com/) and [Notion](https://www.notion.com/). The related features were independently designed and implemented by EdgeEver.
-- The product design of mind-map and visual-diagram notes was informed by the publicly available product experiences of [XMind](https://xmind.com/) and [ProcessOn](https://www.processon.com/). These features were independently designed and implemented by EdgeEver.
-- EdgeEver's poster design workspace draws inspiration from [Qiaomu Design](https://github.com/joeseesun/qiaomu-cover-design) by 向阳乔木 (joeseesun), and adapts its templates and typography engine under the MIT license.
+- Product design references public UX patterns from [Evernote](https://evernote.com/) and [Notion](https://www.notion.com/). All features are independently implemented by EdgeEver.
+- Diagramming notes reference design patterns from [XMind](https://xmind.com/) and [ProcessOn](https://www.processon.com/).
+- Poster canvas adapts templates and font engines from [Qiaomu Design](https://github.com/joeseesun/qiaomu-cover-design) by joeseesun under the MIT license.
+- Image card themes reference visual styling from [FireflyCard](https://fireflycard.shushiai.com/).
 
-## Trademark and Brand Use
+## Trademarks & Brand
 
-The EdgeEver name, logo, and other brand identifiers distinguish the official project. Forks and modified versions may state that they are based on EdgeEver, but must not imply official status or mislead users. The open-source license does not grant trademark rights; other uses require prior written permission from the project maintainers.
+The EdgeEver name, logo, and brand assets identify the official project. Forks and modifications may note they are "based on EdgeEver" but must not imply official affiliation. The open-source license does not grant trademark rights.
 
 ## Disclaimer
 
-EdgeEver is an independent open-source note-taking application developed and maintained by individuals and the community. It is not affiliated with, authorized, sponsored, or endorsed by Evernote Corporation or its affiliates.
+EdgeEver is an independent open-source project developed and maintained by the community. It is not affiliated with, sponsored by, or endorsed by Evernote Corporation or any commercial entities.
 
-EdgeEver is self-hosted software. Except for official demo instances, project maintainers do not host, control, or review user content. Content stored or displayed by an instance is the responsibility of its users or operators and does not represent the maintainers' views.
+EdgeEver is self-hosted software. Aside from the official demo, maintainers do not host, control, or review user content.
