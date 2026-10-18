@@ -1864,6 +1864,8 @@ export const pl = {
       unknown: "Nieznana",
     },
     containerImageSource: "Źródło obrazu kontenera",
+    imageBuiltAt: "Czas zbudowania obrazu",
+    imageBuildSource: "Źródło budowy obrazu",
     containerImageSources: {
       "official-ghcr": "GitHub Container Registry (GHCR)",
       "official-cn-mirror": "Oficjalny mirror dla Chin kontynentalnych",
@@ -1881,6 +1883,7 @@ export const pl = {
       github_actions: "przez GitHub Actions",
       cloudflare_workers_builds: "przez Cloudflare Workers Builds",
       local_cli: "przez lokalne CLI",
+      docker: "przez Docker",
       unknown: "Nieznana metoda",
     },
     browser: "Przeglądarka",
@@ -2607,6 +2610,11 @@ export const pl = {
     expandOutlineHeading: "Rozwiń {{name}}",
   },
   sharing: {
+    qrCode: "Kod QR",
+    qrCodeLabel: "Kod QR linku udostępniania",
+    qrCodeHint: "Zeskanuj aparatem telefonu, aby otworzyć tę notatkę.",
+    qrCodeNotebookHint: "Zeskanuj aparatem telefonu, aby otworzyć ten notes.",
+    contentLabel: "Treść udostępnionej notatki",
     siteHideContents: "Ukryj spis treści",
     siteShowContents: "Pokaż spis treści",
     siteHome: "Strona główna",

@@ -20,10 +20,10 @@
     <a href="https://t.me/+wwUx1BYLrIdiZjY1"><img src="assets/readme/community/telegram.svg" alt="Telegram" width="16" height="16" align="absmiddle" /> Telegram グループ</a> &nbsp;|&nbsp;
     <a href="https://demo.edgeever.org">🌐 オンラインデモ</a> &nbsp;|&nbsp;
     <a href="#全プラットフォームクライアントと拡張機能">📱 クライアントと拡張機能</a> &nbsp;|&nbsp;
-    <a href="#features">主な機能と活用シーン</a>
+    <a href="#features">機能とワークフローマトリクス</a>
   </p>
-  <p>
-    <img src="assets/readme/hero.png" alt="EdgeEver 3ペインワークスペースと AI パートナー画面" width="880" />
+  <p align="center">
+    <img src="assets/readme/edgeever-hero-v6.png" alt="EdgeEver ワークスペースプレビュー" width="800" />
   </p>
 </div>
 
@@ -38,12 +38,10 @@ EdgeEver は、オープンソースのノートと知識ベースの作業領�
 
 多くの**ノートアプリや個人知識ベース**のユーザーが求めているのは、**信頼でき、開かれていて、速い**個人知識ベースです。よくある代替には、それぞれ代償があります。
 
-| ソリューション | 代表製品 | レイアウトと操作体験 | 同期とセルフホスト費用 | AI・Agent エコシステム |
-| :--- | :--- | :--- | :--- | :--- |
-| **商用クラウドノート** | Evernote | 3ペイン、経年により肥大化 | 無料枠縮小、有料プランが高額 | 閉鎖的で私有 AI との連携が困難 |
-| **ローカルファイル保管庫** | Obsidian | ローカルフォルダとタブ、大量時に遅延 | コア閉源、公式同期は有料、添付で肥大化 | コミュニティ頼み、公式 MCP/ACP 未搭載 |
-| **軽量カード／ブロック型** | Memos / 思源ノート | タイムラインや全ブロック構造で書く負担増 | サーバーが必要、または有料同期 | 断片メモ中心、長文と Agent の両立に難 |
-| **Serverless 全スタックオープン知識ベース** | **EdgeEver** | **伝統の3ペイン + リッチテキスト/Markdown 両対応** | **Cloudflare 無料枠でゼロ運用 / Docker 自前** | **ネイティブ Remote MCP & デスクトップ ACP 連携** |
+* **Evernote**：最もストレスがなく、滑らかなマルチデバイス即時クラウド同期を備えています。しかし多機能な商業向けスイートへと進化するにつれ、広告や追加機能が増えてシステム負荷が高まりました。さらに無料枠の制限が厳格化され、高度な AI サブスクリプションも高額で、現代のセルフホストやプライベートな AI ワークフローとの柔軟な連携も難しくなっています。
+* **Obsidian**：ファイルは開いていますが、コアはクローズドです。公式同期は有料、第三者同期は手間がかかります。フラットなローカルファイル走査に依存するため、ノートが数千・数万件に増えたりプラグインを重ねると起動や検索がもたつきます。画像と添付をノートと一緒に置くと保管庫が膨らみ、モバイル同期が遅く、削除後に添付が残りやすいです。気軽な取り込みには重いことがあります。
+* **Memos などのタイムライン型**：簡潔ですが、三ペインの整理作業とはレイアウトが違います。
+* **思源ノート（SiYuan）などのブロック型知識ベース**：高機能でオープンソースのセルフホストに対応していますが、徹底した「ブロック（Block）」構造により日常的な気軽なメモや流れるような文章作成には心理的負荷がやや高くなります。また、サーバー費用ゼロの Serverless 運用形態がなく、マルチデバイス同期は公式の有料サブスクリプション、または S3/WebDAV 同期機能を有料でアンロックして自前ストレージを用意する必要があります。
 
 **EdgeEver はその隙間を埋めます。** スタック全体がオープンソースで、**ストレスフリーかつ低遅延なマルチデバイス即時クラウド同期**を提供し、すべてのサービスを完全に無料でセルフホストできます。使い慣れた三ペインを残し、1万件のノートを抱えて常駐しても軽快でなめらか、ネイティブな AI Agent と手軽な導入も備えています。
 
@@ -67,55 +65,30 @@ EdgeEver は、オープンソースのノートと知識ベースの作業領�
 
 > iOS アプリは、中国本土以外の Apple ID が必要です。
 
-### ブラウザ Web クリッパー拡張機能
+### ブラウザ Web Clipper
 
 <p>
-  <a href="https://chromewebstore.google.com/detail/edgeever-web-clipper/gjadpfmanienmlofajibkfkkpfdkclgo"><img src="https://raw.githubusercontent.com/alrra/browser-logos/58881b84c4d73adc03c06fa2c275a7abee02d935/src/chrome/chrome.svg" alt="Google Chrome に EdgeEver Web クリッパーをインストール" width="36" height="36" /></a>&nbsp;&nbsp;
-  <a href="https://chromewebstore.google.com/detail/edgeever-web-clipper/gjadpfmanienmlofajibkfkkpfdkclgo"><img src="https://raw.githubusercontent.com/alrra/browser-logos/58881b84c4d73adc03c06fa2c275a7abee02d935/src/edge/edge.svg" alt="Microsoft Edge に EdgeEver Web クリッパーをインストール" width="36" height="36" /></a>&nbsp;&nbsp;
-  <a href="https://addons.mozilla.org/ja/firefox/addon/edgeever-web-clipper/"><img src="https://raw.githubusercontent.com/alrra/browser-logos/58881b84c4d73adc03c06fa2c275a7abee02d935/src/firefox/firefox.svg" alt="Firefox に EdgeEver Web クリッパーをインストール" width="36" height="36" /></a>
+  <a href="https://chromewebstore.google.com/detail/edgeever-web-clipper/gjadpfmanienmlofajibkfkkpfdkclgo"><img src="https://raw.githubusercontent.com/alrra/browser-logos/58881b84c4d73adc03c06fa2c275a7abee02d935/src/chrome/chrome.svg" alt="Google Chrome 向け EdgeEver Web Clipper を入れる" width="36" height="36" /></a>&nbsp;&nbsp;
+  <a href="https://chromewebstore.google.com/detail/edgeever-web-clipper/gjadpfmanienmlofajibkfkkpfdkclgo"><img src="https://raw.githubusercontent.com/alrra/browser-logos/58881b84c4d73adc03c06fa2c275a7abee02d935/src/edge/edge.svg" alt="Microsoft Edge 向け EdgeEver Web Clipper を入れる" width="36" height="36" /></a>&nbsp;&nbsp;
+  <a href="https://addons.mozilla.org/ja/firefox/addon/edgeever-web-clipper/"><img src="https://raw.githubusercontent.com/alrra/browser-logos/58881b84c4d73adc03c06fa2c275a7abee02d935/src/firefox/firefox.svg" alt="Firefox 向け EdgeEver Web Clipper を入れる" width="36" height="36" /></a>
 </p>
 
-- **スマートな本文抽出**：Web ページの本文を自動抽出し、クリーンな Markdown に変換。参照元 URL と取得日時を保持。
-- **選択範囲と右クリッククリップ**：テキストを選択するか画像を右クリックして、余分な要素を除いて即時ノート化。
-- **SNS と技術コミュニティへの深い対応**：X (Twitter)、小紅書、知乎、Reddit、GitHub、Bilibili、YouTube など 15 以上の主要プラットフォームに最適化。
-- **セルフホストへの直接安全通信**：取得した内容は中継サーバーを介さず、プライベートな自前インスタンスへ直接送信。
+- Web ページの本文をクリーンな Markdown として抽出、または選択したテキストや画像を直接セルフホストインスタンスに保存。
+- 20 以上の主要プラットフォームの構造化クリップに深層対応：SNS（X、小紅書、WeChat、即刻、豆瓣、Threads、Bluesky）、技術・コミュニティ（知乎、Reddit、GitHub、V2EX、Hacker News、Medium、Substack）、動画・ポッドキャスト（Bilibili、YouTube、小宇宙）など。
 
 <a id="features"></a>
-## 主な機能と活用シーン
+## 機能とワークフローマトリクス
 
-マルチチャネルでの情報収集からビジュアル表現、チーム連携まで、EdgeEver は摩擦のないエンドツーエンドのワークフローを提供します：
+「インスピレーションの収集 · 深い創作 · 知識の蓄積」をシームレスにつなぐオールインワンワークスペース：
 
-### 注目の実機ワークフロー
-
-| 💡 AI 一言指示でマインドマップ・図解作成 | 📊 AI 業務多次元テーブルとオンラインフォーム |
-| :---: | :---: |
-| <img src="docs/assets/best-practices/ai-diagram-mindmap.png" alt="AI 一言指示でマインドマップ作成" width="420" /> | <img src="docs/assets/best-practices/ai-database-employee-roster.png" alt="AI 多次元テーブル構築" width="420" /> |
-| **💬 微信チャット履歴の構造化一括取り込み** | **🎨 微信公式アカウント・記事向けリッチ整形** |
-| <img src="docs/assets/best-practices/wechat-chat-imported-note.png" alt="微信チャット履歴取り込み" width="420" /> | <img src="docs/assets/best-practices/copy-to-wechat-mp-menu.png" alt="リッチテキスト整形コピー" width="420" /> |
-
-### 1. 全方位のクリッピングとメディア蓄積
-- **クロスプラットフォームのワンクリック保存**：拡張機能は [小紅書](docs/best-practices.md#2-one-click-xiaohongshu-red-note-clipping)、[X (Twitter)](docs/best-practices.md#3-one-click-x-twitter-post--quote-clipping)、[知乎](docs/best-practices.md#4-one-click-zhihu-answer--column-article-clipping)、[Reddit](docs/best-practices.md#5-one-click-reddit-discussion-post-clipping)、[GitHub](docs/best-practices.md#8-one-click-github-repository-metadata-clipping)、Bilibili、YouTube に深層対応；スマホ共有から[画像](docs/best-practices.md#9-one-click-mobile-image-sharing-to-notes)や[記事](docs/best-practices.md#10-one-click-wechat-article-clipping-on-mobile)を即時保存。
-- **微信チャット履歴の完全取り込み**：macOS 版で発言者、時間軸、画像、添付を保ったまま一括ノート化。詳細は[微信チャット履歴取り込み](docs/best-practices.md#1-one-click-wechat-chat-history-archiving)。
-- **汎用添付ファイルとクライアント側画像圧縮**：最大 1 GiB まで安全に添付可能；ブラウザ側での自動画像圧縮により 50%〜90% 容量を削減。
-
-### 2. インテリジェントなビジュアル表現と多次元データ協調
-- **ビジュアル図解ノートとプロフェッショナルインフォグラフィック**：AI に指示するだけで編集可能な[マインドマップやフローチャート](docs/best-practices.md#11-ai-conversational-generation-of-mind-maps-flowcharts--architecture-diagrams) を自動生成（[設計ガイド](docs/visual-diagram-notes.md)）；多彩な[インフォグラフィック](docs/best-practices.md#12-ai-powered-generation-of-professional-infographics) を手軽に作成。
-- **AI 多次元テーブルと公開集計フォーム**：自然言語プロンプトから[多次元データベーステーブル](docs/best-practices.md#13-instant-multi-dimensional-database-table-generation-via-ai-prompt) を即座に構築；ログイン不要の[一般公開オンライン集計フォーム](docs/best-practices.md#14-one-click-public-online-form-collection-from-database-tables) をワンクリックで発行。
-- **ネイティブポスターノートと AI レイアウト**：キャンバスベースのポスターノートを内蔵し、AI アシスタントと連携して美麗なグラフィックを直接デザイン。
-- **デュアルビュー編集と知識ベース公開**：リッチテキストと Markdown を自在に切替；**ノートブック全体を階層ツリー付きの独立 Web サイトとして公開**可能。
-
-### 3. クリエイター向けワンクリック配信
-- **微信公式アカウント向け一括整形**：インラインスタイル付きの美麗レイアウトへ瞬時に変換し、[エディタへ直接貼り付け](docs/best-practices.md#6-one-click-note-copy-to-wechat-official-account--blogs) 可能。
-- **高画質ポスター画像共有とマルチ形式書き出し**：ノートを[美麗な縦長ポスターカード](docs/best-practices.md#7-ai-rss-daily-digest--elegant-image-poster-sharing) として共有；Markdown、HTML、PDF への書き出しにも対応。
-- **AI RSS 購読日報**：公式 AI RSS プラグインが情報源を巡回し、ノイズを除去した構造化日報を自動生成。
-
-### 4. ネイティブ AI Agent とオープンなエコシステム
-- **ネイティブ Agent プロトコル連携（MCP & ACP）**：組み込みの MCP により外部 AI Agent が安全にノートを操作；デスクトップ版は ACP 経由でローカル Agent（Codex、Antigravity、Claude Code など）と協調作業。
-- **独自モデル連携とオープンなプラグイン API**：OpenAI、Anthropic、Gemini 互換プロバイダと連携；[プラグイン開発 API](docs/plugin-development.md) で自由に拡張可能。
-
-### 5. オープンアーキテクチャ・マルチプラットフォーム・強固なセキュリティ
-- **柔軟なデプロイとオープンなデータ構造**：Cloudflare Serverless（無料枠で約15万件ノート対応）または Docker 自前運用；標準 SQLite、可逆 ZIP アーカイブ対応。
-- **全プラットフォーム対応とエンタープライズ品質の安全性**：Web、Android、iOS、macOS、Windows、Linux、ブラウザ拡張に対応；オフライン下書き、同期キュー、ブルートフォース保護。
+| モジュール | 基本機能 | 高度な機能 |
+| :--- | :--- | :--- |
+| **執筆と編集** | • 画面幅を自由に調節できる伝統的な 3 ペイン構成<br>• リッチテキスト（WYSIWYG）と Markdown ソース表示の切り替え<br>• コードハイライト、数式、タスクリスト、集中モード<br>• 秒単位の自動保存・マルチ端末瞬時同期・履歴リビジョン管理 | • **ネイティブポスターノート**：キャンバスベースの洗練されたビジュアルカード、ダブルクリックで即編集<br>• **微信公式アカウント整形**：インライン CSS 付与で直接貼り付け可能<br>• **高画質ポスター画像共有**：テーマ選択、モノグラムアバター対応、MD/HTML/PDF 書き出し |
+| **整理と検索** | • 無制限階層のノートブックとフォルダツリー<br>• タグシステム、ドラッグ＆ドロップ並べ替え、一括結合・移動<br>• ミリ秒単位のインクリメンタル全文検索とフィルタ | • **独立した知識ベースサイト公開**：ノートブック全体をツリーナビゲーション付きの静的 Web サイトとしてワンクリック公開（パスワード保護対応）<br>• マルチアカウント・複数ワークスペースの物理分離 |
+| **収集とメディア** | • デスクトップ・モバイルでの各種添付ファイル（PDF、Office、音声・動画など）保存<br>• ブラウザ拡張によるテキスト・画像の選択クリップ<br>• スマホの共有メニューから画像や Web 記事を即時保存 | • **高度な構造化クリッピング**：小紅書、X (Twitter)、知乎、Reddit、GitHub、YouTube、Bilibili など 20 以上の主要サービスに対応<br>• **微信チャット履歴の取り込み**：タイムライン、発言者、引用、スタンプ、メディアを完全保持<br>• **クライアント側自動圧縮**：画像アップロード時に 50%〜90% 自動軽量化；最大 1 GiB の分割ストリーミングアップロード対応 |
+| **データと可視化** | • ネイティブ表編集と Markdown テーブル描画<br>• Mermaid 記法によるフローチャート・シーケンス図・構成図の直接描画 | • **AI 多次元テーブル**：プロンプトからタグや日付などの列型を備えた業務テーブルを自動生成<br>• **一般公開集計フォーム**：ログイン不要の Web フォームを発行し、回答をリアルタイムでテーブルへ集約<br>• **AI インフォグラフィック生成**：タイムライン、比較図、マトリクス、マインドマップを自動生成 |
+| **AI とエコシステム** | • サイドバーの伴走型 AI アシスタント（要約、校正、翻訳、推敲）<br>• BYOK（独自 API キー）：OpenAI、Anthropic、Gemini 互換プロトコル対応 | • **ネイティブ Agent プロトコル連携**：外部 Agent が読み書きできる MCP、ローカル Agent を直接呼び出す ACP を標準搭載<br>• **AI RSS 購読日報**：フィードを自動収集し、AI がノイズを排除して構造化日報を作成<br>• 自由な拡張を可能にするプラグイン開発 API |
+| **マルチ端末同期と基盤** | • PC・スマホ・タブレット間で低遅延・シームレスに同期、接続端末数無制限<br>• Web、macOS、Windows、Linux、iOS、Android の全プラットフォーム公式対応<br>• オフラインファーストと自動同期キュー：オフラインでも軽快に執筆、再接続時に自動増分同期<br>• 標準 SQLite、可逆 ZIP アーカイブ・Markdown の入出力に対応 | • **生涯サーバー代ゼロ**：Cloudflare の無料枠で 100% 稼働（短文約 15 万件＋画像約 5 万枚）<br>• **自由な Docker セルフホスト**：自宅サーバー・VPS・NAS にワンクリック配置、数百万件規模の高速同期に対応<br>• サーバー側ブルートフォース保護とセキュリティ隔離 |
 
 👉 全 14 の実機スクリーンショットと解説を見る：**[完全な活用シーンとショーケースガイド](docs/best-practices.md)**
 
@@ -131,7 +104,7 @@ Cloudflare のオンライン導入は、次のいずれかです。
 
 ```text
 GitHub と Cloudflare のオンライン操作だけで EdgeEver を導入してください:
-1. Fork https://github.com/tianma-if/edgeever.
+1. Fork https://github.com/tianma-if/edgeever。
 2. Cloudflare で D1 `edgeever` と R2 `edgeever-resources` を作成します。
 3. Workers & Pages で Fork の `main` ブランチから `edgeever` という名前の Worker を作成します。
    リポジトリのルートを使い、Cloudflare Workers Builds の既定のデプロイコマンドを維持します。
@@ -164,74 +137,73 @@ GitHub と Cloudflare のオンライン操作だけで EdgeEver を導入して
 
 > 📖 手順と設定の詳細は [Online Deployment Guide](docs/deploy-cloudflare-button.md) を見てください。
 
-> 💡 **ドメインとアクセス**：デプロイ完了後は、Cloudflare から自動で割り当てられる `*.workers.dev` ドメインでそのまま利用できるほか、Worker の **Settings → Domains & Routes** で独自のカスタムドメインを紐付けることもできます。
+</details>
 
-> 💡 **Cloudflare R2 の有効化**：Cloudflare R2 にはノート用途で足りる [無料保存枠](https://developers.cloudflare.com/r2/pricing/#free-tier) がありますが、先に R2 のサブスクリプションを有効にし、支払い方法を登録する必要があります。Cloudflare は [公式に](https://developers.cloudflare.com/billing/get-started/update-billing-info/#supported-payment-methods) UnionPay、Visa、Mastercard などのカードと、PayPal、Apple Pay、Google Pay などを受け付けます。
+<details>
+<summary>📌 Cloudflare 導入の注意事項を確認（独自ドメイン紐付けと R2 無料枠）</summary>
+
+> **ドメインとアクセス**：デプロイ完了後は、Cloudflare から自動で割り当てられる `*.workers.dev` ドメインでそのまま利用できるほか、Worker の **Settings → Domains & Routes** で独自のカスタムドメインを紐付けることもできます。
+>
+> **Cloudflare R2 の有効化**：Cloudflare R2 にはノート用途で足りる [無料保存枠](https://developers.cloudflare.com/r2/pricing/#free-tier) がありますが、先に R2 のサブスクリプションを有効にし、支払い方法を登録する必要があります。Cloudflare は [公式に](https://developers.cloudflare.com/billing/get-started/update-billing-info/#supported-payment-methods) UnionPay、Visa、Mastercard などのカードと、PayPal、Apple Pay、Google Pay などを受け付けます。
 
 </details>
 
-### 方法 C: VPS または NAS 上で Docker を使用
+### 方法 C: VPS または NAS で Docker
 
-Docker と Cloudflare は同じフロントエンド、API ルート、ビジネスサービス、認証、MCP 実装、および migration を共有します。コンテナは SQLite を使用し、ローカルファイルまたは S3 互換ストレージに対応し、`amd64` と `arm64` イメージを提供します。詳細は[Docker によるデプロイ](docs/deploy-docker.md)と[セルフホストと Docker アーキテクチャ](docs/self-hosting-architecture.md)をご覧ください。
+Docker は Cloudflare と同じフロントエンド、API、サービス、認証、MCP、migration です。コンテナは SQLite と、ローカルファイルまたは S3 互換の添付保存を使い、`amd64` と `arm64` に対応します。 [Deploy EdgeEver with Docker](docs/deploy-docker.md) と [Self-hosting and Docker architecture](docs/self-hosting-architecture.md) を見てください。
 
-GitHub でホストされているインストールスクリプトと公式 GHCR イメージを使用します。
+GitHub ホストのインストーラと公式 GHCR イメージを使います。
 
 ```sh
 curl -fsSL https://edgeever.org/install.sh | bash
 ```
 
-このコマンドは最新のイメージを取得し、管理者パスワードを生成して、Docker Compose で EdgeEver を起動します。導入後は毎日自動更新されます。手動更新する場合は、サーバー上で `~/edgeever/update.sh` を実行します。
+このコマンドは最新イメージを引き、管理者パスワードを生成し、Docker Compose で EdgeEver を起動します。
 
-> 💡 **ネットワークの注意事項**：公式イメージは GitHub (GHCR) にあります。環境によって取得が遅い場合は、ネットワークプロキシやミラーを設定してください。
+手動導入と設定は [Docker deployment guide](docs/deploy-docker.md) を見てください。
 
----
-
-## データ移行と高度な活用
-
-### 移行ガイド (Migration)
-
-他のノートアプリから EdgeEver に移行する場合は、次のガイドを参照してください。
-
-- **Evernote からの移行**：[docs/evernote-migration-guide.md](docs/evernote-migration-guide.md) を参照
-- **flomo からの移行**：[docs/flomo-migration-guide.md](docs/flomo-migration-guide.md) を参照
-- **Memos からの移行**：[docs/memos-migration-guide.md](docs/memos-migration-guide.md) を参照
-- **Notion からの移行**：[docs/notion-migration-guide.md](docs/notion-migration-guide.md) を参照
-
-### ネイティブ MCP 連携
-
-**個人設定** -> **API / MCP** で API トークンを生成し、Remote MCP 設定をワンクリックでコピーすれば、Claude Code、Cursor、Antigravity、OpenClaw などの AI Agent に知識ベースの安全な管理を許可できます。テキストノート、ダイアグラム（マインドマップ、フローチャート、アーキテクチャ図）、多次元テーブル、ポスターノートの閲覧・編集に加え、ノートブック、タグ、添付、リビジョン履歴、テンプレート、プロンプトの管理もサポートします。
-
-> 💡 **シーンのヒント：**
-> AI を真のナレッジオーケストレーター、創作の副操縦士として活用しましょう。構想を一瞬で図解や多次元テーブルに変換し、AI Agent にプライベートな文脈を提供できます。EdgeEver の豊かな編集機能と洗練されたタイポグラフィにより、AI と共同で築いた資産はただのテキストにとどまらず、いつでも活用・配信できる上質な成果物となります。
-
-### 複数アカウントとストレージ使用量
-
-導入後、1 つのインスタンスで複数アカウントのログインをサポートします。管理者は **個人設定** -> **アカウント管理** でメンバーアカウントの作成、無効化、パスワードリセットを行えます。各メンバーにはノートブック、ノート、添付、ゴミ箱、インポート/エクスポート、MCP トークンなどが完全に独立した個人スペースが割り当てられます。ストレージ分析画面から、全体の容量とアカウント別の添付ファイル消費状況をリアルタイムで確認できます。
-
-### 高度なオブジェクトストレージと PicGo 外部図床
-
-- **OSS オブジェクトストレージ**：インスタンスの Owner は **設定 → 高度な設定 → OSS オブジェクトストレージ** で S3 互換ストレージを設定できます。ストレージを変更しても、既存の添付ファイルには影響しません。
-- **デスクトップ PicGo 連携**：デスクトップ版はローカルの PicGo クライアントと連携でき、ノートに画像を挿入する際に外部図床へ直接アップロードすることで、自前インスタンスのストレージ消費とトラフィックを最小化できます。
-
-### プラグインとテーマ
-
-Web 版およびデスクトップ版は機能プラグインと外観テーマに対応しており、公式マーケット、GitHub、または Manifest URL からワンクリックでインストールし、ワークスペース全体で同期できます。開発者は `@edgeever/plugin-api` を用いて自由に拡張可能です。[プラグイン開発ガイド](docs/plugin-development.md)および[プラグインマーケットポリシー](docs/plugin-marketplace-policy.md)をご覧ください。
+インストール後は既定で毎日自動更新されます。手動で更新する場合は、導入先のサーバーで `~/edgeever/update.sh` を実行してください。
 
 ---
 
-## 開発者ガイドとアーキテクチャ
+## 高度な設定と管理
 
-### 技術スタック
+### データのバックアップ、書き出しと移行
 
-- Bun workspace monorepo。Web、API、公式サイト、共有型定義パッケージを含みます。
-- フロントエンド：Vite、React、React Router、TanStack Query。UI は Tailwind CSS、shadcn/ui、Radix UI。
-- エディタ：TipTap / ProseMirror（Markdown 対応）。PWA は vite-plugin-pwa、Workbox、Dexie。
-- Android アプリ：`apps/mobile` の Expo + React Native。SQLite ローカルストレージと増量同期。
-- iOS アプリ：`apps/ios` のネイティブ SwiftUI（iOS 17+）。TipTap EditorBundle と GRDB ローカルミラー/outbox。
-- ネイティブデスクトップ版：Electron + Rust sidecar。ローカル SQLite によるオフライン編集と増量同期。
-- Web クリッパー：Manifest V3、Mozilla Readability、Turndown（Chrome、Microsoft Edge、Firefox 対応）。
-- バックエンド：Hono/Zod による REST API および Remote MCP。Cloudflare Workers/D1/R2、Docker は Bun/SQLite/ローカルファイルまたは S3。
-- 公式サイト：`apps/site` の Astro 静的サイト。Cloudflare Pages に独立してデプロイ可能。
+日常のバックアップ、インスタンス間のスムーズな移行、既存のノートアプリからの乗り換えなど、EdgeEver は信頼性の高い完全なデータ流通を提供します：
+
+- **EdgeEver ネイティブのバックアップと復元**：アプリ内の **プロフィール** -> **インポートとエクスポート** から、いつでも EdgeEver ZIP アーカイブを書き出し、または取り込めます。解凍後の `notes/` ディレクトリには Markdown ファイルと添付がそのまま保持され、ローカル保管や直接閲覧に利用できます。内部の構造化メタデータにより、異なる EdgeEver インスタンス間でも無劣化で完全復元が可能です。取り込み時は無関係な既存データを残し、同一 ID のノートを自動で上書き更新します。
+- **サードパーティ製ノートからのスムーズな移行**：
+  - **Evernote からの移行**: [docs/evernote-migration-guide.md](docs/evernote-migration-guide.md)
+  - **flomo からの移行**: [docs/flomo-migration-guide.md](docs/flomo-migration-guide.md)
+  - **Memos からの移行**: [docs/memos-migration-guide.md](docs/memos-migration-guide.md)
+  - **Notion からの移行**: [docs/notion-migration-guide.md](docs/notion-migration-guide.md)
+
+### AI と MCP プロトコル連携
+
+**プロフィール** -> **API / MCP** で API トークンを作成し、ワンクリックで Remote MCP 設定をコピーすることで、Claude Code、Cursor、Antigravity、OpenClaw などの AI Agent がアカウント権限の範囲内で知識ベースを安全に管理できます。テキストノート、図のノート（マインドマップ、フローチャート、アーキテクチャ図）、多次元テーブルノート、ネイティブポスターノートの完全な CRUD に対応し、Agent はノートブック階層、タグ、添付ファイル、履歴バージョン、ノートテンプレート、AI 指示の管理も行えます。
+
+> 💡 **着想：**
+> AI を知識の整理役と創作の相棒にしてください。構想をインタラクティブなマインドマップ、フローチャート、アーキテクチャ図、多次元テーブルへ瞬時に落とし込み、Agent に私有の文脈を渡せます。EdgeEver のリッチテキストと美しい体裁と組み合わせることで、AI が手伝った内容は、整った、いつでも配布できる高品質な知識資産になります。
+
+### 複数アカウントとストレージ管理
+
+導入後、1 インスタンスで複数アカウントのログインができます。
+
+インスタンス管理者は **プロフィール** -> **ユーザーアカウント** でメンバーの作成、無効化、パスワードリセットができます。メンバーごとにノートブック、ノート、添付、ゴミ箱、インポート / エクスポート、MCP トークンが分離されます。また、直感的なストレージ使用量ダッシュボードにより、インスタンス全体および各アカウントの添付ファイル容量をリアルタイムで把握できます。
+
+### ストレージ拡張とサードパーティ画像ホスティング
+
+- **OSS オブジェクトストレージ**：インスタンスのオーナーは **設定 → 詳細 → OSS オブジェクトストレージ** で S3 互換ストレージを設定できます。切り替えは既存添付を移さず、影響しません。
+- **デスクトップ版 PicGo 連携**：デスクトップ版ではローカルの PicGo クライアントと連携可能で、ノート内の画像を GitHub、SM.MS、又拍雲、七牛雲や自前ホストへ直接アップロードでき、セルフホスト環境のストレージと帯域消費を節約できます。
+
+### プラグインとカスタムテーマ
+
+Web とデスクトップは機能プラグインとカスタムテーマに対応し、公式マーケット、GitHub、Manifest URL から手軽に導入でき、作業領域を通じて同期されます。開発者は `@edgeever/plugin-api` で拡張できます。詳細は [plugin development guide](docs/plugin-development.md) と [marketplace submission policy](docs/plugin-marketplace-policy.md) を参照してください。
+
+---
+
+## 開発者ガイドと貢献
 
 ### クイックスタート
 
@@ -240,83 +212,102 @@ bun install
 bun run dev
 ```
 
-ローカル開発環境では自動ログインが有効になっており、初期アカウントは `owner` / `edgeever-local-dev` です。
+ローカル開発は自動ログインします。新しいデータベースの初期アカウントは `owner` / `edgeever-local-dev` です。ログイン画面を試すときはログアウトしてください。
 
-### ディレクトリ構成
+### アーキテクチャ設計と技術スタック
 
-```text
-apps/web          Vite + React フロントエンド、PWA、オフライン下書きと同期キュー
-apps/extension    Chrome/Edge/Firefox Manifest V3 Web クリッパー拡張
-apps/api          Cloudflare Worker + Hono API、MCP エンドポイント
-apps/mobile       Expo + React Native Android アプリ
-apps/ios          ネイティブ SwiftUI iOS アプリ (TipTap EditorBundle, GRDB)
-apps/desktop      Electron デスクトップシェル、preload bridge、ネイティブパッケージ設定
-apps/site         Astro 公式サイト（単独デプロイ可能）
-packages/client   Web とモバイルで共有する API クライアント
-packages/shared   共有型定義、Zod スキーマ、TipTap / Markdown 変換
-crates/desktop-sidecar
-                  Rust sidecar。ローカル SQLite、オフラインデータ、バックアップを管理
-scripts           Wrangler ラッパー、パスワードハッシュ、CLI、MCP stdio bridge、ENEX 取り込み
-migrations        D1/SQLite で共用される追記専用のデータベース migration
-docs              アーキテクチャ、移行、デプロイに関するドキュメント
-.github/workflows Web、モバイル、iOS、デスクトップのビルド、デプロイ、Release CI
-wrangler.toml     Cloudflare Workers、Assets、D1、R2 設定
-```
+#### 技術スタック選定
+
+- Bun workspace の monorepo。Web、API、公式サイト、共有型パッケージ。
+- フロントエンド: Vite、React、React Router、TanStack Query、Tailwind CSS、shadcn/ui、Radix UI。
+- エディタ: TipTap / ProseMirror と Markdown。PWA は vite-plugin-pwa、Workbox、Dexie。
+- Android アプリ: `apps/mobile` の Expo + React Native。SQLite のローカル保存と差分同期。
+- iOS アプリ: `apps/ios` のネイティブ SwiftUI（iOS 17+）。同梱の TipTap EditorBundle、GRDB のローカルミラー / outbox、Android に揃えたシェル。
+- ネイティブデスクトップ: Electron + Rust sidecar。横断プラットフォームの操作感と、速いローカルデータ。SQLite でオフライン編集、復帰後の差分同期、ローカルバックアップ。
+- Web Clipper: Manifest V3、Mozilla Readability、Turndown。Chrome、Microsoft Edge、Firefox。
+- バックエンド: Hono / Zod の業務アプリ 1 式。REST API と Remote MCP。Cloudflare は Workers / D1 / R2、Docker は Bun / SQLite / ローカルファイルまたは S3。
+- 公式サイト: `apps/site` の Astro 静的サイト。Cloudflare Pages に出せます。
+
+#### リポジトリ構成
 
 <details>
-<summary>⚙️ アーキテクチャ設計と同期の実装詳細（クリックして展開）</summary>
-
-#### コンテンツ形式
-
-EdgeEver は 3 つのコンテンツ表現を同時に保持します。
+<summary>📁 展開して確認：Monorepo リポジトリ構成</summary>
 
 ```text
-content_json      TipTap/ProseMirror ドキュメント。エディタの正式形式
-content_markdown  API、AI Agent、インポート/エクスポート用
-content_text      検索、要約、インデックス用
+apps/web          Vite + React フロントエンド、PWA、オフライン下書き、同期キュー
+apps/extension    Chrome/Edge/Firefox Manifest V3 Web Clipper
+apps/api          Cloudflare Worker + Hono API、MCP
+apps/mobile       Expo + React Native の Android アプリ
+apps/ios          ネイティブ SwiftUI の iOS アプリ（TipTap EditorBundle、GRDB）
+apps/desktop      Electron のデスクトップシェル、preload、ネイティブ梱包
+apps/site         Astro の公式サイト。独立して導入できます
+packages/client   Web とモバイルで共有する API クライアント
+packages/shared   共有型、Zod、TipTap / Markdown 変換
+crates/desktop-sidecar
+                   ローカル SQLite、オフラインデータ、バックアップ、リソースの Rust sidecar
+scripts           Wrangler ラッパ、パスワード hash、CLI、MCP stdio、Evernote ENEX 取り込み
+migrations        D1/SQLite 共用の、追加のみの migration
+docs              アーキテクチャ、移行、導入の文書
+.github/workflows Web、モバイル、iOS、デスクトップ梱包、導入、Release の CI
+wrangler.toml     Cloudflare Workers、Assets、D1、R2 の設定
 ```
 
-**個人設定** -> **インポートとエクスポート** から EdgeEver ZIP をエクスポートまたはインポートします。ZIP 内の `notes/` ディレクトリはそのまま Markdown として閲覧や移行に使用でき、構造化データは EdgeEver インスタンス間での完全復元に利用されます。
-
-#### 画像圧縮の仕様
-
-画像圧縮は Web クライアントでのアップロード前にのみ実行され、設定の「ノート内画像を圧縮」スイッチで制御されます。有効にすると、ブラウザが PNG、JPEG、WebP、AVIF を WebP に圧縮し、長辺を `2560px` 以内に収めます。圧縮によってサイズが縮小しない場合は原画が保持されます。
-
-Cloudflare Worker 側での画像処理はリソースを消費するため、EdgeEver では圧縮処理を Web クライアント側で完結させています。REST API や MCP からのアップロードはクライアントから送られたデータをそのまま保存します。
-
-#### 同期タイミング
-
-Web、PWA、デスクトップ版は編集停止から 30 秒後にノートをアップロードし、画面表示中は 5 分ごとにクラウドの変更を確認します。ウィンドウへのフォーカス時や手動更新時は即時に反映されます。設定は [`apps/web/src/lib/workspace-refresh.ts`](apps/web/src/lib/workspace-refresh.ts) の `DEFERRED_MEMO_SYNC_DELAY_MS` と `BACKGROUND_WORKSPACE_REFRESH_INTERVAL_MS` で調整可能です。
-
 </details>
+
+#### データストレージモデル
+
+EdgeEver はエディタの描画性能、データポータビリティ、および全文検索の高速性を両立するため、ノート本文をデータベース内で同時に 3 つの形で保持します：
+
+```text
+content_json      TipTap/ProseMirror 文書、エディタの正本
+content_markdown  API、Agent、書き出し、外部エコシステム連携用
+content_text      全文検索、要約生成、索引
+```
+
+### コアメカニズムと設計上の決定
+
+- **クライアント側での静默圧縮**：Cloudflare Workers などの Serverless ランタイムで画像トランスコードを行い計算枠を消費するのを防ぐため、画像圧縮は Web クライアント側のアップロード前に完結させます（PNG/JPEG/WebP/AVIF を WebP に変換、長辺 2560px 制限；サイズが小さくならなければ原画像を維持）。サーバー側の REST API や MCP アップロードはクライアントから受け取った内容をそのまま格納します。
+- **オフライン優先と同期のタイミング**：Web、PWA、デスクトップは、ユーザーの編集が 30 秒間止まった段階で増分を自動アップロードし、フォアグラウンド表示中は 5 分ごとにクラウドの変更を確認します。ウィンドウへのフォーカス復帰や手動更新時は即座に同期されます。開発者は [`apps/web/src/lib/workspace-refresh.ts`](apps/web/src/lib/workspace-refresh.ts) 内の定数（`DEFERRED_MEMO_SYNC_DELAY_MS` および `BACKGROUND_WORKSPACE_REFRESH_INTERVAL_MS`）で調整できます。
+
+### コードへの貢献
+
+コミュニティからの貢献を歓迎します！貢献の際は以下の約束にご協力ください：
+
+- コードを提出する前に [Contribution Guide](CONTRIBUTING.md) をご一読ください。
+- **本番導入とブランチの分離**：自身の GitHub Fork を EdgeEver のオンライン導入用にも使用している場合、その `main` ブランチはデプロイ専用のクリーンな状態に維持してください。機能開発やプルリクエスト作成は必ず公式の `upstream/main` から作成した別ブランチで行い、デプロイ用 `main` での直接作業や Sync fork は避けてください。
 
 ---
 
 ## コミュニティとフィードバック
 
-- 不具合報告や機能提案、導入時の疑問は [GitHub Issues](https://github.com/tianma-if/edgeever/issues) へ投稿してください。
-- コントリビューションの前に [CONTRIBUTING.md](CONTRIBUTING.md) をお読みください。
+- **不具合報告と機能要望**：不具合や機能要望、導入に関する疑問は [GitHub Issues](https://github.com/tianma-if/edgeever/issues) へ投稿してください。
+
+### Telegram コミュニティ
+
+EdgeEver コミュニティへようこそ。Vibe Coding や AI を探求する仲間が集まり、最先端の AI 生産性と個人ナレッジベースのベストプラクティスを共有しています。
+
+👉 [EdgeEver の Telegram グループに参加](https://t.me/+wwUx1BYLrIdiZjY1)
 
 ## スポンサーと支援
 
-EdgeEver は無料のオープンソースプロジェクトです。各プラットフォーム向けの開発、実機テスト、証明書署名、マルチランタイムエコシステムの維持には継続的な労力とリソースが必要です。
+EdgeEver は無料のオープンソースプロジェクトです。クロスプラットフォームクライアント（macOS、Windows、Linux、iOS、Android）の継続的な開発、実機テスト、コード署名、複数ランタイムのエコシステム維持には、継続的な時間とリソースの投入が必要です。
 
-- [EdgeEver を支援する](docs/sponsor.md)
-- [スポンサーとパートナー](docs/partners.md)
+- [EdgeEver を支援する](docs/sponsor.md) — WeChat Pay または Alipay による自发的な寄付
+- [スポンサーとパートナー](docs/partners.md) — インフラ、開発ツール、サービス、コミュニティ連携の支援
 
 ## 謝辞
 
-- 製品設計にあたり、[Evernote](https://evernote.com/) や [Notion](https://www.notion.com/) などの公開製品体験を参考にしています。
-- 図解ノートは [XMind](https://xmind.com/) や [ProcessOn](https://www.processon.com/) の公開デザインを参考にしています。
-- ポスターキャンバスは、向陽喬木（joeseesun）氏の [Qiaomu Design](https://github.com/joeseesun/qiaomu-cover-design) をベースに改編しています（MIT ライセンス）。
-- 画像共有カードのビジュアルスタイルは [流光卡片 (FireflyCard)](https://fireflycard.shushiai.com/) を参考にしています。
+- ノート製品の設計は、[Evernote](https://evernote.com/) や [Notion](https://www.notion.com/) など成熟したノートツールの公開されている製品体験も参考にしています。関連機能は EdgeEver が独自に設計し、実装しています。
+- マインドマップと視覚的な図のノートは、[XMind](https://xmind.com/) と [ProcessOn](https://www.processon.com/) の公開されている製品体験を参考にしています。関連機能は EdgeEver が独自に設計し、実装しています。
+- EdgeEver のポスターデザイン機能は、向阳乔木（joeseesun）の [Qiaomu Design](https://github.com/joeseesun/qiaomu-cover-design) を参考にし、MIT ライセンスに基づいてテンプレートと文字組みエンジンを改変して利用しています。
+- EdgeEver の画像共有カードのテーマデザインと文字組みは、[流光卡片（Firefly Card）](https://fireflycard.shushiai.com/) を参考にしています。デザインから得た着想に感謝します。
 
-## 商標とブランドの利用
+## 商標とブランド
 
-EdgeEver の名称、ロゴ、ブランドアセットは公式プロジェクトを識別するためのものです。派生版で「EdgeEver に基づく」旨を明記することは可能ですが、公式であるかのように誤認させる表示は禁止されています。
+EdgeEver の名称、ロゴ、その他のブランド表示は公式プロジェクトを区別します。Fork や改変版は EdgeEver に基づくと述べられますが、公式であるように装ったり、利用者を誤認させたりしてはなりません。オープンソースライセンスは商標権を与えません。ほかの利用は、メンテナの事前の書面による許可が必要です。
 
-## 免責事項
+## 免責
 
-EdgeEver は完全に独立したオープンソースソフトウェアです。Evernote® およびその関連企業との提携、認可、後援関係はありません。
+EdgeEver は、個人とコミュニティが開発・維持する独立したオープンソースのノートアプリです。Evernote Corporation およびその関係会社と提携、認可、後援、推奨の関係はありません。
 
-EdgeEver はセルフホスト型ソフトウェアです。公式デモを除き、プロジェクト管理者が利用者のコンテンツをホスト、管理、検閲することはありません。
+EdgeEver はセルフホスト型ソフトウェアです。公式デモを除き、メンテナはユーザー内容をホスト、管理、審査しません。インスタンスに保存または表示される内容は、その利用者または運用者の責任であり、メンテナの見解ではありません。
