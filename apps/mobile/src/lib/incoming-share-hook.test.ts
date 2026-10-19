@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
-// Exercise the patched dependency's actual hook without booting React Native.
+// Exercise the distributed entrypoint Metro bundles, rather than only its TypeScript source.
 const hookSource = readFileSync(
-  new URL("../../node_modules/expo-sharing/src/useIncomingShare.ts", import.meta.url), "utf8",
+  new URL("../../node_modules/expo-sharing/build/useIncomingShare.js", import.meta.url), "utf8",
 );
 const hookCode = new Bun.Transpiler({ loader: "ts" }).transformSync(hookSource)
   .replace(/^import .* from [^;]+;\n/gm, "")
@@ -17,11 +17,20 @@ const deferred = () => {
   return { promise, resolve, reject };
 };
 
-function mountHook() {
+function mountHook(initialPayloads = article) {
   const slots: unknown[] = [];
   let cursor = 0;
-  let nativePayloads = article;
+  let nativePayloads = initialPayloads;
   const requests: ReturnType<typeof deferred>[] = [];
+  const effects: (() => void | (() => void))[] = [];
+  const listeners = new Map<string, (event: unknown) => void>();
+  const eventSource = (prefix: string) => ({
+    addEventListener: (event: string, callback: (value: unknown) => void) => {
+      const key = `${prefix}:${event}`;
+      listeners.set(key, callback);
+      return { remove: () => { listeners.delete(key); } };
+    },
+  });
   const useState = (initial: unknown) => {
     const index = cursor++;
     if (!(index in slots)) slots[index] = initial;
@@ -33,22 +42,83 @@ function mountHook() {
     return slots[index];
   };
   const hook = new Function(
-    "useState", "useRef", "useCallback", "useEffect", "AppState",
+    "useState", "useRef", "useCallback", "useEffect", "AppState", "Linking",
     "clearNativeSharedPayloads", "getSharedPayloads", "getResolvedSharedPayloadsAsync",
     `${hookCode}\nreturn useIncomingShare;`,
   )(
-    useState, useRef, (callback: unknown) => callback, () => {}, {},
+    useState, useRef, (callback: unknown) => callback,
+    (effect: () => void | (() => void)) => { effects.push(effect); },
+    eventSource("app"), eventSource("link"),
     () => { nativePayloads = []; }, () => nativePayloads,
     () => { const request = deferred(); requests.push(request); return request.promise; },
   );
   return {
     render: () => { cursor = 0; return hook(); },
-    shareAgain: () => { nativePayloads = article; },
+    shareAgain: (payloads = article) => { nativePayloads = payloads; },
+    mount: () => effects.shift()?.(),
+    foreground: () => listeners.get("app:change")?.("active"),
+    incomingShare: () => listeners.get("link:url")?.({ url: "edgeever://expo-sharing" }),
     requests,
   };
 }
 
 describe("incoming share hook", () => {
+  test("reports an empty image resolution instead of leaving the share waiting forever", async () => {
+    const images = [{ value: "content://com.zhihu.android/shared-image.jpg", mimeType: "image/jpeg", shareType: "image" }];
+    const app = mountHook(images);
+    const pending = app.render().refreshSharePayloads();
+    app.requests[0]!.resolve([]);
+    await pending;
+    expect(app.render().isResolving).toBe(false);
+    expect(app.render().error?.message).toBe("Shared content could not be resolved");
+    expect(app.render().sharedPayloads).toEqual(images);
+    expect(app.render().resolvedSharedPayloads).toEqual([]);
+  });
+
+  test("keeps a cold-start image share until the workspace is ready to consume it", async () => {
+    const images = [{ value: "content://com.zhihu.android/shared-image.jpg", mimeType: "image/jpeg", shareType: "image" }];
+    const resolvedImages = [{ ...images[0], contentUri: "file:///cache/shared-image.jpg" }];
+    const app = mountHook(images);
+    expect(app.render().sharedPayloads).toEqual(images);
+    const unmount = app.mount();
+    expect(app.render().isResolving).toBe(true);
+    app.foreground();
+    expect(app.requests).toHaveLength(1);
+    app.requests[0]!.resolve(resolvedImages);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    // Session and persisted notebook restoration can finish after resolution.
+    expect(app.render().resolvedSharedPayloads).toEqual(resolvedImages);
+    app.foreground();
+    expect(app.render().resolvedSharedPayloads).toEqual(resolvedImages);
+    expect(app.requests).toHaveLength(1);
+    app.render().clearSharedPayloads();
+    expect(app.render().resolvedSharedPayloads).toEqual([]);
+    if (typeof unmount === "function") unmount();
+  });
+
+  test("receives a warm image share after the app is already active and removes listeners", async () => {
+    const app = mountHook();
+    app.render().clearSharedPayloads();
+    const unmount = app.mount();
+    app.foreground(); // resume can happen before Android delivers onNewIntent
+    const images = [{ value: "content://com.zhihu.android/shared-image.jpg", mimeType: "image/jpeg", shareType: "image" }];
+    const resolvedImages = [{ ...images[0], contentUri: "file:///cache/shared-image.jpg" }];
+    app.shareAgain(images);
+    app.incomingShare();
+    expect(app.requests).toHaveLength(1);
+    app.incomingShare(); // URL and AppState must not resolve the same intent twice
+    expect(app.requests).toHaveLength(1);
+    app.requests[0]!.resolve(resolvedImages);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(app.render().resolvedSharedPayloads).toEqual(resolvedImages);
+    if (typeof unmount === "function") unmount();
+    app.render().clearSharedPayloads();
+    app.shareAgain();
+    app.incomingShare();
+    app.foreground();
+    expect(app.requests).toHaveLength(1);
+  });
+
   test("clearing during resolution prevents a late result replaying a consumed Zhihu share", async () => {
     const app = mountHook();
     const pending = app.render().refreshSharePayloads();
