@@ -168,7 +168,7 @@ describe("incoming share hook", () => {
 test("workspace finishes the accepted clip when resolved payloads rerun its effect", async () => {
   const source = readFileSync(new URL("../screens/WorkspaceScreen.tsx", import.meta.url), "utf8");
   const start = source.indexOf("  useEffect(() => {\n    if (incomingShareIsResolving)");
-  const end = source.indexOf("  }, [\n    incomingShareError,", start);
+  const end = source.indexOf("  }, [\n    createOpen,", start);
   expect(start).toBeGreaterThan(-1);
   expect(end).toBeGreaterThan(start);
   const effectBody = source.slice(start + "  useEffect(() => {".length, end);
@@ -177,6 +177,7 @@ test("workspace finishes the accepted clip when resolved payloads rerun its effe
   let importing = false;
   let handled = 0;
   const context = {
+    createOpen: false,
     incomingShareIsResolving: false,
     incomingShareError: null,
     incomingSharePayloads: article,
@@ -208,4 +209,99 @@ test("workspace finishes the accepted clip when resolved payloads rerun its effe
   expect(opened).toEqual([[draft]]);
   expect(importing).toBe(false);
   expect(handled).toBe(1);
+});
+
+describe("consecutive shares while the create editor stays open", () => {
+  const source = readFileSync(new URL("../screens/WorkspaceScreen.tsx", import.meta.url), "utf8");
+  const start = source.indexOf("  useEffect(() => {\n    if (incomingShareIsResolving)");
+  const end = source.indexOf("  }, [\n    createOpen,", start);
+  const effectBody = source.slice(start + "  useEffect(() => {".length, end);
+
+  test.each(["article", "image"])("holds a new %s share until the previous note is saved and unmounted", (kind) => {
+    const images = kind === "image" ? [{ uri: "file:///cache/second.jpg" }] : [];
+    let finishRequested = false;
+    let nextEditorOpened = false;
+    let handled = 0;
+    const previousImages: unknown[] = [];
+    let nextImages: unknown[] = previousImages;
+    const context = {
+      createOpen: true,
+      incomingShareIsResolving: false,
+      incomingShareError: null,
+      incomingSharePayloads: article,
+      incomingShareUrl: article[0]!.value,
+      sharedImages: images,
+      notebooks: [{}],
+      notebooksQuery: { isSuccess: true },
+      processedShareUrlRef: { current: "https://www.zhihu.com/pin/previous" },
+      setFinishCreateForIncomingShare: (value: boolean) => { finishRequested = value; },
+      beginEditorStartup: () => {},
+      setSelectedMemoId: () => {},
+      setIncomingClipDraft: () => {},
+      setIncomingShareImages: (value: unknown[]) => { nextImages = value; },
+      setCreateSeed: () => {},
+      setActiveView: () => {},
+      setMemoView: () => {},
+      setCreateOpen: (value: boolean) => { nextEditorOpened = value; },
+      translate: (value: string) => value,
+      onIncomingShareHandledRef: { current: () => { handled++; } },
+    };
+    const run = () => new Function(...Object.keys(context), effectBody)(...Object.values(context));
+    run();
+    expect(finishRequested).toBe(true);
+    expect(nextEditorOpened).toBe(false);
+    expect(nextImages).toBe(previousImages);
+    expect(handled).toBe(0);
+    expect(context.processedShareUrlRef.current).toBe("https://www.zhihu.com/pin/previous");
+    if (kind === "image") {
+      context.createOpen = false; // Only a successful save closes the old editor.
+      run();
+      expect(nextEditorOpened).toBe(true);
+      expect(nextImages).toEqual(images);
+      expect(handled).toBe(1);
+    }
+  });
+
+  test("waits for editor readiness and the entire image batch, then saves once without retrying failures", () => {
+    const editor = readFileSync(new URL("../screens/WorkspaceEditors.tsx", import.meta.url), "utf8");
+    const start = editor.indexOf("  useEffect(() => {\n    if (!finishForIncomingShare)");
+    const end = editor.indexOf("  }, [finishForIncomingShare,", start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const body = editor.slice(start + "  useEffect(() => {".length, end);
+    let saves = 0;
+    const context = {
+      finishForIncomingShare: true,
+      draftLoaded: false,
+      editorReady: false,
+      importingSharedImages: true,
+      sharedImageImportFailed: false,
+      imageOperation: "idle",
+      submitStarted: false,
+      shareHandoffStartedRef: { current: false },
+      submitCreateMemo: () => { saves++; },
+    };
+    const run = () => new Function(...Object.keys(context), body)(...Object.values(context));
+    run();
+    context.draftLoaded = true;
+    context.editorReady = true;
+    run(); // idle between two images must not close the editor
+    expect(saves).toBe(0);
+    context.importingSharedImages = false;
+    context.imageOperation = "uploading";
+    run();
+    expect(saves).toBe(0);
+    context.imageOperation = "idle";
+    context.sharedImageImportFailed = true;
+    run(); // an upload error must leave the previous note open
+    expect(saves).toBe(0);
+    context.sharedImageImportFailed = false;
+    run();
+    expect(saves).toBe(1);
+    context.submitStarted = true;
+    run();
+    context.submitStarted = false; // save failed: preserve the old editor for retry
+    run();
+    expect(saves).toBe(1);
+  });
 });
