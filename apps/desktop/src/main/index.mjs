@@ -30,6 +30,7 @@ import {
   mountedInstallerCandidates,
 } from "./installation-location.mjs";
 import { userDataDirectoryFromArguments } from "./user-data-directory.mjs";
+import { PRINT_PDF_OPTIONS } from "./print-pdf.mjs";
 import { isAllowedAppNavigation, isAllowedPrintPreviewUrl, isResourceDownloadUrl } from "./window-open-policy.mjs";
 import { showWindow } from "./window-visibility.mjs";
 import { globalShortcutAccelerator, normalizeGlobalShortcutBinding, replaceGlobalShortcut, toggleMainWindow } from "./global-shortcut.mjs";
@@ -146,6 +147,7 @@ let windowsDownloadedUpdateVerified = false;
 let sidecarScopeKey = "anonymous";
 let activeAccountId = null;
 let shutdownCleanupStarted = false;
+let releaseDesktopAcpSessions = async () => {};
 let sidecarRestartTimer = null;
 let sidecarRestartAttempts = 0;
 let sidecarRestartInFlight = false;
@@ -1709,6 +1711,13 @@ const startApplication = async () => {
   ipcMain.on("desktop:local-data-reset-available-sync", (event) => {
     event.returnValue = process.platform === "darwin" && app.isPackaged && !requestedUserDataDirectory;
   });
+  ipcMain.handle("desktop:print-pdf", async (event) => {
+    const appUrl = mainWindow?.webContents.getURL();
+    if (!appUrl || !isAllowedPrintPreviewUrl(event.sender.getURL(), appUrl)) {
+      throw new Error("Only the note print preview can save a PDF");
+    }
+    return event.sender.printToPDF(PRINT_PDF_OPTIONS);
+  });
   ipcMain.handle("desktop:sidecar-request", async (_event, method, params) => {
     if (!sidecar) throw new Error("EdgeEver sidecar is unavailable");
     const result = await sidecar.request(method, params);
@@ -1873,6 +1882,7 @@ const startApplication = async () => {
       return validateTrustedAcpPath(selection.filePaths[0], { excludedRoot: app.getPath("userData") });
     },
   });
+  releaseDesktopAcpSessions = () => acpRuntime.releaseWarmSessions();
   await acpRuntime.pruneAdapters().catch(() => {});
   const refreshAdapters = () => { void acpRuntime.installDetected().catch(() => []).then(() => acpRuntime.updateInstalled()).catch(() => {}); };
   const firstAdapterRefresh = setTimeout(refreshAdapters, 10_000);
@@ -2263,6 +2273,7 @@ app.on("before-quit", (event) => {
   }
   tray?.destroy();
   void (async () => {
+    await releaseDesktopAcpSessions().catch(() => {});
     await stopSidecar();
     await unlink(crashMarkerPath()).catch(() => {});
     await writeDiagnostic("session.quit");
