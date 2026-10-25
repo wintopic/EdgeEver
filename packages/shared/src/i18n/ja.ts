@@ -1641,6 +1641,7 @@ export const ja = {
       close: "アシスタントをしまう",
       history: "チャット履歴",
       newThread: "新しいチャット",
+      currentInfographic: "この情報図",
       historyRecent: "過去 30 日",
       historyOlder: "それ以前",
       historySearch: "チャットを検索",

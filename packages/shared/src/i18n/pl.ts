@@ -1641,6 +1641,7 @@ export const pl = {
       close: "Zwiń asystenta",
       history: "Historia czatów",
       newThread: "Nowy czat",
+      currentInfographic: "Ta infografika",
       historyRecent: "Ostatnie 30 dni",
       historyOlder: "Wcześniej",
       historySearch: "Szukaj czatów",

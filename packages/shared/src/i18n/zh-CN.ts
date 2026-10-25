@@ -1652,6 +1652,7 @@ export const zhCN = {
       close: "收起助手",
       history: "会话记录",
       newThread: "新对话",
+      currentInfographic: "当前信息图",
       historyRecent: "过去 30 天",
       historyOlder: "更早",
       historySearch: "搜索会话",

@@ -1652,6 +1652,7 @@ export const enUS = {
       close: "Collapse assistant",
       history: "Chat history",
       newThread: "New chat",
+      currentInfographic: "This infographic",
       historyRecent: "Past 30 days",
       historyOlder: "Earlier",
       historySearch: "Search chats",
