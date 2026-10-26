@@ -1,3 +1,5 @@
+import { NotebookAppearanceDialog } from "./dialogs/NotebookAppearanceDialog";
+import type { NotebookUpdateInput } from "@edgeever/shared";
 import { startPosterClientRenderer } from "@/lib/poster-client-render";
 import {
   lazy,
@@ -253,6 +255,7 @@ export const WorkspaceApp = ({
   const [memoDocumentActionRequest, setMemoDocumentActionRequest] = useState<MemoDocumentActionRequest | null>(null);
   const [memoDeleteConfirmation, setMemoDeleteConfirmation] = useState<MemoDeleteConfirmation | null>(null);
   const [emptyTrashConfirmationOpen, setEmptyTrashConfirmationOpen] = useState(false);
+  const [appearanceNotebook, setAppearanceNotebook] = useState<Notebook | null>(null);
   const [notebookNameDialog, setNotebookNameDialog] = useState<NotebookNameDialogState | null>(null);
   const [notebookDeleteConfirmation, setNotebookDeleteConfirmation] = useState<Notebook | null>(null);
   const [appNoticeDialog, setAppNoticeDialog] = useState<AppNoticeDialogState | null>(null);
@@ -683,7 +686,9 @@ export const WorkspaceApp = ({
   const notebooks = notebooksQuery.data?.notebooks ?? [];
   useEffect(() => {
     const english = i18n.resolvedLanguage === "en-US";
-    const preferredNotebookId = english ? "nb_demo_features_en" : "nb_demo_features";
+    const preferredSlug = english ? "feature-demos" : "demo-features";
+    const preferredNotebookId = notebooks.find((notebook) => notebook.slug === preferredSlug)?.id
+      ?? (english ? "nb_demo_features_en" : "nb_demo_features");
 
     if (!notebooks.some((notebook) => notebook.id === preferredNotebookId)) {
       return;
@@ -1208,7 +1213,7 @@ export const WorkspaceApp = ({
       payload,
     }: {
       notebookId: string;
-      payload: { name?: string; parentId?: string | null; sortOrder?: number };
+      payload: NotebookUpdateInput;
     }) => repository.updateNotebook(notebookId, payload),
     onSuccess: async (data) => {
       if (data?.notebook) {
@@ -3274,6 +3279,7 @@ export const WorkspaceApp = ({
                   onCreateMemo={handleCreateMemo}
                   onCreateNotebook={handleCreateNotebook}
                   onRenameNotebook={handleRenameNotebook}
+                  onEditNotebookAppearance={setAppearanceNotebook}
                   onDeleteNotebook={handleDeleteNotebook}
                   onMoveNotebook={handleMoveNotebook}
                   onMoveMemos={handleMoveDraggedMemos}
@@ -3865,6 +3871,14 @@ export const WorkspaceApp = ({
           onCancel={() => setEmptyTrashConfirmationOpen(false)}
           onConfirm={handleConfirmEmptyTrash}
         />
+      )}
+      {appearanceNotebook && (
+        <NotebookAppearanceDialog key={appearanceNotebook.id} notebook={appearanceNotebook}
+          onCancel={() => setAppearanceNotebook(null)}
+          onSubmit={async (appearance) => {
+            await updateNotebookMutation.mutateAsync({ notebookId: appearanceNotebook.id, payload: appearance });
+            setAppearanceNotebook(null);
+          }} />
       )}
       {notebookNameDialog && (
         <NotebookNameDialog
