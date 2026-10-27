@@ -38,6 +38,7 @@
         "@tiptap/starter-kit": "3.31.4",
         "@tiptap/suggestion": "3.31.4",
         "@tiptap/y-tiptap": "3.0.9",
+        "@zip.js/zip.js": "2.24.0",
         "ai": "7.0.137",
         "aws4fetch": "^1.0.20",
         "class-variance-authority": "0.7.1",
@@ -313,6 +314,7 @@
         "@tiptap/markdown": "3.31.4",
         "@tiptap/pm": "3.31.4",
         "@tiptap/starter-kit": "3.31.4",
+        "@zip.js/zip.js": "2.24.0",
         "js-base64": "3.9.3",
         "katex": "0.18.2",
         "yaml": "2.8.3",
@@ -328,11 +330,13 @@
         "cf-wrangler": "bin/wrangler.js",
       },
       "dependencies": {
-        "edgeever-wrangler-cli": "npm:wrangler@^4.112.0",
+        "edgeever-wrangler-cli": "npm:wrangler@4.112.0",
       },
     },
   },
   "patchedDependencies": {
+    "wrangler@4.112.0": "patches/wrangler@4.112.0.patch",
+    "miniflare@4.20260714.0": "patches/miniflare@4.20260714.0.patch",
     "expo-sharing@57.0.22": "patches/expo-sharing@57.0.22.patch",
     "@joplin/turndown-plugin-gfm@1.0.68": "patches/@joplin%2Fturndown-plugin-gfm@1.0.68.patch",
     "mermaid@11.16.1": "patches/mermaid@11.16.1.patch",
@@ -1878,6 +1882,8 @@
     "@workflow/serde": ["@workflow/serde@4.1.0", "", {}, "sha512-pav4F2BoirECWR7Nf1TKt+2eETcBj7jj4cBefQ8VXQCA6NPkaKeLfj/zMgi+3zYV5ZIBT4GuUiphsj0/b9hPQQ=="],
 
     "@xmldom/xmldom": ["@xmldom/xmldom@0.8.15", "", {}, "sha512-/5NV/vDALVFDXgLmfsy9TRCBlKwO2LNBFzpzvb9iIj+jR+eSc6DLYYvVOdivT/jm7MtU6TebYuRmzEOI7w40UA=="],
+
+    "@zip.js/zip.js": ["@zip.js/zip.js@2.24.0", "", {}, "sha512-WlaVKzdqBK+RF3bdiXZWbdCnvGB6PdO4IHC1mn/2Yfl3bASgqUNegnU3+PNg61iecwoPfUi5BgLUPqBukXpyWw=="],
 
     "abbrev": ["abbrev@4.0.0", "", {}, "sha512-a1wflyaL0tHtJSmLSOVybYhy22vRih4eduhhrkcjgrWGnRfrZtovJ2FRjxuTtkkj47O/baf0R86QU5OuYpz8fA=="],
 

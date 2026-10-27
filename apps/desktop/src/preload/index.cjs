@@ -28,10 +28,20 @@ contextBridge.exposeInMainWorld("edgeeverDesktop", Object.freeze({
   isAvailable: true,
   canClearLocalData: ipcRenderer.sendSync("desktop:local-data-reset-available-sync"),
   recoveredAfterAbnormalExit: ipcRenderer.sendSync("desktop:recovered-after-abnormal-exit-sync"),
+  backup: (action, input) => ipcRenderer.invoke("desktop:backup", action, input).then((result) => {
+    if (!result.ok) throw Object.assign(new Error(result.error.message), { code: result.error.code });
+    return result.value;
+  }),
+  onBackupStatus: (callback) => {
+    const listener = (_event, status) => callback(status);
+    ipcRenderer.on("desktop:backup-status", listener);
+    return () => ipcRenderer.removeListener("desktop:backup-status", listener);
+  },
   sidecarStatus: () => ipcRenderer.invoke("desktop:sidecar-status"),
   systemInfo: () => ipcRenderer.invoke("desktop:system-info"),
   globalShortcut: () => ipcRenderer.invoke("desktop:global-shortcut"),
   setGlobalShortcut: (binding) => ipcRenderer.invoke("desktop:set-global-shortcut", binding),
+  setScreenshotShortcut: (binding) => ipcRenderer.invoke("desktop:set-screenshot-shortcut", binding),
   loginItem: () => ipcRenderer.invoke("desktop:login-item"),
   setLoginItem: (patch) => ipcRenderer.invoke("desktop:set-login-item", patch),
   captureGlobalShortcut: (capturing) => ipcRenderer.invoke("desktop:capture-global-shortcut", capturing),

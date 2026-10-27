@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, Tray, globalShortcut, nativeImage, ipcMain, session, net, protocol, shell, dialog, safeStorage, clipboard, ClipboardItem, powerMonitor, desktopCapturer, screen } from "electron";
+import { app, Notification, BrowserWindow, Menu, Tray, globalShortcut, nativeImage, ipcMain, session, net, protocol, shell, dialog, safeStorage, clipboard, ClipboardItem, powerMonitor, desktopCapturer, screen } from "electron";
 import { createReadStream, existsSync } from "node:fs";
 import { appendFile, mkdir, open, readdir, readFile, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
@@ -6,6 +6,8 @@ import { Readable } from "node:stream";
 import { execFile, spawn } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { release as operatingSystemRelease } from "node:os";
+import { BackupManager } from "./backup-manager.mjs";
+import { registerBackupIpc } from "./backup-ipc.mjs";
 import { SidecarRpcClient } from "./rpc.mjs";
 import { instanceOrigin, encodeSessionCredential, decodeSessionCredential, credentialForUrl } from "./session-credential.mjs";
 import { resourceRequestHeaders } from "./resource-request.mjs";
@@ -33,18 +35,19 @@ import { userDataDirectoryFromArguments } from "./user-data-directory.mjs";
 import { PRINT_PDF_OPTIONS } from "./print-pdf.mjs";
 import { isAllowedAppNavigation, isAllowedPrintPreviewUrl, isResourceDownloadUrl } from "./window-open-policy.mjs";
 import { showWindow } from "./window-visibility.mjs";
-import { globalShortcutAccelerator, normalizeGlobalShortcutBinding, replaceGlobalShortcut, toggleMainWindow } from "./global-shortcut.mjs";
+import { formatGlobalShortcutForHumans, globalShortcutAccelerator, globalShortcutAcceleratorsConflict, normalizeGlobalShortcutBinding, parseStoredGlobalShortcuts, replaceGlobalShortcut, toggleMainWindow } from "./global-shortcut.mjs";
 import { trayIconPath } from "./tray-icon.mjs";
 import { writeImageClipboard, writeRichClipboard, writeTextClipboard } from "./clipboard-write.mjs";
 import { registerClipboardReadIpc } from "./clipboard-read.mjs";
-import { captureScreenToNote, createScreenshotCaptureGuard, screenshotImportIpcPayload, writeScreenshotTempPath } from "./screenshot-capture.mjs";
+import { captureRegionScreenToNote, captureScreenToNote, createScreenshotCaptureGuard, screenshotImportIpcPayload, writeScreenshotTempPath } from "./screenshot-capture.mjs";
+import { cancelScreenshotRegionSelection, openScreenshotRegionSelector } from "./screenshot-region.mjs";
 import { LocalDataResetError, scheduleMacLocalDataReset } from "./local-data-reset.mjs";
 import { buildDesktopDiagnosticIssueUrl, normalizeDesktopDiagnostic } from "./desktop-diagnostics.mjs";
 import { readDesktopDeviceModel } from "./desktop-device-model.mjs";
 import { createRendererStartupGuard } from "./renderer-startup-guard.mjs";
 import { waitForChildProcessSpawn } from "./child-process-start.mjs";
 import { ScheduledTaskScheduler } from "./scheduled-task-scheduler.mjs";
-import { desktopMenuCopy } from "./desktop-menu.mjs";
+import { desktopMenuCopy, screenshotRegionCopy } from "./desktop-menu.mjs";
 import { createHeadingShortcutGuard } from "./heading-shortcut.mjs";
 import { buildEditContextMenuTemplate } from "./edit-context-menu.mjs";
 import {
@@ -199,18 +202,42 @@ const installationMarkerPath = () => join(app.getPath("userData"), "installation
 const logPath = () => join(app.getPath("userData"), "logs", "desktop.log");
 let desktopSessionToken = "";
 let desktopSessionTokenOrigin = null;
+let backupManager = null;
+let backupCheckTimer = null;
+const backupSession = () => ({ baseUrl: configuredApiBaseUrl, token: credentialForUrl(desktopSessionToken, desktopSessionTokenOrigin, configuredApiBaseUrl), locale: app.getLocale() });
+const refreshBackupContext = () => {
+  const seed = backupSession();
+  // Startup may authenticate backups before the renderer scopes its sidecar.
+  const authenticated = backupManager?.context;
+  const accountId = activeAccountId ?? (authenticated?.baseUrl === seed.baseUrl && authenticated?.token === seed.token ? authenticated.accountId : null);
+  return backupManager?.setContext({ ...seed, accountId });
+};
+const checkBackups = async () => {
+  if (!backupManager) return;
+  await backupManager.restoreContext(backupSession(), (url, init) => net.fetch(url, init));
+  await backupManager.tick();
+};
 let instanceChangePending = false;
 let configuredGlobalShortcut = null;
 let registeredGlobalShortcut = null;
+let configuredScreenshotShortcut = null;
+let registeredScreenshotShortcut = null;
 let globalShortcutUpdate = Promise.resolve();
+const shortcutIsRegistered = (binding) => Boolean(binding && globalShortcut.isRegistered(globalShortcutAccelerator(binding)));
 const globalShortcutState = () => ({
   binding: configuredGlobalShortcut,
-  registered: Boolean(registeredGlobalShortcut && globalShortcut.isRegistered(globalShortcutAccelerator(registeredGlobalShortcut))),
+  registered: shortcutIsRegistered(registeredGlobalShortcut),
+  screenshot: configuredScreenshotShortcut,
+  screenshotRegistered: shortcutIsRegistered(registeredScreenshotShortcut),
 });
-const persistGlobalShortcut = async (binding) => {
+const persistGlobalShortcutFile = async (slot, next) => {
   const temporaryPath = `${globalShortcutPath()}.tmp`;
+  const payload = {
+    binding: slot === "binding" ? next : configuredGlobalShortcut,
+    screenshot: slot === "screenshot" ? next : configuredScreenshotShortcut,
+  };
   try {
-    await writeFile(temporaryPath, JSON.stringify({ binding }), { mode: 0o600 });
+    await writeFile(temporaryPath, JSON.stringify(payload), { mode: 0o600 });
     await rename(temporaryPath, globalShortcutPath());
   } catch (error) {
     await unlink(temporaryPath).catch(() => {});
@@ -222,54 +249,77 @@ const toggleWindowFromGlobalShortcut = () => toggleMainWindow({
   showWindow,
   activateApp: process.platform === "darwin" ? () => app.show() : undefined,
 });
-const loadGlobalShortcut = async () => {
-  try {
-    const stored = JSON.parse(await readFile(globalShortcutPath(), "utf8"));
-    configuredGlobalShortcut = normalizeGlobalShortcutBinding(stored?.binding);
-    if (configuredGlobalShortcut === undefined) configuredGlobalShortcut = null;
-  } catch {
-    configuredGlobalShortcut = null;
-  }
-  const accelerator = globalShortcutAccelerator(configuredGlobalShortcut);
+const captureScreenFromGlobalShortcut = () => { void captureScreenshotToNote(); };
+const registerLoadedShortcut = (slot, binding, callback) => {
+  const accelerator = globalShortcutAccelerator(binding);
   if (!accelerator) return;
   try {
-    if (globalShortcut.register(accelerator, toggleWindowFromGlobalShortcut)) {
-      registeredGlobalShortcut = configuredGlobalShortcut;
-      void writeDiagnostic("global-shortcut.registered", { accelerator });
+    if (globalShortcut.register(accelerator, callback)) {
+      if (slot === "screenshot") registeredScreenshotShortcut = binding;
+      else registeredGlobalShortcut = binding;
+      void writeDiagnostic("global-shortcut.registered", { slot, accelerator });
     } else {
-      void writeDiagnostic("global-shortcut.registration-failed", { accelerator });
+      void writeDiagnostic("global-shortcut.registration-failed", { slot, accelerator });
     }
   } catch (error) {
     void writeDiagnostic("global-shortcut.registration-failed", {
+      slot,
       accelerator,
       message: error instanceof Error ? error.message : String(error),
     });
     // Keep the preference so the user can change it when registration fails.
   }
 };
-const setGlobalShortcut = (value) => {
+const loadGlobalShortcut = async () => {
+  try {
+    const stored = JSON.parse(await readFile(globalShortcutPath(), "utf8"));
+    const parsed = parseStoredGlobalShortcuts(stored);
+    configuredGlobalShortcut = parsed.binding;
+    configuredScreenshotShortcut = parsed.screenshot;
+  } catch {
+    configuredGlobalShortcut = null;
+    configuredScreenshotShortcut = null;
+  }
+  registerLoadedShortcut("binding", configuredGlobalShortcut, toggleWindowFromGlobalShortcut);
+  registerLoadedShortcut("screenshot", configuredScreenshotShortcut, captureScreenFromGlobalShortcut);
+  refreshTrayMenu();
+};
+const setNamedGlobalShortcut = (slot, value, callback) => {
   const next = normalizeGlobalShortcutBinding(value);
   if (next === undefined) return Promise.resolve({ ...globalShortcutState(), error: "invalid" });
+  const other = slot === "screenshot" ? configuredGlobalShortcut : configuredScreenshotShortcut;
+  if (globalShortcutAcceleratorsConflict(next, other)) {
+    return Promise.resolve({ ...globalShortcutState(), error: "unavailable" });
+  }
+  const previous = slot === "screenshot" ? registeredScreenshotShortcut : registeredGlobalShortcut;
   const update = async () => {
     const result = await replaceGlobalShortcut({
       globalShortcut,
-      previous: registeredGlobalShortcut,
+      previous,
       next,
-      callback: toggleWindowFromGlobalShortcut,
-      persist: persistGlobalShortcut,
+      callback,
+      persist: (binding) => persistGlobalShortcutFile(slot, binding),
     });
     if (!result.ok) {
-      void writeDiagnostic("global-shortcut.update-failed", { reason: result.reason });
+      void writeDiagnostic("global-shortcut.update-failed", { slot, reason: result.reason });
       return { ...globalShortcutState(), error: result.reason };
     }
-    configuredGlobalShortcut = next;
-    registeredGlobalShortcut = next;
+    if (slot === "screenshot") {
+      configuredScreenshotShortcut = next;
+      registeredScreenshotShortcut = next;
+    } else {
+      configuredGlobalShortcut = next;
+      registeredGlobalShortcut = next;
+    }
+    refreshTrayMenu();
     return globalShortcutState();
   };
   const result = globalShortcutUpdate.then(update, update);
   globalShortcutUpdate = result.then(() => undefined, () => undefined);
   return result;
 };
+const setGlobalShortcut = (value) => setNamedGlobalShortcut("binding", value, toggleWindowFromGlobalShortcut);
+const setScreenshotShortcut = (value) => setNamedGlobalShortcut("screenshot", value, captureScreenFromGlobalShortcut);
 const sidecarDataDirectory = (accountId = null) => {
   return accountId
     ? accountDataDirectory(app.getPath("userData"), configuredApiBaseUrl, accountId)
@@ -752,9 +802,11 @@ const flushPendingScreenshotImport = () => {
 
 const captureScreenshotToNote = async () => {
   if (!screenshotCaptureGuard.tryBegin()) return;
+  const captureStartedAt = Date.now();
   const copy = desktopMenuCopy(app.getLocale());
   const wasVisible = Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible());
   const revealWindow = () => {
+    if (isQuitting) return;
     if (process.platform === "darwin") app.show();
     showWindow(mainWindow);
   };
@@ -762,13 +814,28 @@ const captureScreenshotToNote = async () => {
     if (process.platform === "darwin") app.hide();
     else if (wasVisible) mainWindow.hide();
     await new Promise((resolve) => setTimeout(resolve, 250));
-    const captured = await captureScreenToNote({
-      platform: process.platform,
-      locale: app.getLocale(),
-      outputPath: process.platform === "darwin" ? writeScreenshotTempPath(app.getPath("temp")) : undefined,
-      desktopCapturer,
-      screen,
-    });
+    const captured = process.platform === "darwin"
+      ? await captureScreenToNote({
+        platform: process.platform,
+        locale: app.getLocale(),
+        outputPath: writeScreenshotTempPath(app.getPath("temp")),
+        desktopCapturer,
+        screen,
+      })
+      : await captureRegionScreenToNote({
+        locale: app.getLocale(),
+        desktopCapturer,
+        screen,
+        selectRegion: ({ display, image }) => openScreenshotRegionSelector({
+          BrowserWindow,
+          ipcMain,
+          display,
+          image,
+          copy: screenshotRegionCopy(app.getLocale()),
+          preloadPath: join(currentDirectory, "screenshot-region-preload.cjs"),
+          htmlPath: join(currentDirectory, "screenshot-region.html"),
+        }),
+      });
     if (!captured) {
       if (wasVisible) revealWindow();
       return;
@@ -780,12 +847,15 @@ const captureScreenshotToNote = async () => {
     void writeDiagnostic("screenshot.failed", {
       message: error instanceof Error ? error.message : String(error),
     });
-    await dialog.showMessageBox({
-      type: "warning",
-      message: copy.screenshotFailed,
-    });
+    if (!isQuitting) {
+      await dialog.showMessageBox({
+        type: "warning",
+        message: copy.screenshotFailed,
+      });
+    }
   } finally {
-    screenshotCaptureGuard.end();
+    if (Date.now() - captureStartedAt >= 1000) screenshotCaptureGuard.release();
+    else screenshotCaptureGuard.end();
   }
 };
 
@@ -907,9 +977,13 @@ const buildApplicationMenu = () => {
 
 const buildTrayContextMenu = () => {
   const copy = desktopMenuCopy(app.getLocale());
+  const screenshotShortcut = formatGlobalShortcutForHumans(configuredScreenshotShortcut);
   return Menu.buildFromTemplate([
     { label: copy.show, click: () => showWindow(mainWindow) },
-    { label: copy.screenshotToNote, click: () => void captureScreenshotToNote() },
+    {
+      label: screenshotShortcut ? `${copy.screenshotToNote}    ${screenshotShortcut}` : copy.screenshotToNote,
+      click: () => void captureScreenshotToNote(),
+    },
     ...(updateState === "downloaded" ? [{ label: copy.restartToUpdate, click: () => installDownloadedUpdate() }] : []),
     { type: "separator" },
     { label: copy.quit, click: () => { isQuitting = true; app.quit(); } },
@@ -1790,6 +1864,19 @@ const startApplication = async () => {
     }
     return result;
   });
+  backupManager = new BackupManager({
+    userData: app.getPath("userData"), defaultDirectory: join(app.getPath("documents"), "EdgeEver Backups"), secureStorage: safeStorage,
+    version: { edgeeverVersion: app.getVersion(), buildId: app.getVersion() },
+    onChange: (status) => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("desktop:backup-status", status); },
+    onDiagnostic: (event, details) => writeDiagnostic(event, details),
+    onSuccess: () => {
+      if (Notification.isSupported()) new Notification({ title: "EdgeEver", body: app.getLocale().startsWith("zh") ? "本地备份完成" : "Local backup complete" }).show();
+    },
+  });
+  registerBackupIpc({ ipcMain, manager: backupManager, getWindow: () => mainWindow, dialog, shell });
+  void checkBackups();
+  backupCheckTimer = setInterval(() => { void checkBackups(); }, 3600000);
+  powerMonitor.on("resume", () => { void checkBackups(); });
   ipcMain.handle("desktop:sidecar-status", () => ({ available: Boolean(sidecar), path: sidecarPath, scope: sidecarScopeKey }));
   ipcMain.handle("desktop:system-info", () => desktopRuntimeSystemInfo());
   ipcMain.handle("desktop:global-shortcut", (event) => {
@@ -1808,23 +1895,31 @@ const startApplication = async () => {
     if (event.sender !== mainWindow?.webContents) return null;
     return setGlobalShortcut(binding);
   });
+  ipcMain.handle("desktop:set-screenshot-shortcut", (event, binding) => {
+    if (event.sender !== mainWindow?.webContents) return null;
+    return setScreenshotShortcut(binding);
+  });
   ipcMain.handle("desktop:capture-global-shortcut", (event, capturing) => {
     if (event.sender !== mainWindow?.webContents || typeof capturing !== "boolean") return false;
     globalShortcut.setSuspended(capturing);
     return true;
   });
-  ipcMain.handle("desktop:set-account-scope", async (_event, accountId) => {
+  ipcMain.handle("desktop:set-account-scope", async (event, accountId) => {
+    if (event.sender !== mainWindow?.webContents || event.senderFrame !== event.sender.mainFrame) throw new Error("Account changes must come from the main frame");
     const normalizedAccountId = typeof accountId === "string" && accountId.trim() ? accountId.trim() : null;
     const nextScopeKey = accountScopeKey(configuredApiBaseUrl, normalizedAccountId);
     scheduledTaskScheduler.clear();
     if (sidecar && sidecarScopeKey === nextScopeKey) {
       await sidecar.waitUntilReady();
+      await refreshBackupContext(); void backupManager.tick();
       return { ready: true, scope: nextScopeKey };
     }
+    if (backupManager.context?.baseUrl !== configuredApiBaseUrl || backupManager.context?.accountId !== normalizedAccountId) await backupManager.setContext(null);
     await stopSidecar();
     const nextSidecar = await startSidecar(normalizedAccountId);
     if (!nextSidecar) throw new Error("EdgeEver sidecar is unavailable");
     await nextSidecar.waitUntilReady();
+    await refreshBackupContext(); void backupManager.tick();
     return { ready: true, scope: nextScopeKey };
   });
   ipcMain.on("desktop:rich-text-heading-shortcut", (event, active) => {
@@ -1862,11 +1957,13 @@ const startApplication = async () => {
   ipcMain.handle("desktop:set-session-token", async (event, value) => {
     if (event.sender !== mainWindow?.webContents || event.senderFrame !== event.sender.mainFrame || instanceChangePending) throw new Error("Session update forbidden");
     await saveDesktopSessionToken(value);
+    await refreshBackupContext(); void backupManager.tick();
     return { stored: Boolean(desktopSessionToken) };
   });
   ipcMain.handle("desktop:clear-session-token", async (event) => {
     if (event.sender !== mainWindow?.webContents || event.senderFrame !== event.sender.mainFrame || instanceChangePending) throw new Error("Session update forbidden");
     scheduledTaskScheduler.clear();
+    await backupManager.setContext(null);
     await saveDesktopSessionToken("");
     return { stored: false };
   });
@@ -2025,6 +2122,8 @@ const startApplication = async () => {
         message: error instanceof Error ? error.message : String(error),
       });
     }
+    if (backupCheckTimer) clearInterval(backupCheckTimer);
+    await backupManager?.close();
     await stopSidecar().catch((error) => writeDiagnostic("local-data-reset.sidecar-stop-failed", {
       message: error instanceof Error ? error.message : String(error),
     }));
@@ -2065,9 +2164,11 @@ const startApplication = async () => {
           buttons: chinese ? ["取消", "切换实例"] : ["Cancel", "Switch instance"], defaultId: 0, cancelId: 0,
         });
         if (answer.response !== 1) throw new Error("Instance change cancelled");
+        await backupManager.setContext(null);
         await saveDesktopSessionToken("");
       }
       scheduledTaskScheduler.clear();
+      await backupManager.setContext(null);
       const temporaryInstancePath = `${instanceUrlPath()}.tmp`;
       await writeFile(temporaryInstancePath, normalized, { mode: 0o600 });
       await rename(temporaryInstancePath, instanceUrlPath());
@@ -2078,6 +2179,7 @@ const startApplication = async () => {
         if (!nextSidecar) throw new Error("EdgeEver sidecar is unavailable after changing instance");
         await nextSidecar.waitUntilReady();
       }
+      await refreshBackupContext(); void backupManager.tick();
       return configuredApiBaseUrl;
     } finally { instanceChangePending = false; }
   });
@@ -2333,6 +2435,7 @@ app.on("before-quit", (event) => {
   event.preventDefault();
   shutdownCleanupStarted = true;
   isQuitting = true;
+  cancelScreenshotRegionSelection();
   globalShortcut.unregisterAll();
   scheduledTaskScheduler.clear();
   rendererStartupGuard?.complete();
@@ -2346,7 +2449,9 @@ app.on("before-quit", (event) => {
     updateCheckTimer = null;
   }
   tray?.destroy();
+  if (backupCheckTimer) clearInterval(backupCheckTimer);
   void (async () => {
+    await backupManager?.close();
     await releaseDesktopAcpSessions().catch(() => {});
     await stopSidecar();
     await unlink(crashMarkerPath()).catch(() => {});

@@ -25,6 +25,8 @@ interface DesktopGlobalShortcutBinding {
 interface DesktopGlobalShortcutState {
   binding: DesktopGlobalShortcutBinding | null;
   registered: boolean;
+  screenshot: DesktopGlobalShortcutBinding | null;
+  screenshotRegistered: boolean;
   error?: "invalid" | "unavailable" | "saveFailed";
 }
 
@@ -37,6 +39,8 @@ interface DesktopLoginItemState {
 }
 
 interface EdgeEverDesktopBridge {
+  backup<A extends keyof import("@edgeever/shared").DesktopBackupActions>(action: A, input?: import("@edgeever/shared").DesktopBackupActions[A]["input"]): Promise<import("@edgeever/shared").DesktopBackupActions[A]["output"]>;
+  onBackupStatus(callback: (status: import("@edgeever/shared").DesktopBackupStatus | null) => void): () => void;
   isAvailable: boolean;
   canClearLocalData: boolean;
   recoveredAfterAbnormalExit: boolean;
@@ -91,6 +95,7 @@ interface EdgeEverDesktopBridge {
   }>;
   globalShortcut(): Promise<DesktopGlobalShortcutState>;
   setGlobalShortcut(binding: DesktopGlobalShortcutBinding | null): Promise<DesktopGlobalShortcutState>;
+  setScreenshotShortcut(binding: DesktopGlobalShortcutBinding | null): Promise<DesktopGlobalShortcutState>;
   loginItem(): Promise<DesktopLoginItemState | null>;
   setLoginItem(patch: { openAtLogin?: boolean; launchMode?: "window" | "tray" }): Promise<DesktopLoginItemState | null>;
   captureGlobalShortcut(capturing: boolean): Promise<boolean>;
