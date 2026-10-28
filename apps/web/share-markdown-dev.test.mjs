@@ -13,6 +13,7 @@ describe("local share markdown", () => {
     expect(devShareMarkdownToken(`/share/${token}.md`)).toBe(token);
     expect(devShareMarkdownToken(`/share/${token}`)).toBeNull();
     expect(devShareMarkdownToken(`/share/${token}.md/extra`)).toBeNull();
+    expect(devShareMarkdownToken("/share/Meeting-Notes.md")).toBe("meeting-notes");
   });
 
   test("uses the worker markdown response when it is already markdown", async () => {

@@ -25,7 +25,7 @@ import MobileNoteImageFontPicker from "../components/MobileNoteImageFontPicker";
 import { getMobileNoteImageFontLabel } from "../lib/note-image-font-options";
 import { MobileResourceActions } from "../components/MobileResourceActions";
 import { ZoomableImagePreview } from "../components/ZoomableImagePreview";
-import type { ImageSize } from "../lib/mobile-image-zoom";
+import { extractImagesFromTiptapDoc, type ImageSize, type PreviewImageItem } from "../lib/mobile-image-zoom";
 import { encodeMobileNoteImageFileUri } from "../lib/mobile-note-image-export";
 import { SAFE_DOM_WEBVIEW_PROPS } from "../lib/mobile-dom";
 import { getNextMobileNoteSearchIndex } from "../lib/mobile-note-search";
@@ -502,7 +502,12 @@ export const MemoDetailModal = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [bodySearchMatchCount, setBodySearchMatchCount] = useState(0);
   const [activeMatchIndex, setActiveMatchIndex] = useState(0);
-  const [imagePreview, setImagePreview] = useState<{ alt: string; source: string } | null>(null);
+  const [imagePreview, setImagePreview] = useState<{
+    alt: string;
+    source: string;
+    images: PreviewImageItem[];
+    index: number;
+  } | null>(null);
   const [resourceTarget, setResourceTarget] = useState<MobileResourceTarget | null>(null);
   const [viewerReady, setViewerReady] = useState(false);
   const [titleCollapsed, setTitleCollapsed] = useState(false);
@@ -673,17 +678,56 @@ export const MemoDetailModal = ({
 
   const onImagePreview = useCallback(async (payloadJson: string) => {
     try {
-      const parsed = JSON.parse(payloadJson) as { alt?: unknown; source?: unknown };
+      const parsed = JSON.parse(payloadJson) as {
+        alt?: unknown;
+        source?: unknown;
+        images?: unknown;
+        index?: unknown;
+      };
       if (typeof parsed.source === "string" && parsed.source) {
+        const source = parsed.source;
+        const alt = typeof parsed.alt === "string" ? parsed.alt : "";
+
+        let images: PreviewImageItem[] = [];
+        if (Array.isArray(parsed.images) && parsed.images.length > 0) {
+          images = parsed.images
+            .filter((item): item is { source: string; alt?: unknown } =>
+              Boolean(item && typeof item === "object" && typeof (item as any).source === "string" && (item as any).source)
+            )
+            .map((item) => ({
+              alt: typeof item.alt === "string" ? item.alt : "",
+              source: item.source,
+            }));
+        }
+
+        if (images.length === 0 && memo?.contentJson) {
+          images = extractImagesFromTiptapDoc(memo.contentJson);
+        }
+
+        if (images.length === 0) {
+          images = [{ alt, source }];
+        }
+
+        let activeIndex =
+          typeof parsed.index === "number" && parsed.index >= 0 && parsed.index < images.length
+            ? parsed.index
+            : images.findIndex((img) => img.source === source);
+        if (activeIndex < 0) {
+          images = [{ alt, source }, ...images];
+          activeIndex = 0;
+        }
+
         setImagePreview({
-          alt: typeof parsed.alt === "string" ? parsed.alt : "",
-          source: parsed.source,
+          alt: images[activeIndex].alt || alt,
+          source: images[activeIndex].source || source,
+          images,
+          index: activeIndex,
         });
       }
     } catch {
       // Ignore malformed bridge payloads.
     }
-  }, []);
+  }, [memo?.contentJson]);
 
   const memoTitle = localizeUntitledMemoTitle(memo?.title, resolvedLocale);
   const memoTagsText = memo?.tags.join(", ") ?? "";
@@ -1858,29 +1902,52 @@ export const MemoDetailModal = ({
           <View style={resourceImageStyles.previewBackdrop}>
             {imagePreview ? (
               <ZoomableImagePreview
-                key={imagePreview.source}
+                key="workspace-note-image-preview"
                 accessibilityHint={getMobileCatalog(resolvedLocale).mobile.memoDetail.imageActionsHint}
-                accessibilityLabel={imagePreview.alt || getMobileCatalog(resolvedLocale).mobile.imageShare.preview}
+                accessibilityLabel={
+                  (imagePreview.images[imagePreview.index]?.alt || imagePreview.alt) ||
+                  getMobileCatalog(resolvedLocale).mobile.imageShare.preview
+                }
+                currentIndex={imagePreview.index}
+                images={imagePreview.images}
+                nextImageLabel={getMobileCatalog(resolvedLocale).mobile.memoDetail.nextImage}
+                previousImageLabel={getMobileCatalog(resolvedLocale).mobile.memoDetail.previousImage}
+                onIndexChange={(nextIndex) => {
+                  setImagePreview((previous) => {
+                    if (!previous || !previous.images[nextIndex]) return previous;
+                    const nextItem = previous.images[nextIndex];
+                    return {
+                      ...previous,
+                      alt: nextItem.alt || "",
+                      source: nextItem.source,
+                      index: nextIndex,
+                    };
+                  });
+                }}
                 onLongPress={() => {
                   // Long-press fullscreen preview → same resource sheet as ⋯ in the note.
-                  const target = getMobileImageTarget(imagePreview.source, imagePreview.alt);
+                  const activeItem = imagePreview.images[imagePreview.index] ?? imagePreview;
+                  const target = getMobileImageTarget(activeItem.source, activeItem.alt);
                   if (target) {
                     setResourceTarget(target);
                   }
                 }}
-                renderImage={(onDimensions, resizeMultiplier) => (
-                  <AuthenticatedResourceImage
-                    alt={imagePreview.alt}
-                    href={imagePreview.source}
-                    loadResourceBlob={client?.getResourceBlob}
-                    onLoadFailure={imageLoadFailureNotifier}
-                    onDimensions={onDimensions}
-                    resizeMultiplier={resizeMultiplier}
-                    resizeMode="contain"
-                    session={session}
-                    style={resourceImageStyles.previewImage}
-                  />
-                )}
+                renderImage={(onDimensions, resizeMultiplier) => {
+                  const activeItem = imagePreview.images[imagePreview.index] ?? imagePreview;
+                  return (
+                    <AuthenticatedResourceImage
+                      alt={activeItem.alt}
+                      href={activeItem.source}
+                      loadResourceBlob={client?.getResourceBlob}
+                      onLoadFailure={imageLoadFailureNotifier}
+                      onDimensions={onDimensions}
+                      resizeMultiplier={resizeMultiplier}
+                      resizeMode="contain"
+                      session={session}
+                      style={resourceImageStyles.previewImage}
+                    />
+                  );
+                }}
               />
             ) : null}
             <Pressable

@@ -1,4 +1,5 @@
 import {
+  parsePublicMemoSharePagePath,
   PUBLIC_SHARE_MARKDOWN_NOT_FOUND,
   PUBLIC_SHARE_MARKDOWN_PASSWORD,
   publicShareMarkdown,
@@ -6,9 +7,10 @@ import {
 import { PUBLIC_PAGE_HEADERS } from "@edgeever/shared/public-page-headers";
 import type { Plugin } from "vite";
 
-const SHARE_MARKDOWN_PATH = /^\/share\/([A-Za-z0-9_-]{43})\.md\/?$/;
-
-export const devShareMarkdownToken = (pathname: string) => SHARE_MARKDOWN_PATH.exec(pathname)?.[1] ?? null;
+export const devShareMarkdownToken = (pathname: string) => {
+  const target = parsePublicMemoSharePagePath(pathname);
+  return target?.markdown ? target.segment : null;
+};
 const LOCAL_API_ORIGIN = "http://127.0.0.1:8787";
 
 type ShareMarkdownResult = { status: number; body: string };

@@ -52,6 +52,7 @@ contextBridge.exposeInMainWorld("edgeeverDesktop", Object.freeze({
   copyText: (value) => ipcRenderer.invoke("desktop:copy-text", value),
   copyHtml: (html, plainText) => ipcRenderer.invoke("desktop:copy-html", { html, plainText }),
   copyImage: (bytes) => ipcRenderer.invoke("desktop:copy-image", bytes),
+  copyFile: (bytes, filename) => ipcRenderer.invoke("desktop:copy-file", bytes, filename),
   readClipboard: () => {
     // Check in the isolated preload world; renderer JavaScript cannot forge this
     // gesture state. Clipboard reads are reserved for an explicit paste action.

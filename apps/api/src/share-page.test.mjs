@@ -69,11 +69,13 @@ const render = (sqlite, path, accept) => renderPublicMemoSharePage(
 
 describe("public memo share pages", () => {
   test("recognizes only a single-note share path", () => {
-    expect(parsePublicMemoSharePagePath(`/share/${token}`)).toEqual({ token, markdown: false });
-    expect(parsePublicMemoSharePagePath(`/share/${token}.md`)).toEqual({ token, markdown: true });
-    expect(parsePublicMemoSharePagePath(`/share/${token}/`)).toEqual({ token, markdown: false });
+    expect(parsePublicMemoSharePagePath(`/share/${token}`)).toEqual({ segment: token, markdown: false });
+    expect(parsePublicMemoSharePagePath(`/share/${token}.md`)).toEqual({ segment: token, markdown: true });
+    expect(parsePublicMemoSharePagePath(`/share/${token}/`)).toEqual({ segment: token, markdown: false });
+    expect(parsePublicMemoSharePagePath("/share/Meeting-Notes.md")).toEqual({ segment: "meeting-notes", markdown: true });
     expect(isPublicMemoSharePagePath(`/share/notebook/${token}`)).toBe(false);
-    expect(isPublicMemoSharePagePath("/share/not-a-token")).toBe(false);
+    expect(isPublicMemoSharePagePath("/share/notebook")).toBe(false);
+    expect(isPublicMemoSharePagePath("/share/not_a_token")).toBe(false);
     expect(parsePublicMemoSharePagePath("/share/%2e%2e/secret")).toBeNull();
   });
 
@@ -144,6 +146,32 @@ describe("public memo share pages", () => {
     const lockedMarkdown = await render(sqlite, `/share/${token}.md`);
     expect(lockedMarkdown.status).toBe(403);
     expect(await lockedMarkdown.text()).toBe("This shared note requires a password.\n");
+  });
+
+  test("serves a custom address like the token and keeps password-protected notes out", async () => {
+    const sqlite = createDatabase();
+    sqlite.query("UPDATE memo_shares SET slug = ? WHERE token = ?").run("meeting-notes", token);
+
+    const page = await render(sqlite, "/share/Meeting-Notes");
+    const html = await page.text();
+    expect(html).toContain("Hello &lt;script&gt;secret()&lt;/script&gt;");
+    expect(html).toContain('rel="canonical" href="https://note.example/share/meeting-notes"');
+    expect(page.headers.get("link")).toBe('<https://note.example/share/meeting-notes.md>; rel="alternate"; type="text/markdown"');
+
+    const markdown = await render(sqlite, "/share/meeting-notes.md");
+    expect(markdown.status).toBe(200);
+    expect(await markdown.text()).toContain("Hello <script>secret()</script>");
+
+    const missing = await render(sqlite, "/share/other-notes.md");
+    expect(missing.status).toBe(404);
+
+    sqlite.query("UPDATE memo_shares SET password_hash = ? WHERE token = ?").run("hash", token);
+    const lockedHtml = await (await render(sqlite, "/share/meeting-notes")).text();
+    expect(lockedHtml).not.toContain("secret()");
+    expect(lockedHtml).toContain("This shared note requires a password.");
+    const lockedMarkdown = await render(sqlite, "/share/meeting-notes.md");
+    expect(lockedMarkdown.status).toBe(403);
+    expect(await lockedMarkdown.text()).not.toContain("secret()");
   });
 
   test("HEAD keeps the headers and omits the body", async () => {

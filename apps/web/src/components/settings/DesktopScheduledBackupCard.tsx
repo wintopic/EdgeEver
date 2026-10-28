@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { FolderOpen, HardDriveDownload, Loader2, Upload } from "lucide-react";
+import { ChevronRight, FolderOpen, HardDriveDownload, Loader2, Upload } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { DesktopBackupConfig } from "@edgeever/shared";
 import { Button } from "@/components/ui/button";
@@ -69,40 +69,65 @@ export const DesktopScheduledBackupCard = () => {
           <Button type="button" size="sm" variant="outline" disabled={restoreDisabled} onClick={() => restore()}><Upload className="h-4 w-4" />{t("desktopBackup.importButton")}</Button>
           <Button type="button" size="sm" variant="ghost" disabled={saving} onClick={() => void attempt(() => bridge.backup("open-folder", { backupSetId: status.backupSetId }))}><FolderOpen className="h-4 w-4" />{t("desktopBackup.openFolder")}</Button>
         </div>
-        <div className="grid gap-1.5 rounded-md bg-muted/50 p-3 text-sm" aria-live="polite" data-backup-status>
-          <p className="font-medium">{t("desktopBackup.lastSuccess", { time: date(status.lastSuccessAt) })}</p>
-          {status.task ? <p className="flex items-center gap-2"><Loader2 className="h-3.5 w-3.5 animate-spin" />{t(`desktopBackup.phases.${status.task.phase}`)}{status.task.total > 0 ? ` ${status.task.completed} / ${status.task.total}` : ""}</p> : status.lastCheck ? <p>{t(`desktopBackup.checkResults.${status.lastCheck.result}`)}</p> : null}
+        <div className="grid gap-1.5 rounded-md bg-muted/40 p-3 text-xs" aria-live="polite" data-backup-status>
+          <p className="font-medium text-slate-800">{t("desktopBackup.lastSuccess", { time: date(status.lastSuccessAt) })}</p>
+          {status.task ? <p className="flex items-center gap-2"><Loader2 className="h-3.5 w-3.5 animate-spin" />{t(`desktopBackup.phases.${status.task.phase}`)}{status.task.total > 0 ? ` ${status.task.completed} / ${status.task.total}` : ""}</p> : status.lastCheck ? <p className="text-slate-700">{t(`desktopBackup.checkResults.${status.lastCheck.result}`)}</p> : null}
           <p className="text-muted-foreground">{t("desktopBackup.lastCheck", { time: status.lastCheck ? date(status.lastCheck.at) : t("desktopBackup.notChecked") })}</p>
           <p className="text-muted-foreground">{status.config.enabled ? t("desktopBackup.nextDue", { time: status.nextDueAt ? date(status.nextDueAt) : t("desktopBackup.whenReady") }) : t("desktopBackup.autoOff")}</p>
           {error || status.error ? <p className="break-words text-destructive" role="alert">{error ?? describeDesktopBackupError(t, status.error)}</p> : null}
           {status.warning ? <p className="text-amber-700">{describeDesktopBackupError(t, status.warning)}</p> : null}
         </div>
-        <details className="border-t pt-4">
-          <summary className="cursor-pointer text-sm font-medium">{t("desktopBackup.settings")}</summary>
-          <div className="mt-4 grid gap-4">
-            <fieldset disabled={busy || saving} className="grid min-w-0 gap-4 disabled:opacity-60">
-              <label className="flex items-center justify-between gap-3 text-sm font-medium"><span>{t("desktopBackup.enable")}</span><Switch checked={config.enabled} onCheckedChange={(enabled) => patch({ enabled })} /></label>
-              <div className="grid gap-1.5"><span className="text-sm font-medium">{t("desktopBackup.directory")}</span><div className="flex min-w-0 items-center gap-2"><p className="min-w-0 flex-1 break-all rounded-md bg-muted px-3 py-2 text-sm">{config.directory}/{status.backupSetId}</p><Button type="button" variant="outline" size="sm" onClick={() => void attempt(async () => { const directory = await bridge.backup("choose-directory", { backupSetId: status.backupSetId }); if (directory && scope.current === status.backupSetId) patch({ directory }); })}>{t("desktopBackup.choose")}</Button></div></div>
+        <details className="group border-t pt-3">
+          <summary className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-slate-700 select-none transition-colors hover:text-slate-900 list-none [&::-webkit-details-marker]:hidden">
+            <ChevronRight className="h-3.5 w-3.5 text-slate-400 transition-transform duration-200 group-open:rotate-90" />
+            <span>{t("desktopBackup.settings")}</span>
+          </summary>
+          <div className="mt-3.5 grid gap-3.5">
+            <fieldset disabled={busy || saving} className="grid min-w-0 gap-3.5 disabled:opacity-60">
+              <label className="flex items-center justify-between gap-3 text-xs font-medium text-slate-700">
+                <span>{t("desktopBackup.enable")}</span>
+                <Switch checked={config.enabled} onCheckedChange={(enabled) => patch({ enabled })} />
+              </label>
+              <div className="grid gap-1.5">
+                <span className="text-xs font-medium text-slate-700">{t("desktopBackup.directory")}</span>
+                <div className="flex min-w-0 items-center gap-2">
+                  <p className="min-w-0 flex-1 break-all rounded-md bg-muted px-2.5 py-1.5 font-mono text-xs text-muted-foreground">{config.directory}/{status.backupSetId}</p>
+                  <Button type="button" variant="outline" size="sm" className="h-8 text-xs font-normal" onClick={() => void attempt(async () => { const directory = await bridge.backup("choose-directory", { backupSetId: status.backupSetId }); if (directory && scope.current === status.backupSetId) patch({ directory }); })}>{t("desktopBackup.choose")}</Button>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-4">
-                <label className="grid gap-1.5 text-sm"><span className="font-medium">{t("desktopBackup.frequency")}</span><select className="h-9 rounded-md border border-input bg-background px-3" value={config.interval} onChange={(event) => patch({ interval: event.target.value as DesktopBackupConfig["interval"] })}>{(["daily", "weekly", "biweekly", "monthly"] as const).map((key) => <option key={key} value={key}>{t(`desktopBackup.intervals.${key}`)}</option>)}</select></label>
-                <label className="grid gap-1.5 text-sm"><span className="font-medium">{t("desktopBackup.retention")}</span><select className="h-9 rounded-md border border-input bg-background px-3" value={config.retention} onChange={(event) => patch({ retention: Number(event.target.value) as DesktopBackupConfig["retention"] })}>{([3, 5, 10, 20] as const).map((count) => <option key={count} value={count}>{t("desktopBackup.copies", { count })}</option>)}</select></label>
+                <label className="grid gap-1.5 text-xs font-medium text-slate-700">
+                  <span>{t("desktopBackup.frequency")}</span>
+                  <select className="h-8 rounded-md border border-input bg-card px-2.5 text-xs text-slate-800 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900" value={config.interval} onChange={(event) => patch({ interval: event.target.value as DesktopBackupConfig["interval"] })}>
+                    {(["daily", "weekly", "biweekly", "monthly"] as const).map((key) => <option key={key} value={key}>{t(`desktopBackup.intervals.${key}`)}</option>)}
+                  </select>
+                </label>
+                <label className="grid gap-1.5 text-xs font-medium text-slate-700">
+                  <span>{t("desktopBackup.retention")}</span>
+                  <select className="h-8 rounded-md border border-input bg-card px-2.5 text-xs text-slate-800 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900" value={config.retention} onChange={(event) => patch({ retention: Number(event.target.value) as DesktopBackupConfig["retention"] })}>
+                    {([3, 5, 10, 20] as const).map((count) => <option key={count} value={count}>{t("desktopBackup.copies", { count })}</option>)}
+                  </select>
+                </label>
               </div>
               <div className="grid gap-3">
-                <label className="flex items-center justify-between gap-3 text-sm font-medium"><span>{t("desktopBackup.encryption")}</span><Switch checked={config.encrypted} onCheckedChange={(encrypted) => patch({ encrypted })} /></label>
-                {config.encrypted && !status.secureStorageAvailable ? <p className="text-sm text-amber-700">{t("desktopBackup.secureUnavailable")}</p> : null}
-                {config.encrypted && status.passwordSet && !changePassword ? <div className="flex items-center justify-between gap-2 text-sm"><span className="text-muted-foreground">{t("desktopBackup.passwordSet")}</span><Button type="button" variant="ghost" size="sm" onClick={() => setChangePassword(true)}>{t("desktopBackup.changePassword")}</Button></div> : null}
-                {passwordNeeded ? <div className="grid gap-2"><Input type="password" autoComplete="new-password" aria-label={t("desktopBackup.password")} placeholder={t("desktopBackup.password")} value={password} onChange={(event) => setPassword(event.target.value)} /><Input type="password" autoComplete="new-password" aria-label={t("desktopBackup.confirmPassword")} placeholder={t("desktopBackup.confirmPassword")} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} />{confirmation && password !== confirmation ? <p className="text-sm text-destructive" role="alert">{t("desktopBackup.passwordMismatch")}</p> : null}<p className="text-sm text-muted-foreground">{t("desktopBackup.passwordChangeNote")}</p></div> : null}
+                <label className="flex items-center justify-between gap-3 text-xs font-medium text-slate-700">
+                  <span>{t("desktopBackup.encryption")}</span>
+                  <Switch checked={config.encrypted} onCheckedChange={(encrypted) => patch({ encrypted })} />
+                </label>
+                {config.encrypted && !status.secureStorageAvailable ? <p className="text-xs text-amber-700">{t("desktopBackup.secureUnavailable")}</p> : null}
+                {config.encrypted && status.passwordSet && !changePassword ? <div className="flex items-center justify-between gap-2 text-xs"><span className="text-muted-foreground">{t("desktopBackup.passwordSet")}</span><Button type="button" variant="ghost" size="sm" className="h-7 text-xs font-normal" onClick={() => setChangePassword(true)}>{t("desktopBackup.changePassword")}</Button></div> : null}
+                {passwordNeeded ? <div className="grid gap-2"><Input className="h-8 text-xs" type="password" autoComplete="new-password" aria-label={t("desktopBackup.password")} placeholder={t("desktopBackup.password")} value={password} onChange={(event) => setPassword(event.target.value)} /><Input className="h-8 text-xs" type="password" autoComplete="new-password" aria-label={t("desktopBackup.confirmPassword")} placeholder={t("desktopBackup.confirmPassword")} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} />{confirmation && password !== confirmation ? <p className="text-xs text-destructive" role="alert">{t("desktopBackup.passwordMismatch")}</p> : null}<p className="text-xs text-muted-foreground">{t("desktopBackup.passwordChangeNote")}</p></div> : null}
               </div>
             </fieldset>
-            <Button className="justify-self-start" size="sm" type="button" disabled={busy || saving || !dirty || !passwordValid} onClick={() => void attempt(async () => { await bridge.backup("save", { backupSetId: status.backupSetId, config, ...(passwordNeeded ? { password } : {}) }); if (scope.current === status.backupSetId) { setPassword(""); setConfirmation(""); setChangePassword(false); } })}>{t("common.save")}</Button>
+            <Button className="h-8 justify-self-start text-xs font-normal" size="sm" type="button" disabled={busy || saving || !dirty || !passwordValid} onClick={() => void attempt(async () => { await bridge.backup("save", { backupSetId: status.backupSetId, config, ...(passwordNeeded ? { password } : {}) }); if (scope.current === status.backupSetId) { setPassword(""); setConfirmation(""); setChangePassword(false); } })}>{t("common.save")}</Button>
           </div>
         </details>
-        <section className="grid gap-3" aria-label={t("desktopBackup.history", { count: status.history.length })}>
-          <h3 className="text-sm font-medium">{t("desktopBackup.history", { count: status.history.length })}</h3>
-          {status.history.length ? <ul className="divide-y">{[...status.history].reverse().map((item) => <li key={item.name} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-3 first:pt-0 last:pb-0">
-            <div className="min-w-0 flex-1 basis-60 space-y-1"><p className="break-all text-sm">{item.name}</p><p className="text-sm text-muted-foreground">{date(item.completedAt)} · {(item.size / 1048576).toFixed(1)} MiB · {t(item.encrypted ? "desktopBackup.encrypted" : "desktopBackup.plain")}</p></div>
-            <div className="flex shrink-0 gap-1"><Button size="sm" variant="outline" disabled={restoreDisabled} onClick={() => restore(item.name)}>{t("desktopBackup.restore")}</Button><Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" disabled={busy || saving} onClick={() => { setDeleteError(null); setDeleting(item.name); }}>{t("common.delete")}</Button></div>
-          </li>)}</ul> : <p className="text-sm text-muted-foreground">{t("desktopBackup.emptyHistory")}</p>}
+        <section className="grid gap-2.5 border-t pt-3" aria-label={t("desktopBackup.history", { count: status.history.length })}>
+          <h3 className="text-xs font-medium text-slate-700">{t("desktopBackup.history", { count: status.history.length })}</h3>
+          {status.history.length ? <ul className="divide-y divide-slate-100">{[...status.history].reverse().map((item) => <li key={item.name} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-2.5 first:pt-0 last:pb-0">
+            <div className="min-w-0 flex-1 basis-60 space-y-0.5"><p className="break-all font-mono text-xs text-slate-800">{item.name}</p><p className="text-xs text-muted-foreground">{date(item.completedAt)} · {(item.size / 1048576).toFixed(1)} MiB · {t(item.encrypted ? "desktopBackup.encrypted" : "desktopBackup.plain")}</p></div>
+            <div className="flex shrink-0 gap-1"><Button size="sm" variant="outline" className="h-7 text-xs font-normal" disabled={restoreDisabled} onClick={() => restore(item.name)}>{t("desktopBackup.restore")}</Button><Button size="sm" variant="ghost" className="h-7 text-xs font-normal text-destructive hover:text-destructive" disabled={busy || saving} onClick={() => { setDeleteError(null); setDeleting(item.name); }}>{t("common.delete")}</Button></div>
+          </li>)}</ul> : <p className="text-xs text-muted-foreground">{t("desktopBackup.emptyHistory")}</p>}
         </section>
       </>}</DesktopBackupImport>
     </CardContent>

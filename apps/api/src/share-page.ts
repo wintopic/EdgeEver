@@ -1,7 +1,9 @@
+import { isValidMemoShareSlug } from "@edgeever/shared/share-slug";
 import { PUBLIC_PAGE_HEADERS, PUBLIC_PAGE_ROBOTS } from "@edgeever/shared/public-page-headers";
 import type { DatabaseAdapter } from "./storage-contract";
 
-const SHARE_PAGE_PATH = /^\/share\/([A-Za-z0-9_-]{43})(\.md)?\/?$/;
+const SHARE_PAGE_PATH = /^\/share\/([^/]+?)(\.md)?\/?$/;
+const SHARE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
 type SharePageRow = {
   title: string | null;
@@ -10,7 +12,8 @@ type SharePageRow = {
 };
 
 export type PublicMemoSharePageTarget = {
-  token: string;
+  /** The random token, or a custom address already lowercased. */
+  segment: string;
   markdown: boolean;
 };
 
@@ -22,6 +25,28 @@ const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (char) => ({
   "'": "&#39;",
 })[char]!);
 
+/**
+ * A public link segment is either the case-sensitive random token or a custom
+ * address. Only the custom address is lowercased, so `/share/Meeting-Notes`
+ * opens the saved `meeting-notes`.
+ */
+export const normalizeMemoSharePathSegment = (value: string) => {
+  const segment = value.trim();
+  if (SHARE_TOKEN_PATTERN.test(segment)) return segment;
+  const slug = segment.toLowerCase();
+  return isValidMemoShareSlug(slug) ? slug : null;
+};
+
+/** Resolves a public link segment to the share token, or null when nothing matches. */
+export const resolveMemoShareToken = async (db: DatabaseAdapter, value: string) => {
+  const segment = normalizeMemoSharePathSegment(value);
+  if (!segment || SHARE_TOKEN_PATTERN.test(segment)) return segment;
+  const row = await db.prepare(
+    `SELECT token FROM memo_shares WHERE slug = ? LIMIT 1`,
+  ).bind(segment).first<{ token: string }>();
+  return row?.token ?? null;
+};
+
 /** Single-note public links. Notebook sites stay on their own renderer. */
 export const parsePublicMemoSharePagePath = (pathname: string): PublicMemoSharePageTarget | null => {
   let path = pathname;
@@ -31,8 +56,9 @@ export const parsePublicMemoSharePagePath = (pathname: string): PublicMemoShareP
     return null;
   }
   const match = SHARE_PAGE_PATH.exec(path);
-  if (!match?.[1]) return null;
-  return { token: match[1], markdown: match[2] === ".md" };
+  const segment = match?.[1] ? normalizeMemoSharePathSegment(match[1]) : null;
+  if (!segment) return null;
+  return { segment, markdown: match![2] === ".md" };
 };
 
 export const isPublicMemoSharePagePath = (pathname: string) => parsePublicMemoSharePagePath(pathname) !== null;
@@ -107,12 +133,13 @@ export const renderPublicMemoSharePage = async (
   const target = parsePublicMemoSharePagePath(url.pathname);
   if (!target) return null;
 
-  const row = await loadShare(db, target.token);
+  const token = await resolveMemoShareToken(db, target.segment);
+  const row = token ? await loadShare(db, token) : null;
   const locked = Boolean(row?.password_hash);
   const readable = Boolean(row) && !locked;
   const body = row?.content_markdown ?? "";
-  const markdownUrl = `${url.origin}/share/${encodeURIComponent(target.token)}.md`;
-  const canonical = `${url.origin}/share/${encodeURIComponent(target.token)}`;
+  const markdownUrl = `${url.origin}/share/${encodeURIComponent(target.segment)}.md`;
+  const canonical = `${url.origin}/share/${encodeURIComponent(target.segment)}`;
 
   if (prefersMarkdown(request.headers.get("accept"), target.markdown)) {
     const headers = pageHeaders("text/markdown; charset=utf-8");

@@ -304,6 +304,32 @@ const buildImageResourceTargetJson = (figure: HTMLElement): string | null => {
   } satisfies EditorResourceTarget);
 };
 
+const buildMobileImagePreviewPayload = (figure: HTMLElement): string => {
+  const source = figure.dataset.resourceHref ?? "";
+  const alt = figure.dataset.resourceFilename || "";
+  const allFigures = typeof document !== "undefined"
+    ? Array.from(document.querySelectorAll<HTMLElement>("figure.edgeever-image-node[data-resource-href]"))
+    : [];
+  const images = allFigures
+    .map((fig) => ({
+      alt: fig.dataset.resourceFilename || "",
+      source: fig.dataset.resourceHref || "",
+    }))
+    .filter((img) => Boolean(img.source));
+
+  let index = allFigures.indexOf(figure);
+  if (index < 0 && source) {
+    index = images.findIndex((img) => img.source === source);
+  }
+
+  return JSON.stringify({
+    alt,
+    source,
+    index: Math.max(0, index),
+    images: images.length > 0 ? images : [{ alt, source }],
+  });
+};
+
 const handleMobileResourceEvent = (
   event: Event,
   onResourcePress?: (targetJson: string) => Promise<void>,
@@ -343,10 +369,7 @@ const handleMobileResourceEvent = (
   if (options?.allowImagePreview && options.onImagePreview && !imageActionRequested) {
     event.preventDefault();
     event.stopPropagation();
-    void options.onImagePreview(JSON.stringify({
-      alt: imageFigure.dataset.resourceFilename || "",
-      source: imageHref,
-    }));
+    void options.onImagePreview(buildMobileImagePreviewPayload(imageFigure));
     return true;
   }
 
@@ -2596,10 +2619,7 @@ const createProtectedImageExtension = (
         if (!options?.onImagePreview) return false;
         const source = figure.dataset.resourceHref ?? "";
         if (!source) return false;
-        void options.onImagePreview(JSON.stringify({
-          alt: figure.dataset.resourceFilename || "",
-          source,
-        }));
+        void options.onImagePreview(buildMobileImagePreviewPayload(figure));
         return true;
       };
 

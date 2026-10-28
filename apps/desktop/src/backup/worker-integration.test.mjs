@@ -80,7 +80,8 @@ test("failed workers cancel unfinished sibling requests and exit", async () => {
     await promptsStarted;
     return Response.json({ error: { code: "fixture_read_failed", message: "Source read failed" } }, { status: 500 });
   } });
-  cleanups.push(() => server.stop(true));
+  // stop() resolves only after active requests finish. This fixture never responds.
+  cleanups.push(() => { server.stop(true); });
   const job = await launch({ operation: "export", context: { baseUrl: `http://127.0.0.1:${server.port}`, accountId: null, token: "" }, path: join(await directory(), "pending.zip.part"), version: { edgeeverVersion: "2.2.0", buildId: "failure" } });
   await expect(job.next("done")).rejects.toMatchObject({ code: "fixture_read_failed" });
   let timer;
