@@ -235,3 +235,73 @@ test("manager creates named files, restores from history and deletes only the se
   expect(await readdir(status.actualDirectory)).toEqual(["Encrypted snapshot.edgeever.enc"]);
   expect(manager.status().history.map(entry => entry.name)).toEqual(["Encrypted snapshot.edgeever.enc"]);
 }, 15000);
+
+const stateServer = (respond) => {
+  const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: respond });
+  cleanups.push(() => { server.stop(true); });
+  return `http://127.0.0.1:${server.port}`;
+};
+const emptyCounts = { notebooks: 0, memos: 0, revisions: 0, resources: 0, prompts: 0 };
+for (const [name, respond, accountId, code] of [
+  ["servers without the backup state endpoint", () => new Response("Not found", { status: 404 }), null, "backup_server_upgrade_required"],
+  ["unsupported backup protocols", () => Response.json({ protocolVersion: 2, userId: null, workspaceId: "ws", identity: "i", backupRevision: "0", counts: emptyCounts }), null, "backup_server_upgrade_required"],
+  ["a source owned by another account", () => Response.json({ protocolVersion: 1, userId: "someone-else", workspaceId: "ws", identity: "i", backupRevision: "0", counts: emptyCounts }), "me", "backup_account_changed"],
+]) test(`export rejects ${name} without writing an archive`, async () => {
+  const root = await directory();
+  const job = await launch({ operation: "export", context: { baseUrl: stateServer(respond), accountId, token: "" }, path: join(root, "backup.zip.part"), version: { edgeeverVersion: "2.2.0", buildId: "state" } });
+  await expect(job.next("done")).rejects.toMatchObject({ code });
+  expect(await readdir(root)).toEqual([]);
+}, 10000);
+
+test("export fails when the source changes while the archive is written", async () => {
+  let stateRequests = 0;
+  let source;
+  source = await instance({ async intercept(request) {
+    if (new URL(request.url).pathname === "/api/v1/backups/state" && ++stateRequests === 2) await source.client.createNotebook({ name: "Written during backup" });
+  } });
+  await source.client.createNotebook({ name: "Before backup" });
+  const job = await launch({ operation: "export", context: { baseUrl: source.baseUrl, accountId: null, token: "" }, path: join(await directory(), "backup.zip.part"), version: { edgeeverVersion: "2.2.0", buildId: "changed" } });
+  await expect(job.next("done")).rejects.toMatchObject({ code: "backup_source_changed" });
+  expect(stateRequests).toBe(2);
+}, 10000);
+
+test("export rejects attachments whose bytes do not match the recorded digest", async () => {
+  const source = await instance({ async intercept(request) {
+    if (/^\/api\/v1\/resources\/[^/]+\/blob$/.test(new URL(request.url).pathname)) return new Response(new Uint8Array(64).fill(0), { headers: { "Content-Type": "application/octet-stream" } });
+  } });
+  const { notebook } = await source.client.createNotebook({ name: "Damaged attachment" });
+  const { memo } = await source.client.createMemo({ notebookId: notebook.id, contentMarkdown: "attachment" });
+  await source.client.uploadMemoResource(memo.id, new File([new Uint8Array(64).fill(7)], "original.bin", { type: "application/octet-stream" }));
+  const job = await launch({ operation: "export", context: { baseUrl: source.baseUrl, accountId: null, token: "" }, path: join(await directory(), "backup.zip.part"), version: { edgeeverVersion: "2.2.0", buildId: "digest" } });
+  await expect(job.next("done")).rejects.toMatchObject({ code: "incompleteResources" });
+}, 10000);
+
+test("verify checks archives offline and rejects damaged files and wrong passwords", async () => {
+  const source = await instance();
+  const { notebook } = await source.client.createNotebook({ name: "Verify" });
+  await source.client.createMemo({ notebookId: notebook.id, contentMarkdown: "verify me" });
+  const root = await directory();
+  const plain = join(root, "backup.zip"); const encrypted = join(root, "backup.edgeever.enc");
+  const counts = (await (await fetch(`${source.baseUrl}/api/v1/backups/state`)).json()).counts;
+  for (const [path, password] of [[plain, undefined], [encrypted, "fixture password"]]) {
+    await (await launch({ operation: "export", context: { baseUrl: source.baseUrl, accountId: null, token: "" }, path, password, version: { edgeeverVersion: "2.2.0", buildId: "verify" } })).next("done");
+  }
+  source.server.stop(true);
+  // An unreachable server proves verification never touches the network.
+  const offline = { baseUrl: "http://127.0.0.1:9", accountId: null, token: "" };
+  for (const [path, password] of [[plain, undefined], [encrypted, "fixture password"]]) {
+    const staging = await directory();
+    const verified = await launch({ operation: "verify", context: offline, path, password, stagingDirectory: staging });
+    expect((await verified.next("done")).result.manifest.counts).toEqual(counts);
+    expect(verified.messages.some(message => message.type === "ready")).toBe(false);
+    expect(await readdir(staging)).toEqual([]);
+  }
+  const wrongPassword = await launch({ operation: "verify", context: offline, path: encrypted, password: "wrong password", stagingDirectory: await directory() });
+  await expect(wrongPassword.next("done")).rejects.toMatchObject({ code: "backup_decrypt_failed" });
+  const damaged = join(root, "damaged.zip");
+  await Bun.write(damaged, (await readFile(plain)).subarray(0, 100));
+  const damagedStaging = await directory();
+  const truncated = await launch({ operation: "verify", context: offline, path: damaged, stagingDirectory: damagedStaging });
+  await expect(truncated.next("done")).rejects.toMatchObject({ code: "invalidZip" });
+  expect(await readdir(damagedStaging)).toEqual([]);
+}, 20000);

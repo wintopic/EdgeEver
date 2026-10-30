@@ -62,6 +62,9 @@ const readState = async () => {
   }
   return state;
 };
+// A failed pipeline destroys the write stream, which closes the shared fd despite
+// autoClose: false. Ignore that close so the original failure reaches the caller.
+const closeOutput = (handle: import("node:fs/promises").FileHandle) => handle.close().catch((error) => { if (error?.code !== "EBADF") throw error; });
 const digestFactory = () => {
   const hash = createHash("sha256");
   return { update: (chunk: Uint8Array) => { hash.update(chunk); }, digest: () => hash.digest("hex") };
@@ -136,7 +139,7 @@ const runExport = async () => {
     await output.sync();
     const size = (await output.stat()).size;
     return { manifest, size, sourceState };
-  } finally { await output.close(); }
+  } finally { await closeOutput(output); }
 };
 
 const diskArchive = async (path: string) => {
@@ -175,7 +178,7 @@ const runImport = async () => {
     } else {
       const output = await open(staged, "wx", 0o600);
       try { await pipeline(createReadStream(input.path), createWriteStream(staged, { fd: output.fd, autoClose: false }), { signal }); }
-      finally { await output.close(); }
+      finally { await closeOutput(output); }
     }
     archive = await diskArchive(staged);
     const backup = await parseEdgeEverZip(archive.blob, (percentage) => send("progress", { stage: "checking", completed: percentage, total: 100 }), digestFactory);

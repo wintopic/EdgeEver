@@ -38,6 +38,14 @@ interface DesktopLoginItemState {
   error?: "invalid" | "saveFailed";
 }
 
+/** A main-window sync result for the note shown in a note window. */
+interface DesktopNoteWindowSyncUpdate {
+  failed: number;
+  conflicted: number;
+  /** The note as acknowledged by this sync, when it was part of it. */
+  memo: import("@edgeever/shared").MemoDetail | null;
+}
+
 interface EdgeEverDesktopBridge {
   backup<A extends keyof import("@edgeever/shared").DesktopBackupActions>(action: A, input?: import("@edgeever/shared").DesktopBackupActions[A]["input"]): Promise<import("@edgeever/shared").DesktopBackupActions[A]["output"]>;
   onBackupStatus(callback: (status: import("@edgeever/shared").DesktopBackupStatus | null) => void): () => void;
@@ -120,6 +128,18 @@ interface EdgeEverDesktopBridge {
   readResource(id: string): Promise<{ type: string; bytes: Uint8Array }>;
   removeStagedResource(id: string): Promise<void>;
   onCommand(callback: (command: string) => void): () => void;
+  noteWindows?(): Promise<string[]>;
+  openNoteWindow?(memoId: string): Promise<{ opened: boolean }>;
+  focusNoteWindow?(memoId: string): Promise<boolean>;
+  onNoteWindowsChanged?(callback: (memoIds: string[]) => void): () => void;
+  onNoteWindowCloseRequest?(callback: () => void): () => void;
+  resolveNoteWindowClose?(allowed: boolean): void;
+  notifyNoteWindowSaved?(): void;
+  notifyNoteWindowReady?(): void;
+  notifyNoteWindowLoadFailed?(): void;
+  sendNoteWindowSync?(memoId: string, update: DesktopNoteWindowSyncUpdate): void;
+  onNoteWindowSync?(callback: (update: DesktopNoteWindowSyncUpdate) => void): () => void;
+  openMemoInMainWindow?(memoId: string): Promise<boolean>;
   setRichTextHeadingShortcutActive?(active: boolean): void;
   onHeadingShortcut?(callback: (level: number) => void): () => void;
   onHibernatePrepare?(callback: () => void | Promise<void>): () => void;

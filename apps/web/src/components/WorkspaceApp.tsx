@@ -138,6 +138,8 @@ import {
   writeDesktopWorkspaceRestoreState,
 } from "@/lib/desktop-workspace-restore";
 import { EditorPaneErrorBoundary, EditorRecoveryPane } from "./EditorPaneErrorBoundary";
+import { NoteInSeparateWindowPane } from "./NoteInSeparateWindowPane";
+import { canOpenNoteWindows, noteWindowSyncUpdate, useDetachedMemoIds, type NoteWindowSyncCompletedDetail } from "@/lib/desktop-note-windows";
 import { isMarkdownFile, readMarkdownFile } from "@/lib/markdown-file-import";
 import { compressImageForUpload } from "@/lib/image-compression";
 import { createScreenshotMemo, screenshotFileFromImportPayload, screenshotImportDedupeKey, screenshotImportGate } from "@/lib/screenshot-import";
@@ -260,6 +262,16 @@ export const WorkspaceApp = ({
   const [notebookNameDialog, setNotebookNameDialog] = useState<NotebookNameDialogState | null>(null);
   const [notebookDeleteConfirmation, setNotebookDeleteConfirmation] = useState<Notebook | null>(null);
   const [appNoticeDialog, setAppNoticeDialog] = useState<AppNoticeDialogState | null>(null);
+  const [detachedMemoIds, setDetachedMemoIds] = useDetachedMemoIds();
+  const pendingEditorSaveRef = useRef<(() => Promise<boolean>) | null>(null);
+  const registerPendingEditorSave = useCallback((save: (() => Promise<boolean>) | null) => {
+    pendingEditorSaveRef.current = save;
+  }, []);
+  const focusDetachedMemo = useCallback((memoId: string) => {
+    if (!detachedMemoIds.has(memoId)) return false;
+    void window.edgeeverDesktop?.focusNoteWindow?.(memoId);
+    return true;
+  }, [detachedMemoIds]);
   const [wechatImportFailureId, setWeChatImportFailureId] = useState<string | null>(null);
   const [wechatImportsInProgress, setWeChatImportsInProgress] = useState(0);
   const [sharedFileImportsInProgress, setSharedFileImportsInProgress] = useState(0);
@@ -1536,6 +1548,96 @@ export const WorkspaceApp = ({
   const selectedMemo = memoQuery.data?.memo ?? cachedSelectedMemo;
   const selectedDiagram = parseDiagramDocument(selectedMemo?.contentMarkdown);
   const selectedTableNote = hasTableDocumentMarker(selectedMemo?.contentMarkdown);
+  const selectedMemoDetached = Boolean(selectedMemo && detachedMemoIds.has(selectedMemo.id));
+  const noteWindowsAvailable = canOpenNoteWindows();
+
+  const returnDetachedMemo = useCallback((memoId: string) => {
+    setDetachedMemoIds((current) => {
+      if (!current.has(memoId)) return current;
+      const next = new Set(current);
+      next.delete(memoId);
+      return next;
+    });
+    void queryClient.invalidateQueries({ queryKey: ["memo", memoId] });
+  }, [queryClient, setDetachedMemoIds]);
+
+  // Sync runs only here. Pass each result on to the note windows so their
+  // editors see acknowledgements, remote changes and conflicts as this one does.
+  const detachedMemoIdsRef = useRef(detachedMemoIds);
+  detachedMemoIdsRef.current = detachedMemoIds;
+  const forwardSyncToNoteWindows = useCallback((detail: NoteWindowSyncCompletedDetail | null) => {
+    const bridge = window.edgeeverDesktop;
+    if (!bridge?.sendNoteWindowSync) return;
+    for (const memoId of detachedMemoIdsRef.current) bridge.sendNoteWindowSync(memoId, noteWindowSyncUpdate(detail, memoId));
+  }, []);
+  useEffect(() => {
+    if (!noteWindowsAvailable) return;
+    const handleSyncCompleted = (event: Event) => forwardSyncToNoteWindows((event as CustomEvent<NoteWindowSyncCompletedDetail>).detail ?? null);
+    window.addEventListener("edgeever:sync-completed", handleSyncCompleted);
+    return () => window.removeEventListener("edgeever:sync-completed", handleSyncCompleted);
+  }, [forwardSyncToNoteWindows, noteWindowsAvailable]);
+
+  // Moving a note hands its pending edits over first: the editor saves, and
+  // only then does the note leave this window. A failed save keeps it here.
+  const handleOpenMemoInNewWindow = useCallback(async (memoId: string) => {
+    const bridge = window.edgeeverDesktop;
+    if (!bridge?.openNoteWindow) return;
+    if (focusDetachedMemo(memoId)) return;
+    if (selectedMemo?.id === memoId && pendingEditorSaveRef.current && !await pendingEditorSaveRef.current()) {
+      setAppNoticeDialog({ title: t("editor.openInNewWindow"), description: t("editor.openInNewWindowSaveFailed") });
+      return;
+    }
+    // The main process reports which notes have windows, so this window
+    // follows its list instead of guessing from the call's result.
+    try {
+      await bridge.openNoteWindow(memoId);
+    } catch (error) {
+      // The window could not show the note and was closed: the note and its
+      // editor come back here, reloaded from what was saved before the move.
+      console.error("Failed to open the note window", error);
+      returnDetachedMemo(memoId);
+      const message = String(error instanceof Error ? error.message : error);
+      // Closed before it was ready, by the user or on quit: nothing to report.
+      if (message.includes("note-window-failed:closed")) return;
+      setAppNoticeDialog({
+        title: t("editor.openInNewWindow"),
+        description: message.includes("note-window-failed:note-unavailable") ? t("editor.noteWindowUnavailable") : t("editor.openInNewWindowFailed"),
+      });
+    }
+  }, [focusDetachedMemo, returnDetachedMemo, selectedMemo?.id, t]);
+
+  const previousSelectedMemoIdRef = useRef(selectedMemoId);
+  useEffect(() => {
+    if (previousSelectedMemoIdRef.current === selectedMemoId) return;
+    previousSelectedMemoIdRef.current = selectedMemoId;
+    // Selecting a moved note (for example with the previous/next shortcuts)
+    // brings its window forward instead of showing it here as well.
+    if (selectedMemoId && document.hasFocus()) focusDetachedMemo(selectedMemoId);
+  }, [focusDetachedMemo, selectedMemoId]);
+
+  const noteWindowCommandRef = useRef<(command: string) => boolean>(() => false);
+  noteWindowCommandRef.current = (command) => {
+    if (command === "open-memo-window") {
+      if (selectedMemo && !selectedDiagram && !selectedTableNote && noteWindowsAvailable) void handleOpenMemoInNewWindow(selectedMemo.id);
+      return true;
+    }
+    if (command.startsWith("note-window-saved:")) {
+      const memoId = command.slice("note-window-saved:".length);
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["memo", memoId] }),
+        queryClient.invalidateQueries({ queryKey: ["memos"] }),
+        queryClient.invalidateQueries({ queryKey: ["notebooks"], refetchType: "inactive" }),
+      ]);
+      void runQueuedSync();
+      return true;
+    }
+    if (command.startsWith("note-window-failed:")) {
+      returnDetachedMemo(command.slice("note-window-failed:".length));
+      setAppNoticeDialog({ title: t("editor.openInNewWindow"), description: t("editor.noteWindowStopped") });
+      return true;
+    }
+    return false;
+  };
   const selectedPosterNote = hasPosterDocumentMarker(selectedMemo?.contentMarkdown);
   const selectedInfographicNote = Boolean(parseInfographicDocument(selectedMemo?.contentMarkdown));
   const desktopNotebookSidebarCollapsed = Boolean(isDesktop && notebookSidebarCollapsed);
@@ -2475,6 +2577,7 @@ export const WorkspaceApp = ({
   }, [clearMemoSelection, clearPendingMemoSelection, handleMobileSearch, navigateWorkspaceHome, setSelectedNotebookId]);
 
   const handleOpenQuickSwitcherMemo = useCallback((memo: MemoSummary) => {
+    focusDetachedMemo(memo.id);
     pendingQuickSwitcherMemoIdRef.current = memo.id;
     setQuickSwitcherOpen(false);
     setQuickSwitcherQuery("");
@@ -2490,9 +2593,10 @@ export const WorkspaceApp = ({
     setCreatedMemoEditId(null);
     setSelectedMemoId(memo.id);
     setActivePane("editor");
-  }, [clearMemoSelection, clearPendingCreatedMemo, navigateWorkspaceHome, setSelectedMemoId, setSelectedNotebookId]);
+  }, [clearMemoSelection, clearPendingCreatedMemo, focusDetachedMemo, navigateWorkspaceHome, setSelectedMemoId, setSelectedNotebookId]);
 
   const handleOpenPluginNote = useCallback((memoId: string, notebookId: string, options?: { search?: string }) => {
+    focusDetachedMemo(memoId);
     setRequestedPluginPanel(null);
     navigateWorkspaceHome();
     setMemoView("notebook");
@@ -2514,7 +2618,7 @@ export const WorkspaceApp = ({
     } else {
       setPluginNavigationRequest(null);
     }
-  }, [clearMemoSelection, clearPendingCreatedMemo, navigateWorkspaceHome, setSelectedMemoId, setSelectedNotebookId]);
+  }, [clearMemoSelection, clearPendingCreatedMemo, focusDetachedMemo, navigateWorkspaceHome, setSelectedMemoId, setSelectedNotebookId]);
 
   const handleOpenLinkedMemo = useMemoLinkNavigation({
     repository,
@@ -2685,6 +2789,7 @@ export const WorkspaceApp = ({
     const bridge = window.edgeeverDesktop;
     if (!bridge?.isAvailable) return;
     const removeCommandListener = bridge.onCommand((command) => {
+      if (noteWindowCommandRef.current(command)) return;
       if (command === "new-memo") handleCreateMemo();
       if (command === "new-notebook") handleCreateNotebook();
       if (command === "focus-search") handleGlobalSearch();
@@ -3317,7 +3422,14 @@ export const WorkspaceApp = ({
                   isOnline={isOnline}
                   isSyncingQueuedChanges={isSyncingQueuedChanges}
                   onSyncQueuedChanges={() => void runQueuedSync()}
-                  onDiscardConflicts={() => void discardConflictsNow()}
+                  onDiscardConflicts={() => {
+                    // Only a discard that ran changes what note windows show.
+                    if (!isOnline) return;
+                    void discardConflictsNow().then(
+                      () => forwardSyncToNoteWindows(null),
+                      (error) => console.error("Failed to discard sync conflicts", error),
+                    );
+                  }}
                   onOpenAssets={handleOpenAssets}
                   onOpenTags={handleOpenTags}
                   onOpenTemplates={handleOpenTemplates}
@@ -3434,6 +3546,7 @@ export const WorkspaceApp = ({
               onBackFromTrash={handleSelectAllMemos}
               onClearTag={handleSelectAllMemos}
               onOpenMemo={(memoId) => {
+                focusDetachedMemo(memoId);
                 clearPendingMemoSelection();
                 if (shouldNavigateHomeWhenOpeningMemo(memoView)) {
                   navigateWorkspaceHome();
@@ -3600,6 +3713,11 @@ export const WorkspaceApp = ({
                     <div className="flex h-full min-w-0 flex-col bg-transparent">
                       {memoSelectionActionBar}
                     </div>
+                  ) : selectedMemo && selectedMemoDetached ? (
+                    <NoteInSeparateWindowPane
+                      title={selectedMemo.title}
+                      onShowWindow={() => focusDetachedMemo(selectedMemo.id)}
+                    />
                   ) : (
                     <EditorPaneErrorBoundary
                       resetKey={selectedMemo?.id ?? selectedMemoId}
@@ -3852,6 +3970,8 @@ export const WorkspaceApp = ({
                     onMobileDefaultEditConsumed={handleMobileDefaultEditConsumed}
                     onSaveAsTemplate={handleSaveAsTemplate}
                     onDuplicateMemo={handleDuplicateMemo}
+                    onOpenInNewWindow={noteWindowsAvailable && memoView !== "trash" ? handleOpenMemoInNewWindow : undefined}
+                    onRegisterPendingSave={registerPendingEditorSave}
                     />
                       )}
                     </EditorPaneErrorBoundary>
