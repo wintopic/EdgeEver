@@ -1,3 +1,4 @@
+import { isDatabaseDailyQuotaError } from "./database-errors";
 import {
   createExcerpt,
   docToText,
@@ -515,6 +516,12 @@ app.onError((error, c) => {
 
   const requestError = httpExceptionError(c, error);
   if (requestError) return requestError;
+
+  if (isDatabaseDailyQuotaError(error)) {
+    console.error("EdgeEver database daily quota exhausted", error);
+    return apiError(c, "database_daily_quota_exceeded",
+      "The instance's Cloudflare D1 daily database quota is exhausted. Daily quotas reset at 00:00 UTC. The instance owner can also upgrade the Workers plan.", 503);
+  }
 
   if (isDatabaseNotReadyError(error)) {
     console.error("EdgeEver database readiness check failed", error);

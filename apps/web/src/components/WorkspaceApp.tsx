@@ -148,6 +148,7 @@ import { createWeChatChatMemo } from "@/lib/wechat-chat-import";
 import { copyMarkdownToWeChat } from "@/lib/wechat-copy";
 import { isDesktopResourceRuntime, stageDesktopResource, toDesktopResourceUrl } from "@/lib/desktop-resources";
 import { findMatchingMemoResource } from "@/lib/staged-resource-repair";
+import { prefersChineseContent } from "@/lib/bilingual-content-locale";
 
 const EditorPane = lazy(() => import("./EditorPane").then((module) => ({ default: module.EditorPane })));
 const DiagramEditorPane = lazy(() => import("./DiagramEditorPane"));
@@ -623,7 +624,7 @@ export const WorkspaceApp = ({
     return startPosterClientRenderer(async () => {
       await repository.sync();
       await invalidateWorkspaceQueries();
-    }, i18n.language.startsWith("zh"));
+    }, prefersChineseContent(i18n.language));
   }, [demoMode, authRequired, user?.id, isLoggingOut, repository, invalidateWorkspaceQueries, i18n.language]);
 
   const refreshWorkspaceFromServer = useCallback(async (mode: WorkspaceRefreshMode) => {
@@ -719,10 +720,12 @@ export const WorkspaceApp = ({
 
   const notebooks = notebooksQuery.data?.notebooks ?? [];
   useEffect(() => {
-    const english = i18n.resolvedLanguage === "en-US";
-    const preferredSlug = english ? "feature-demos" : "demo-features";
-    const preferredNotebookId = notebooks.find((notebook) => notebook.slug === preferredSlug)?.id
-      ?? (english ? "nb_demo_features_en" : "nb_demo_features");
+    // Seeded demo notebooks exist only in Chinese and English (stored slugs/ids).
+    const demoNotebook = prefersChineseContent(i18n.resolvedLanguage)
+      ? { slug: "demo-features", id: "nb_demo_features" }
+      : { slug: "feature-demos", id: "nb_demo_features_en" };
+    const preferredNotebookId = notebooks.find((notebook) => notebook.slug === demoNotebook.slug)?.id
+      ?? demoNotebook.id;
 
     if (!notebooks.some((notebook) => notebook.id === preferredNotebookId)) {
       return;
@@ -1108,6 +1111,8 @@ export const WorkspaceApp = ({
     networkMode: "offlineFirst",
     queryKey: ["memos", memoView, selectedNotebookId, search, memoFilterMode, memoSortMode, selectedNotebookScopeIds, selectedTag],
     queryFn: ({ pageParam }) => repository.listMemos({
+        includeTotal: !pageParam,
+        cursor: pageParam,
         notebookId: memoView === "notebook" && !selectedTag ? selectedNotebookId : null,
         notebookIds: memoView === "notebook" && !selectedTag ? selectedNotebookScopeIds : undefined,
         q: search,
@@ -2044,8 +2049,9 @@ export const WorkspaceApp = ({
     setMobileBottomNavActive("home");
     creatingMemoSelectionRef.current = true;
     if (kind === "poster") {
-      void import("@/lib/poster-design/templates").then(async ({ buildPosterDesign }) => {
-        const poster = await buildPosterDesign({ id: "folio", title: t("poster.defaultHeading"), subtitle: t("poster.defaultSubtitle"), width: 1080, height: 1440, zh: i18n.language.startsWith("zh") });
+      void import("@/lib/poster-design/templates").then(async ({ buildPosterDesign, posterTemplateSampleCopy }) => {
+        const zh = prefersChineseContent(i18n.language);
+        const poster = await buildPosterDesign({ id: "folio", ...posterTemplateSampleCopy("folio", zh), width: 1080, height: 1440, zh });
         createMemoMutation.mutate({ notebookId: targetNotebookId, title: t("poster.name"), contentJson: markdownToDoc(posterFallbackMarkdown(poster)), contentMarkdown: serializePosterDocument(poster), tags: [] });
       }).catch(() => {
         createMemoInFlightRef.current = false;
@@ -3811,7 +3817,6 @@ export const WorkspaceApp = ({
                         />
                       ) : selectedMemo && selectedInfographicNote ? (
                         <InfographicEditorPane
-                          key={selectedMemo.id}
                           memo={selectedMemo}
                           notebooks={notebooks}
                           repository={repository}
@@ -3882,7 +3887,7 @@ export const WorkspaceApp = ({
                       <EditorPane
                       onCreatePoster={async (source, text) => {
                         const { buildPosterDesign } = await import("@/lib/poster-design/templates");
-                        const poster = { ...await buildPosterDesign({ id: "folio", title: (source.title ?? t("poster.defaultHeading")).slice(0, 160), subtitle: text.slice(0, 240), width: 1080, height: 1440, zh: i18n.language.startsWith("zh") }), sourceMemoId: source.id };
+                        const poster = { ...await buildPosterDesign({ id: "folio", title: (source.title ?? t("poster.defaultHeading")).slice(0, 160), subtitle: text.slice(0, 240), width: 1080, height: 1440, zh: prefersChineseContent(i18n.language) }), sourceMemoId: source.id };
                         await createMemoMutation.mutateAsync({ notebookId: source.notebookId, title: `${source.title || t("poster.name")} · ${t("poster.name")}`, contentJson: markdownToDoc(posterFallbackMarkdown(poster)), contentMarkdown: serializePosterDocument(poster), tags: source.tags });
                       }}
                       demoMode={demoMode}

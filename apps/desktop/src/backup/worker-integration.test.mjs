@@ -5,6 +5,7 @@ import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { createServer } from "node:http";
 import { fetchEdgeEverApp } from "../../../api/src/index.ts";
 import { createSelfHostedStorageAdapter } from "../../../api/src/self-hosted-storage-adapter.ts";
 import { BackupManager } from "../main/backup-manager.mjs";
@@ -69,6 +70,21 @@ test("fast upload initialization failures reach the restore handler without term
   const { stdout } = await promisify(execFile)(nodeBinary, [join(bundleDirectory, "restore-sink-rejection.mjs")]);
   expect(JSON.parse(stdout)).toEqual({ status: 503, code: "object_storage_unavailable", message: "Target storage unavailable" });
 });
+
+test("real socket failures retain safe request and underlying transport diagnostics", async () => {
+  const server = createServer((request) => request.socket.destroy());
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  cleanups.push(() => new Promise((resolve) => server.close(resolve)));
+  const root = await directory();
+  const job = await launch({ operation: "export", context: { baseUrl: `http://127.0.0.1:${server.address().port}`, accountId: null, token: "private-request-token" }, path: join(root, "failed.zip.part"), version: { edgeeverVersion: "2.16.0", buildId: "socket-failure" } });
+  await expect(job.next("done")).rejects.toMatchObject({ code: "backup_failed", message: "fetch failed" });
+  const diagnostic = job.messages.find((message) => message.type === "request-error")?.result;
+  expect(diagnostic).toMatchObject({ method: "GET", path: "/api/v1/backups/state", code: "backup_network_failed", message: "Backup network request failed." });
+  expect(diagnostic.causeCodes.some((code) => ["UND_ERR_SOCKET", "ECONNRESET"].includes(code))).toBe(true);
+  expect(diagnostic.elapsedMs).toBeGreaterThanOrEqual(0);
+  expect(JSON.stringify(diagnostic)).not.toContain("private-request-token");
+  expect(await readdir(root)).toEqual([]);
+}, 10000);
 
 test("failed workers cancel unfinished sibling requests and exit", async () => {
   let release;
